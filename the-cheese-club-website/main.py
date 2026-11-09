@@ -251,7 +251,7 @@ async def match_detail(match_id: int):
     import json
     rows = await fetch("""
         SELECT id, guild_id, queue_type, player_ids, team1_ids, team2_ids,
-               result, civ_data, civ_bans, created_at, finished_at
+               result, civ_data, to_jsonb(aoe_matches)->'civ_bans' AS civ_bans, created_at, finished_at
         FROM aoe_matches WHERE id=$1 LIMIT 1
     """, match_id)
     if not rows:

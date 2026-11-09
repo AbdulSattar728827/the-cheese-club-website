@@ -134,11 +134,11 @@ async def aoe_leaderboard(queue: str = "all", limit: int = 50):
                    SUM(losses)::int AS losses,
                    SUM(no_results)::int AS no_results,
                    ROUND(AVG(elo))::int AS elo,
-                   SUM(wins + losses + no_results)::int AS games
+                   SUM(wins + losses)::int AS games
             FROM aoe_queue_stats
             GROUP BY user_id
-            HAVING SUM(wins + losses + no_results) >= 5
-            ORDER BY SUM(wins)::int DESC, SUM(wins + losses + no_results) DESC
+            HAVING SUM(wins + losses) >= 5
+            ORDER BY SUM(wins)::int DESC, SUM(wins + losses) DESC
             LIMIT $1
         """, limit)
     else:
@@ -151,9 +151,9 @@ async def aoe_leaderboard(queue: str = "all", limit: int = 50):
                        'Player ' || RIGHT(aoe_queue_stats.user_id,4)
                    ) AS aoe4_name,
                    (SELECT profile_id FROM aoe4_links l WHERE l.user_id=aoe_queue_stats.user_id ORDER BY linked_at DESC LIMIT 1) AS profile_id,
-                   wins, losses, no_results, (wins + losses + no_results)::int AS games
+                   wins, losses, no_results, (wins + losses)::int AS games
             FROM aoe_queue_stats
-            WHERE queue_type = $1 AND (wins + losses + no_results) >= 5
+            WHERE queue_type = $1 AND (wins + losses) >= 5
             ORDER BY wins DESC, (wins + losses + no_results) DESC
             LIMIT $2
         """, queue, limit)
@@ -193,7 +193,7 @@ async def members(limit: int = 250, search: str = ""):
         WITH aoe AS (
             SELECT user_id, SUM(wins)::int AS wins, SUM(losses)::int AS losses,
                    SUM(no_results)::int AS no_results, ROUND(AVG(elo))::int AS elo,
-                   SUM(wins + losses + no_results)::int AS games
+                   SUM(wins + losses)::int AS games
             FROM aoe_queue_stats GROUP BY user_id
         ),
         vc AS (
@@ -296,6 +296,11 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.get("/")
 async def home():
     return FileResponse("static/index.html")
+
+@app.get("/community")
+async def community_page():
+    return FileResponse("static/community.html")
+
 
 @app.get("/leaderboard")
 async def leaderboard_page():

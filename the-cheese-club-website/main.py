@@ -101,7 +101,7 @@ async def matches(limit: int = 20):
     limit = max(1, min(limit, 100))
     rows = await fetch("""
         SELECT id, queue_type, player_ids, team1_ids, team2_ids,
-               result, civ_data, civ_bans, created_at, finished_at
+               result, civ_data, created_at, finished_at
         FROM aoe_matches
         ORDER BY created_at DESC
         LIMIT $1

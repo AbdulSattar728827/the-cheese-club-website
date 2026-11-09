@@ -131,6 +131,7 @@ async def aoe_leaderboard(queue: str = "all", limit: int = 100, scope: str = "pu
                        'Player ' || RIGHT(aoe_queue_stats.user_id,4)
                    ) AS aoe4_name,
                    (SELECT profile_id FROM aoe4_links l WHERE l.user_id=aoe_queue_stats.user_id ORDER BY linked_at DESC LIMIT 1) AS profile_id,
+                   (SELECT avatar_url FROM discord_member_profiles p WHERE p.user_id=aoe_queue_stats.user_id AND p.is_bot=FALSE ORDER BY updated_at DESC LIMIT 1) AS avatar_url,
                    SUM(wins)::int AS wins,
                    SUM(losses)::int AS losses,
                    SUM(no_results)::int AS no_results,
@@ -152,6 +153,7 @@ async def aoe_leaderboard(queue: str = "all", limit: int = 100, scope: str = "pu
                        'Player ' || RIGHT(aoe_queue_stats.user_id,4)
                    ) AS aoe4_name,
                    (SELECT profile_id FROM aoe4_links l WHERE l.user_id=aoe_queue_stats.user_id ORDER BY linked_at DESC LIMIT 1) AS profile_id,
+                   (SELECT avatar_url FROM discord_member_profiles p WHERE p.user_id=aoe_queue_stats.user_id AND p.is_bot=FALSE ORDER BY updated_at DESC LIMIT 1) AS avatar_url,
                    wins, losses, no_results, (wins + losses)::int AS games
             FROM aoe_queue_stats
             WHERE queue_type = $1 AND (wins + losses) >= $3
@@ -297,7 +299,10 @@ async def match_detail(match_id: int):
         for uid in all_ids:
             item = players.setdefault(uid, {"user_id": uid, "avatar_url": None})
             item.setdefault("username", f"Player {uid[-4:]}")
-            item["civ"] = civs.get(uid) or "Not recorded"
+            civ_value = civs.get(uid)
+            if isinstance(civ_value, dict):
+                civ_value = civ_value.get("name") or civ_value.get("civilization") or civ_value.get("civ")
+            item["civ"] = str(civ_value) if civ_value else "Not recorded"
     match["team1"] = [players[x] for x in team1 if x in players]
     match["team2"] = [players[x] for x in team2 if x in players]
     match["players"] = players

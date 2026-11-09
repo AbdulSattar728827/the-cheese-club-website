@@ -118,8 +118,9 @@ async def overview():
     }
 
 @app.get("/api/leaderboards/aoe")
-async def aoe_leaderboard(queue: str = "all", limit: int = 50):
-    limit = max(1, min(limit, 100))
+async def aoe_leaderboard(queue: str = "all", limit: int = 100, scope: str = "public"):
+    limit = max(1, min(limit, 500))
+    min_games = 5 if scope == "community" else 1
     if queue == "all":
         rows = await fetch("""
             SELECT user_id,
@@ -137,10 +138,10 @@ async def aoe_leaderboard(queue: str = "all", limit: int = 50):
                    SUM(wins + losses)::int AS games
             FROM aoe_queue_stats
             GROUP BY user_id
-            HAVING SUM(wins + losses) >= 5
+            HAVING SUM(wins + losses) >= $2
             ORDER BY SUM(wins)::int DESC, SUM(wins + losses) DESC
             LIMIT $1
-        """, limit)
+        """, limit, min_games)
     else:
         rows = await fetch("""
             SELECT user_id,
@@ -153,15 +154,16 @@ async def aoe_leaderboard(queue: str = "all", limit: int = 50):
                    (SELECT profile_id FROM aoe4_links l WHERE l.user_id=aoe_queue_stats.user_id ORDER BY linked_at DESC LIMIT 1) AS profile_id,
                    wins, losses, no_results, (wins + losses)::int AS games
             FROM aoe_queue_stats
-            WHERE queue_type = $1 AND (wins + losses) >= 5
-            ORDER BY wins DESC, (wins + losses + no_results) DESC
+            WHERE queue_type = $1 AND (wins + losses) >= $3
+            ORDER BY wins DESC, (wins + losses) DESC
             LIMIT $2
-        """, queue, limit)
+        """, queue, limit, min_games)
     return await add_official_ratings(rows)
 
 @app.get("/api/leaderboards/vc")
-async def vc_leaderboard(limit: int = 50):
-    limit = max(1, min(limit, 100))
+async def vc_leaderboard(limit: int = 100, scope: str = "public"):
+    limit = max(1, min(limit, 500))
+    min_seconds = 360000 if scope == "community" else 36000
     rows = await fetch("""
         WITH profile AS (
             SELECT DISTINCT ON (user_id) user_id, username, avatar_url
@@ -179,9 +181,9 @@ async def vc_leaderboard(limit: int = 50):
         LEFT JOIN profile ON profile.user_id=v.user_id
         LEFT JOIN last_vc_name ON last_vc_name.user_id=v.user_id
         GROUP BY v.user_id
-        HAVING SUM(v.total_secs) >= 360000
+        HAVING SUM(v.total_secs) >= $2
         ORDER BY SUM(v.total_secs) DESC LIMIT $1
-    """, limit)
+    """, limit, min_seconds)
     return [dict(r) for r in rows]
 
 

@@ -313,3 +313,19 @@ async def matches_page():
 @app.get("/voice-activity")
 async def voice_activity_page():
     return FileResponse("static/voice-activity.html")
+
+@app.get("/tournament")
+async def tournament_page():
+    return FileResponse("static/tournament.html")
+
+@app.get("/contact")
+async def contact_page():
+    return FileResponse("static/contact.html")
+
+@app.get("/login")
+async def login_page():
+    return FileResponse("static/login.html")
+
+@app.get("/signup")
+async def signup_page():
+    return FileResponse("static/signup.html")

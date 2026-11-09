@@ -152,4 +152,4 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMatchDetail()})
 document.addEventListener('click',e=>{const m=e.target.closest('[data-match]');if(m){e.preventDefault();e.stopPropagation();openMatchDetail(m.dataset.match)}});document.addEventListener('keydown',e=>{const m=e.target.closest?.('[data-match]');if(m&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openMatchDetail(m.dataset.match)}});
 
 </script>
-</body></html>
+<script>(function(){const path=location.pathname.replace(/\/$/,'')||'/';document.querySelectorAll('.nav a').forEach(a=>{const href=new URL(a.href,location.origin).pathname.replace(/\/$/,'')||'/';if(href===path){a.classList.add('active');a.setAttribute('aria-current','page')}else{a.classList.remove('active');a.removeAttribute('aria-current')}})})();</script></body></html>

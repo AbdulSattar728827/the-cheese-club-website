@@ -310,15 +310,35 @@ async def match_detail(match_id: int):
 
 
 @app.get("/api/matches")
-async def matches(limit: int = 20):
-    limit = max(1, min(limit, 100))
+async def matches(limit: int = 100, search: str = ""):
+    """List matches, optionally searching by match ID, Discord name or AoE4 name."""
+    limit = max(1, min(limit, 250))
+    search = (search or "").strip()[:100]
     rows = await fetch("""
-        SELECT id, queue_type, player_ids, team1_ids, team2_ids,
-               result, civ_data, created_at, finished_at
-        FROM aoe_matches
-        ORDER BY created_at DESC
+        SELECT m.id, m.queue_type, m.player_ids, m.team1_ids, m.team2_ids,
+               m.result, m.civ_data, m.created_at, m.finished_at
+        FROM aoe_matches AS m
+        WHERE ($2 = ''
+            OR m.id::text ILIKE '%' || $2 || '%'
+            OR EXISTS (
+                SELECT 1 FROM discord_member_profiles AS p
+                WHERE p.user_id = ANY(m.player_ids)
+                  AND p.username ILIKE '%' || $2 || '%'
+            )
+            OR EXISTS (
+                SELECT 1 FROM vc_logs AS v
+                WHERE v.user_id = ANY(m.player_ids)
+                  AND v.username ILIKE '%' || $2 || '%'
+            )
+            OR EXISTS (
+                SELECT 1 FROM aoe4_links AS l
+                WHERE l.user_id = ANY(m.player_ids)
+                  AND l.aoe4_name ILIKE '%' || $2 || '%'
+            )
+        )
+        ORDER BY m.created_at DESC
         LIMIT $1
-    """, limit)
+    """, limit, search)
     return [dict(r) for r in rows]
 
 @app.get("/api/players/{user_id}")

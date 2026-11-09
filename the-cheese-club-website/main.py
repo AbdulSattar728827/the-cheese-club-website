@@ -162,8 +162,9 @@ async def members(limit: int = 250, search: str = ""):
             FROM aoe4_links ORDER BY user_id, linked_at DESC
         ),
         ids AS (
-            SELECT user_id FROM profile UNION SELECT user_id FROM aoe
-            UNION SELECT user_id FROM vc UNION SELECT user_id FROM links
+            SELECT user_id FROM aoe
+            UNION SELECT user_id FROM vc
+            UNION SELECT user_id FROM links
         )
         SELECT ids.user_id,
                COALESCE(profile.username,last_vc_name.username,links.aoe4_name,

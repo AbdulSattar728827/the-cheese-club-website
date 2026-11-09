@@ -247,27 +247,38 @@ async def members(limit: int = 250, search: str = ""):
 
 @app.get("/api/matches/{match_id}")
 async def match_detail(match_id: int):
+    """Return a complete, JSON-safe match detail record for the website modal."""
+    import json
     rows = await fetch("""
         SELECT id, guild_id, queue_type, player_ids, team1_ids, team2_ids,
-               result, civ_data, created_at, finished_at
+               result, civ_data, civ_bans, created_at, finished_at
         FROM aoe_matches WHERE id=$1 LIMIT 1
     """, match_id)
     if not rows:
         raise HTTPException(status_code=404, detail="Match not found")
     match = dict(rows[0])
-    all_ids = list(dict.fromkeys((match.get("team1_ids") or []) + (match.get("team2_ids") or []) + (match.get("player_ids") or [])))
+    def json_object(value):
+        if isinstance(value, str):
+            try: return json.loads(value)
+            except (TypeError, ValueError): return {}
+        return value if isinstance(value, dict) else {}
+    match["civ_data"] = json_object(match.get("civ_data"))
+    match["civ_bans"] = json_object(match.get("civ_bans"))
+    team1 = [str(x) for x in (match.get("team1_ids") or [])]
+    team2 = [str(x) for x in (match.get("team2_ids") or [])]
+    player_ids = [str(x) for x in (match.get("player_ids") or [])]
+    all_ids = list(dict.fromkeys(team1 + team2 + player_ids))
     players = {}
     if all_ids:
         profile_rows = await fetch("""
             SELECT DISTINCT ON (user_id) user_id, username, avatar_url
-            FROM discord_member_profiles
-            WHERE user_id = ANY($1::text[])
+            FROM discord_member_profiles WHERE user_id = ANY($1::text[])
             ORDER BY user_id, updated_at DESC
         """, all_ids)
         vc_rows = await fetch("""
             SELECT DISTINCT ON (user_id) user_id, username
             FROM vc_logs WHERE user_id = ANY($1::text[])
-            ORDER BY user_id, joined_at DESC
+            ORDER BY user_id, left_at DESC
         """, all_ids)
         elo_rows = await fetch("""
             SELECT user_id, ROUND(AVG(elo))::int AS elo
@@ -278,18 +289,17 @@ async def match_detail(match_id: int):
             players[str(row["user_id"])] = {"user_id": str(row["user_id"]), "username": row["username"], "avatar_url": row["avatar_url"]}
         for row in vc_rows:
             item = players.setdefault(str(row["user_id"]), {"user_id": str(row["user_id"]), "avatar_url": None})
-            if not item.get("username"):
-                item["username"] = row["username"]
+            if not item.get("username"): item["username"] = row["username"]
         for row in elo_rows:
             item = players.setdefault(str(row["user_id"]), {"user_id": str(row["user_id"]), "avatar_url": None})
             item["elo"] = row["elo"]
-        civs = match.get("civ_data") or {}
+        civs = match["civ_data"]
         for uid in all_ids:
-            item = players.setdefault(str(uid), {"user_id": str(uid), "avatar_url": None})
-            item.setdefault("username", f"Player {str(uid)[-4:]}")
-            item["civ"] = civs.get(str(uid)) or "Not recorded"
-    match["team1"] = [players[str(uid)] for uid in (match.get("team1_ids") or []) if str(uid) in players]
-    match["team2"] = [players[str(uid)] for uid in (match.get("team2_ids") or []) if str(uid) in players]
+            item = players.setdefault(uid, {"user_id": uid, "avatar_url": None})
+            item.setdefault("username", f"Player {uid[-4:]}")
+            item["civ"] = civs.get(uid) or "Not recorded"
+    match["team1"] = [players[x] for x in team1 if x in players]
+    match["team2"] = [players[x] for x in team2 if x in players]
     match["players"] = players
     return match
 

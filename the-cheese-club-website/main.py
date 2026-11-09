@@ -245,6 +245,55 @@ async def members(limit: int = 250, search: str = ""):
     """, search, limit)
     return [dict(r) for r in rows]
 
+@app.get("/api/matches/{match_id}")
+async def match_detail(match_id: int):
+    rows = await fetch("""
+        SELECT id, guild_id, queue_type, player_ids, team1_ids, team2_ids,
+               result, civ_data, created_at, finished_at
+        FROM aoe_matches WHERE id=$1 LIMIT 1
+    """, match_id)
+    if not rows:
+        raise HTTPException(status_code=404, detail="Match not found")
+    match = dict(rows[0])
+    all_ids = list(dict.fromkeys((match.get("team1_ids") or []) + (match.get("team2_ids") or []) + (match.get("player_ids") or [])))
+    players = {}
+    if all_ids:
+        profile_rows = await fetch("""
+            SELECT DISTINCT ON (user_id) user_id, username, avatar_url
+            FROM discord_member_profiles
+            WHERE user_id = ANY($1::text[])
+            ORDER BY user_id, updated_at DESC
+        """, all_ids)
+        vc_rows = await fetch("""
+            SELECT DISTINCT ON (user_id) user_id, username
+            FROM vc_logs WHERE user_id = ANY($1::text[])
+            ORDER BY user_id, joined_at DESC
+        """, all_ids)
+        elo_rows = await fetch("""
+            SELECT user_id, ROUND(AVG(elo))::int AS elo
+            FROM aoe_queue_stats WHERE user_id = ANY($1::text[])
+            GROUP BY user_id
+        """, all_ids)
+        for row in profile_rows:
+            players[str(row["user_id"])] = {"user_id": str(row["user_id"]), "username": row["username"], "avatar_url": row["avatar_url"]}
+        for row in vc_rows:
+            item = players.setdefault(str(row["user_id"]), {"user_id": str(row["user_id"]), "avatar_url": None})
+            if not item.get("username"):
+                item["username"] = row["username"]
+        for row in elo_rows:
+            item = players.setdefault(str(row["user_id"]), {"user_id": str(row["user_id"]), "avatar_url": None})
+            item["elo"] = row["elo"]
+        civs = match.get("civ_data") or {}
+        for uid in all_ids:
+            item = players.setdefault(str(uid), {"user_id": str(uid), "avatar_url": None})
+            item.setdefault("username", f"Player {str(uid)[-4:]}")
+            item["civ"] = civs.get(str(uid)) or "Not recorded"
+    match["team1"] = [players[str(uid)] for uid in (match.get("team1_ids") or []) if str(uid) in players]
+    match["team2"] = [players[str(uid)] for uid in (match.get("team2_ids") or []) if str(uid) in players]
+    match["players"] = players
+    return match
+
+
 @app.get("/api/matches")
 async def matches(limit: int = 20):
     limit = max(1, min(limit, 100))

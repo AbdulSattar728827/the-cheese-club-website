@@ -15,6 +15,17 @@ async def lifespan(app: FastAPI):
     global pool
     if DATABASE_URL:
         pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=5, command_timeout=15)
+        async with pool.acquire() as conn:
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS discord_member_profiles (
+                    guild_id TEXT NOT NULL, user_id TEXT NOT NULL,
+                    username TEXT NOT NULL, avatar_url TEXT,
+                    is_bot BOOLEAN NOT NULL DEFAULT FALSE,
+                    is_present BOOLEAN NOT NULL DEFAULT TRUE,
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    PRIMARY KEY (guild_id, user_id)
+                )
+            """)
     yield
     if pool:
         await pool.close()
@@ -65,6 +76,12 @@ async def aoe_leaderboard(queue: str = "all", limit: int = 50):
     if queue == "all":
         rows = await fetch("""
             SELECT user_id,
+                   COALESCE(
+                       (SELECT aoe4_name FROM aoe4_links l WHERE l.user_id=aoe_queue_stats.user_id ORDER BY linked_at DESC LIMIT 1),
+                       (SELECT username FROM discord_member_profiles p WHERE p.user_id=aoe_queue_stats.user_id AND p.is_bot=FALSE ORDER BY updated_at DESC LIMIT 1),
+                       (SELECT username FROM vc_logs v WHERE v.user_id=aoe_queue_stats.user_id ORDER BY left_at DESC LIMIT 1),
+                       'Player ' || RIGHT(aoe_queue_stats.user_id,4)
+                   ) AS aoe4_name,
                    SUM(wins)::int AS wins,
                    SUM(losses)::int AS losses,
                    SUM(no_results)::int AS no_results,
@@ -77,7 +94,14 @@ async def aoe_leaderboard(queue: str = "all", limit: int = 50):
         """, limit)
     else:
         rows = await fetch("""
-            SELECT user_id, wins, losses, no_results, elo, (wins + losses)::int AS games
+            SELECT user_id,
+                   COALESCE(
+                       (SELECT aoe4_name FROM aoe4_links l WHERE l.user_id=aoe_queue_stats.user_id ORDER BY linked_at DESC LIMIT 1),
+                       (SELECT username FROM discord_member_profiles p WHERE p.user_id=aoe_queue_stats.user_id AND p.is_bot=FALSE ORDER BY updated_at DESC LIMIT 1),
+                       (SELECT username FROM vc_logs v WHERE v.user_id=aoe_queue_stats.user_id ORDER BY left_at DESC LIMIT 1),
+                       'Player ' || RIGHT(aoe_queue_stats.user_id,4)
+                   ) AS aoe4_name,
+                   wins, losses, no_results, elo, (wins + losses)::int AS games
             FROM aoe_queue_stats
             WHERE queue_type = $1
             ORDER BY elo DESC, wins DESC
@@ -89,11 +113,79 @@ async def aoe_leaderboard(queue: str = "all", limit: int = 50):
 async def vc_leaderboard(limit: int = 50):
     limit = max(1, min(limit, 100))
     rows = await fetch("""
-        SELECT user_id, total_secs
-        FROM vc_stats
-        ORDER BY total_secs DESC
-        LIMIT $1
+        WITH profile AS (
+            SELECT DISTINCT ON (user_id) user_id, username, avatar_url
+            FROM discord_member_profiles WHERE is_bot=FALSE
+            ORDER BY user_id, updated_at DESC
+        ), last_vc_name AS (
+            SELECT DISTINCT ON (user_id) user_id, username
+            FROM vc_logs ORDER BY user_id, left_at DESC
+        )
+        SELECT v.user_id, SUM(v.total_secs)::float AS total_secs,
+               COALESCE(MAX(profile.username), MAX(last_vc_name.username),
+                        'Player ' || RIGHT(v.user_id, 4)) AS username,
+               MAX(profile.avatar_url) AS avatar_url
+        FROM vc_stats v
+        LEFT JOIN profile ON profile.user_id=v.user_id
+        LEFT JOIN last_vc_name ON last_vc_name.user_id=v.user_id
+        GROUP BY v.user_id ORDER BY SUM(v.total_secs) DESC LIMIT $1
     """, limit)
+    return [dict(r) for r in rows]
+
+
+@app.get("/api/members")
+async def members(limit: int = 250, search: str = ""):
+    limit = max(1, min(limit, 500))
+    search = (search or "").strip()[:80]
+    rows = await fetch("""
+        WITH aoe AS (
+            SELECT user_id, SUM(wins)::int AS wins, SUM(losses)::int AS losses,
+                   SUM(no_results)::int AS no_results, ROUND(AVG(elo))::int AS elo,
+                   SUM(wins + losses)::int AS games
+            FROM aoe_queue_stats GROUP BY user_id
+        ),
+        vc AS (
+            SELECT user_id, SUM(total_secs)::float AS total_secs
+            FROM vc_stats GROUP BY user_id
+        ),
+        profile AS (
+            SELECT DISTINCT ON (user_id) user_id, username, avatar_url
+            FROM discord_member_profiles WHERE is_bot=FALSE AND is_present=TRUE
+            ORDER BY user_id, updated_at DESC
+        ),
+        last_vc_name AS (
+            SELECT DISTINCT ON (user_id) user_id, username
+            FROM vc_logs ORDER BY user_id, left_at DESC
+        ),
+        links AS (
+            SELECT DISTINCT ON (user_id) user_id, aoe4_name, profile_id, bypassed
+            FROM aoe4_links ORDER BY user_id, linked_at DESC
+        ),
+        ids AS (
+            SELECT user_id FROM profile UNION SELECT user_id FROM aoe
+            UNION SELECT user_id FROM vc UNION SELECT user_id FROM links
+        )
+        SELECT ids.user_id,
+               COALESCE(profile.username,last_vc_name.username,links.aoe4_name,
+                        'Player ' || RIGHT(ids.user_id,4)) AS username,
+               profile.avatar_url, links.aoe4_name, links.profile_id,
+               COALESCE(links.bypassed,FALSE) AS bypassed,
+               COALESCE(aoe.wins,0)::int AS wins, COALESCE(aoe.losses,0)::int AS losses,
+               COALESCE(aoe.no_results,0)::int AS no_results, COALESCE(aoe.elo,1000)::int AS elo,
+               COALESCE(aoe.games,0)::int AS games, COALESCE(vc.total_secs,0)::float AS vc_seconds,
+               (aoe.user_id IS NOT NULL) AS has_aoe, (vc.user_id IS NOT NULL) AS has_vc
+        FROM ids
+        LEFT JOIN profile ON profile.user_id=ids.user_id
+        LEFT JOIN last_vc_name ON last_vc_name.user_id=ids.user_id
+        LEFT JOIN links ON links.user_id=ids.user_id
+        LEFT JOIN aoe ON aoe.user_id=ids.user_id
+        LEFT JOIN vc ON vc.user_id=ids.user_id
+        WHERE ($1='' OR COALESCE(profile.username,last_vc_name.username,links.aoe4_name,ids.user_id)
+                    ILIKE '%' || $1 || '%' OR ids.user_id ILIKE '%' || $1 || '%')
+        ORDER BY (COALESCE(aoe.games,0)>0) DESC, COALESCE(aoe.elo,0) DESC,
+                 COALESCE(vc.total_secs,0) DESC, username ASC
+        LIMIT $2
+    """, search, limit)
     return [dict(r) for r in rows]
 
 @app.get("/api/matches")
@@ -111,31 +203,34 @@ async def matches(limit: int = 20):
 @app.get("/api/players/{user_id}")
 async def player_profile(user_id: str):
     stats = await fetch("""
-        SELECT queue_type, wins, losses, no_results, elo
-        FROM aoe_queue_stats
-        WHERE user_id = $1
-        ORDER BY queue_type
+        SELECT queue_type, SUM(wins)::int AS wins, SUM(losses)::int AS losses,
+               SUM(no_results)::int AS no_results, ROUND(AVG(elo))::int AS elo
+        FROM aoe_queue_stats WHERE user_id=$1 GROUP BY queue_type ORDER BY queue_type
     """, user_id)
-    vc = await fetch("""
-        SELECT total_secs FROM vc_stats WHERE user_id = $1
-        ORDER BY total_secs DESC LIMIT 1
-    """, user_id)
+    vc_seconds = await fetchval(
+        "SELECT COALESCE(SUM(total_secs),0) FROM vc_stats WHERE user_id=$1",
+        user_id, default=0
+    )
     links = await fetch("""
-        SELECT aoe4_name, profile_id, bypassed, linked_at
-        FROM aoe4_links WHERE user_id = $1 LIMIT 1
+        SELECT aoe4_name, profile_id, bypassed, linked_at FROM aoe4_links
+        WHERE user_id=$1 ORDER BY linked_at DESC LIMIT 1
+    """, user_id)
+    profile = await fetch("""
+        SELECT username, avatar_url FROM discord_member_profiles
+        WHERE user_id=$1 AND is_bot=FALSE ORDER BY updated_at DESC LIMIT 1
     """, user_id)
     recent = await fetch("""
         SELECT id, queue_type, player_ids, team1_ids, team2_ids, result,
-               civ_data, created_at, finished_at
-        FROM aoe_matches
-        WHERE $1 = ANY(player_ids)
-        ORDER BY created_at DESC LIMIT 10
+               civ_data, created_at, finished_at FROM aoe_matches
+        WHERE $1 = ANY(player_ids) ORDER BY created_at DESC LIMIT 10
     """, user_id)
     return {
         "user_id": user_id,
+        "username": profile[0]["username"] if profile else (links[0]["aoe4_name"] if links else f"Player {user_id[-4:]}"),
+        "avatar_url": profile[0]["avatar_url"] if profile else None,
         "aoe4_link": dict(links[0]) if links else None,
         "queue_stats": [dict(r) for r in stats],
-        "vc_seconds": float(vc[0]["total_secs"]) if vc else 0,
+        "vc_seconds": float(vc_seconds or 0),
         "recent_matches": [dict(r) for r in recent],
     }
 

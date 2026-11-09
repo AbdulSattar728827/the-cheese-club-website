@@ -1,4 +1,7 @@
 import os
+import asyncio
+import time
+import httpx
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -9,6 +12,50 @@ from fastapi.responses import FileResponse
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 pool: Optional[asyncpg.Pool] = None
+AOE4WORLD_API = "https://aoe4world.com/api/v0"
+_rating_cache = {}
+_rating_lock = asyncio.Lock()
+_rating_semaphore = asyncio.Semaphore(5)
+RATING_CACHE_SECONDS = 1800
+
+async def aoe4world_ratings(profile_id):
+    """Fetch and cache current official AoE4World Solo and Team Ranked ratings."""
+    if not profile_id:
+        return {"solo_elo": None, "team_elo": None}
+    key = str(profile_id)
+    now = time.monotonic()
+    cached = _rating_cache.get(key)
+    if cached and now - cached[0] < RATING_CACHE_SECONDS:
+        return cached[1]
+    async with _rating_semaphore:
+        cached = _rating_cache.get(key)
+        if cached and now - cached[0] < RATING_CACHE_SECONDS:
+            return cached[1]
+        try:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                response = await client.get(f"{AOE4WORLD_API}/players/{key}")
+                response.raise_for_status()
+                data = response.json()
+            modes = data.get("modes") or {}
+            solo = modes.get("rm_solo") or {}
+            team = modes.get("rm_team") or {}
+            result = {
+                "solo_elo": solo.get("rating"),
+                "team_elo": team.get("rating"),
+            }
+            _rating_cache[key] = (now, result)
+            return result
+        except Exception:
+            # Do not replace a previously good cached value with a failure.
+            return cached[1] if cached else {"solo_elo": None, "team_elo": None}
+
+async def add_official_ratings(rows):
+    async def enrich(row):
+        item = dict(row)
+        ratings = await aoe4world_ratings(item.get("profile_id"))
+        item.update(ratings)
+        return item
+    return await asyncio.gather(*(enrich(row) for row in rows))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -82,14 +129,16 @@ async def aoe_leaderboard(queue: str = "all", limit: int = 50):
                        (SELECT username FROM vc_logs v WHERE v.user_id=aoe_queue_stats.user_id ORDER BY left_at DESC LIMIT 1),
                        'Player ' || RIGHT(aoe_queue_stats.user_id,4)
                    ) AS aoe4_name,
+                   (SELECT profile_id FROM aoe4_links l WHERE l.user_id=aoe_queue_stats.user_id ORDER BY linked_at DESC LIMIT 1) AS profile_id,
                    SUM(wins)::int AS wins,
                    SUM(losses)::int AS losses,
                    SUM(no_results)::int AS no_results,
                    ROUND(AVG(elo))::int AS elo,
-                   SUM(wins + losses)::int AS games
+                   SUM(wins + losses + no_results)::int AS games
             FROM aoe_queue_stats
             GROUP BY user_id
-            ORDER BY SUM(wins)::int DESC, ROUND(AVG(elo))::int DESC
+            HAVING SUM(wins + losses + no_results) >= 5
+            ORDER BY SUM(wins)::int DESC, SUM(wins + losses + no_results) DESC
             LIMIT $1
         """, limit)
     else:
@@ -101,13 +150,14 @@ async def aoe_leaderboard(queue: str = "all", limit: int = 50):
                        (SELECT username FROM vc_logs v WHERE v.user_id=aoe_queue_stats.user_id ORDER BY left_at DESC LIMIT 1),
                        'Player ' || RIGHT(aoe_queue_stats.user_id,4)
                    ) AS aoe4_name,
-                   wins, losses, no_results, elo, (wins + losses)::int AS games
+                   (SELECT profile_id FROM aoe4_links l WHERE l.user_id=aoe_queue_stats.user_id ORDER BY linked_at DESC LIMIT 1) AS profile_id,
+                   wins, losses, no_results, (wins + losses + no_results)::int AS games
             FROM aoe_queue_stats
-            WHERE queue_type = $1
-            ORDER BY elo DESC, wins DESC
+            WHERE queue_type = $1 AND (wins + losses + no_results) >= 5
+            ORDER BY wins DESC, (wins + losses + no_results) DESC
             LIMIT $2
         """, queue, limit)
-    return [dict(r) for r in rows]
+    return await add_official_ratings(rows)
 
 @app.get("/api/leaderboards/vc")
 async def vc_leaderboard(limit: int = 50):
@@ -128,7 +178,9 @@ async def vc_leaderboard(limit: int = 50):
         FROM vc_stats v
         LEFT JOIN profile ON profile.user_id=v.user_id
         LEFT JOIN last_vc_name ON last_vc_name.user_id=v.user_id
-        GROUP BY v.user_id ORDER BY SUM(v.total_secs) DESC LIMIT $1
+        GROUP BY v.user_id
+        HAVING SUM(v.total_secs) >= 360000
+        ORDER BY SUM(v.total_secs) DESC LIMIT $1
     """, limit)
     return [dict(r) for r in rows]
 
@@ -141,7 +193,7 @@ async def members(limit: int = 250, search: str = ""):
         WITH aoe AS (
             SELECT user_id, SUM(wins)::int AS wins, SUM(losses)::int AS losses,
                    SUM(no_results)::int AS no_results, ROUND(AVG(elo))::int AS elo,
-                   SUM(wins + losses)::int AS games
+                   SUM(wins + losses + no_results)::int AS games
             FROM aoe_queue_stats GROUP BY user_id
         ),
         vc AS (
@@ -174,14 +226,16 @@ async def members(limit: int = 250, search: str = ""):
                COALESCE(aoe.wins,0)::int AS wins, COALESCE(aoe.losses,0)::int AS losses,
                COALESCE(aoe.no_results,0)::int AS no_results, COALESCE(aoe.elo,1000)::int AS elo,
                COALESCE(aoe.games,0)::int AS games, COALESCE(vc.total_secs,0)::float AS vc_seconds,
-               (aoe.user_id IS NOT NULL) AS has_aoe, (vc.user_id IS NOT NULL) AS has_vc
+               (COALESCE(aoe.games,0) >= 5) AS has_aoe,
+               (COALESCE(vc.total_secs,0) >= 360000) AS has_vc
         FROM ids
         LEFT JOIN profile ON profile.user_id=ids.user_id
         LEFT JOIN last_vc_name ON last_vc_name.user_id=ids.user_id
         LEFT JOIN links ON links.user_id=ids.user_id
         LEFT JOIN aoe ON aoe.user_id=ids.user_id
         LEFT JOIN vc ON vc.user_id=ids.user_id
-        WHERE ($1='' OR COALESCE(profile.username,last_vc_name.username,links.aoe4_name,ids.user_id)
+        WHERE (COALESCE(aoe.games,0) >= 5 OR COALESCE(vc.total_secs,0) >= 360000)
+          AND ($1='' OR COALESCE(profile.username,last_vc_name.username,links.aoe4_name,ids.user_id)
                     ILIKE '%' || $1 || '%' OR ids.user_id ILIKE '%' || $1 || '%')
         ORDER BY (COALESCE(aoe.games,0)>0) DESC, COALESCE(aoe.elo,0) DESC,
                  COALESCE(vc.total_secs,0) DESC, username ASC
@@ -225,8 +279,10 @@ async def player_profile(user_id: str):
                civ_data, created_at, finished_at FROM aoe_matches
         WHERE $1 = ANY(player_ids) ORDER BY created_at DESC LIMIT 10
     """, user_id)
+    official_ratings = await aoe4world_ratings(links[0]["profile_id"] if links else None)
     return {
         "user_id": user_id,
+        **official_ratings,
         "username": profile[0]["username"] if profile else (links[0]["aoe4_name"] if links else f"Player {user_id[-4:]}"),
         "avatar_url": profile[0]["avatar_url"] if profile else None,
         "aoe4_link": dict(links[0]) if links else None,

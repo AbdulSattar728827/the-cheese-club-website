@@ -239,3 +239,15 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.get("/")
 async def home():
     return FileResponse("static/index.html")
+
+@app.get("/leaderboard")
+async def leaderboard_page():
+    return FileResponse("static/leaderboard.html")
+
+@app.get("/matches")
+async def matches_page():
+    return FileResponse("static/matches.html")
+
+@app.get("/voice-activity")
+async def voice_activity_page():
+    return FileResponse("static/voice-activity.html")

@@ -149,12 +149,15 @@ function renderMembers(rows, reset=true){
  $('memberGrid').innerHTML=visible.map(m=>{
   const avatar=m.avatar_url?`<img class="member-avatar" src="${esc(m.avatar_url)}" alt="">`:`<div class="member-avatar" style="display:grid;place-items:center;color:#e9bf51;font-weight:800">${esc((m.username||'?').slice(0,1).toUpperCase())}</div>`;
   const voiceSeconds=Number(m.vc_seconds||0);
-  return `<article class="member-card" data-user="${esc(m.user_id)}"><div class="member-top">${avatar}<div style="min-width:0"><div class="member-name">${esc(m.username||shortId(m.user_id))}</div><div class="member-id">Discord · ${maskDiscordId(m.user_id)}</div></div></div><div class="member-tags">${m.has_aoe?'<span class="member-tag">⚔ AOE IV PLAYER</span>':''}${m.has_vc?'<span class="member-tag vc">🎙 VC MEMBER</span>':''}</div><div class="member-metrics"><span>W / L<b>${fmt(m.wins)} / ${fmt(m.losses)}</b></span><span>GAMES<b>${m.has_aoe?fmt(m.games):'—'}</b></span><span>VOICE TIME<b>${voiceSeconds>0?duration(voiceSeconds):'—'}</b></span></div></article>`;
+  return `<article class="member-card" data-user="${esc(m.user_id)}"><div class="member-top">${avatar}<div style="min-width:0"><div class="member-name">${esc(m.username||shortId(m.user_id))}</div><div class="member-id">Discord · ${maskDiscordId(m.user_id)}</div></div></div><div class="member-tags">${m.has_aoe?'<span class="member-tag">⚔ AOE IV PLAYER</span>':''}${m.has_vc?'<span class="member-tag vc">🎙 VC MEMBER</span>':''}</div><div class="member-metrics"><span>W / L<b>${fmt(m.wins)} / ${fmt(m.losses)}</b></span><span>GAMES<b>${m.has_aoe?fmt(m.games):'—'}</b></span><span>VOICE TIME<b>${duration(voiceSeconds)}</b></span></div></article>`;
  }).join('');
  $('memberGrid').querySelectorAll('.member-card').forEach(card=>card.addEventListener('click',()=>openMember(card.dataset.user)));
- const remaining=Math.max(0,rows.length-membersShown);
- $('membersMore').hidden=remaining===0;
- $('loadMoreMembers').textContent=remaining?`LOAD MORE (${Math.min(24,remaining)} MORE)`:'ALL MEMBERS LOADED';
+ const remaining=Math.max(0, filteredMembers.length - Math.min(membersShown, filteredMembers.length));
+ const moreWrap=$('membersMore');
+ moreWrap.hidden = remaining <= 0;
+ if (remaining > 0) {
+   $('loadMoreMembers').textContent = `LOAD MORE (${Math.min(24, remaining)} MORE)`;
+ }
 }
 let profileQueryHandled=false;
 async function loadMembers(){
@@ -167,7 +170,12 @@ async function loadMembers(){
  if(target&&!profileQueryHandled){profileQueryHandled=true;openMember(target)}
 }
 $('loadMoreMembers').addEventListener('click',()=>{
- membersShown=Math.min(filteredMembers.length,membersShown+24);
+ const total = filteredMembers.length;
+ if (membersShown >= total) {
+   $('membersMore').hidden = true;
+   return;
+ }
+ membersShown = Math.min(total, membersShown + 24);
  renderMembers(filteredMembers,false);
 });
 async function openMember(id){const profileUrl=new URL(location.href);profileUrl.searchParams.set('member',id);history.replaceState({},'',profileUrl);$('memberBackdrop').style.display='flex';$('memberProfile').innerHTML='<div class="empty">Loading profile…</div>';try{const p=await api('/api/players/'+encodeURIComponent(id));const q=p.queue_stats||[];const wins=q.reduce((a,x)=>a+Number(x.wins||0),0),losses=q.reduce((a,x)=>a+Number(x.losses||0),0);$('memberProfile').innerHTML=`<div class="profile-hero">${p.avatar_url?`<img src="${esc(p.avatar_url)}" alt="">`:''}<div><h3>${esc(p.username||shortId(id))}</h3><small>Discord ID: ${maskDiscordId(id)} ${p.aoe4_link?.aoe4_name?' · AoE4: '+esc(p.aoe4_link.aoe4_name):''}</small></div></div><div class="profile-stats"><div class="profile-stat"><small>VC time</small><b>${duration(p.vc_seconds)}</b></div><div class="profile-stat"><small>Wins / Losses</small><b>${wins} / ${losses}</b></div><div class="profile-stat"><small>Matches played</small><b>${wins+losses}</b></div><div class="profile-stat"><small>Solo ELO · AoE4World</small><b>${p.solo_elo==null?'N/A':fmt(p.solo_elo)}</b></div><div class="profile-stat"><small>TG ELO · AoE4World</small><b>${p.team_elo==null?'N/A':fmt(p.team_elo)}</b></div></div><h3 style="font:700 20px 'Barlow Condensed';margin:12px 0">AOE IV QUEUE RECORDS</h3>${q.length?q.map(x=>{const queue=String(x.queue_type||'').toLowerCase();const targetName=p.aoe4_link?.aoe4_name||p.username||'';const href='/leaderboard?queue='+encodeURIComponent(queue)+'&search='+encodeURIComponent(targetName)+'&user='+encodeURIComponent(id)+'&fromCommunity=1';return `<a class="match queue-record-link" href="${href}" title="View ${esc(queue)} rankings for ${esc(p.username||'this player')}"><div><strong>${esc(x.queue_type)} <span class="click-indicator">↗</span></strong><small>${fmt(x.wins)} wins · ${fmt(x.losses)} losses · ${fmt(x.no_results)} no results</small></div><span class="elo">${fmt(x.wins+x.losses)} games</span></a>`}).join(''):'<div class="empty">No AoE IV queue statistics recorded.</div>'}<h3 style="font:700 20px 'Barlow Condensed';margin:18px 0 10px">RECENT MATCHES</h3>${(p.recent_matches||[]).length?p.recent_matches.map(m=>`<div class="match profile-match" role="button" tabindex="0" title="Open match details" data-match="${Number(m.id)}"><div><strong>Match #${m.id} · ${esc(m.queue_type)} <span class="click-indicator">↗</span></strong><small>${date(m.created_at)}</small><span class="match-hint">CLICK TO VIEW MATCH DETAILS</span></div><span class="result">${esc(m.result)}</span></div>`).join(''):'<div class="empty">No recent match records.</div>'}`}catch(e){$('memberProfile').innerHTML=`<div class="empty">Could not load profile: ${esc(e.message)}</div>`}}

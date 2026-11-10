@@ -200,9 +200,19 @@ async def members(limit: int = 250, search: str = ""):
                    SUM(wins + losses)::int AS games
             FROM aoe_queue_stats GROUP BY user_id
         ),
-        vc AS (
+        vc_stats_totals AS (
             SELECT user_id, SUM(total_secs)::float AS total_secs
             FROM vc_stats GROUP BY user_id
+        ),
+        vc_log_totals AS (
+            SELECT user_id, SUM(duration_s)::float AS total_secs
+            FROM vc_logs GROUP BY user_id
+        ),
+        vc AS (
+            SELECT COALESCE(vs.user_id, vl.user_id) AS user_id,
+                   COALESCE(vs.total_secs, vl.total_secs, 0)::float AS total_secs
+            FROM vc_stats_totals vs
+            FULL OUTER JOIN vc_log_totals vl ON vl.user_id = vs.user_id
         ),
         profile AS (
             SELECT DISTINCT ON (user_id) user_id, username, avatar_url

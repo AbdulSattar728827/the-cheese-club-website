@@ -68,9 +68,25 @@
 .rules b{display:block;color:var(--white);font-size:13px;margin-bottom:5px}
 .rules span{color:#8f8b82;font-size:12px;line-height:1.55}
 .about a:focus-visible{outline:1px solid var(--gold);outline-offset:3px;border-radius:3px}
+.about-founders{border-top:1px solid var(--line);padding:30px 36px 32px}
+.about-founders-head{margin-bottom:18px}
+.about-founders-head h3{font:700 26px 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:1px;margin:0}
+.about-founders-head p{margin:5px 0 0;color:var(--muted);font-size:12px}
+.founder-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.founder-card{display:flex;align-items:center;gap:18px;padding:18px 20px;background:#141417;border:1px solid #51401f;border-radius:13px;min-width:0}
+a.founder-card:hover{border-color:#8d6a24}
+.founder-card img{width:76px;height:76px;flex:0 0 76px;border-radius:50%;object-fit:cover;border:2px solid #b88927;background:#29251d}
+.founder-card small{font-size:9px;color:var(--gold);letter-spacing:2px;font-weight:800}
+.founder-card h4{font:700 26px/1.05 'Barlow Condensed',sans-serif;margin:4px 0 5px}
+.founder-card p{font-size:12px;color:#9d998f;margin:0;line-height:1.5}
+.founder-card .founder-link{display:inline-block;margin-top:7px;color:var(--gold);font-size:11px;font-weight:700}
+.privacy-note{margin:18px 0 0;color:#8f8b82;font-size:12px;line-height:1.6}
+.privacy-note a{color:var(--gold);font-weight:700}
+.privacy-note a:hover{text-decoration:underline}
+@media(max-width:700px){.founder-grid{grid-template-columns:1fr}}
 @media(max-width:1050px){.house-rules{grid-template-columns:1fr;gap:14px}.rules{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:850px){.about-intro{grid-template-columns:1fr}.about-story{border-right:0;border-bottom:1px solid var(--line)}.ages{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:28px}.ages li::after{display:none}.age-path-head{flex-direction:column;align-items:flex-start}}
-@media(max-width:520px){.about-story,.about-offer,.age-path,.house-rules{padding-left:20px;padding-right:20px}.ages,.rules{grid-template-columns:1fr}.ages li{display:grid;grid-template-columns:56px 1fr;column-gap:16px}.age-num{grid-row:span 3}.age-name{margin-top:2px}.ages li:not(:last-child)::after{display:block;top:56px;bottom:-20px;left:28px;right:auto;width:1px;height:auto;background:linear-gradient(#8a682b,#5a4520)}}
+@media(max-width:520px){.about-story,.about-offer,.age-path,.house-rules,.about-founders{padding-left:20px;padding-right:20px}.founder-card img{width:60px;height:60px;flex-basis:60px}.ages,.rules{grid-template-columns:1fr}.ages li{display:grid;grid-template-columns:56px 1fr;column-gap:16px}.age-num{grid-row:span 3}.age-name{margin-top:2px}.ages li:not(:last-child)::after{display:block;top:56px;bottom:-20px;left:28px;right:auto;width:1px;height:auto;background:linear-gradient(#8a682b,#5a4520)}}
 </style>
 <!-- ABOUT SECTION STYLES: end -->
 <link rel="stylesheet" href="/static/common.css">
@@ -104,6 +120,13 @@
     </ul>
    </div>
   </div>
+  <div class="about-founders" aria-labelledby="foundersTitle">
+   <div class="about-founders-head"><h3 id="foundersTitle">Meet the founders</h3><p>The people behind The Cheese Club</p></div>
+   <div class="founder-grid">
+    <article class="founder-card" id="founderMicro"><img src="/static/cheese-club-logo.png" alt="MicroMan profile picture"><div><small>FOUNDER</small><h4>MicroMan</h4><p>Building the community, one match at a time.</p></div></article>
+    <article class="founder-card" id="founderGrim"><img src="/static/cheese-club-logo.png" alt="GrimLord profile picture"><div><small>FOUNDER</small><h4>GrimLord</h4><p>Growing the community and bringing players together.</p></div></article>
+   </div>
+  </div>
   <div class="age-path">
    <div class="age-path-head"><div><h3>Age up in four steps</h3><p>From your first message to the leaderboard</p></div><a class="btn primary" href="https://discord.gg/thecheeseclub" target="_blank" rel="noopener noreferrer">Join the Discord ↗</a></div>
    <ol class="ages">
@@ -115,12 +138,15 @@
   </div>
   <div class="house-rules">
    <h3>House rules</h3>
+   <div>
    <ul class="rules">
     <li><b>Respect everyone</b><span>No harassment, hate or personal attacks, in chat or in voice.</span></li>
     <li><b>Play fair</b><span>No exploits, and report match results honestly.</span></li>
     <li><b>GG, win or lose</b><span>Win humbly, lose gracefully. Good sportsmanship goes a long way.</span></li>
     <li><b>Help newer players</b><span>Everyone started somewhere. Share what you know.</span></li>
    </ul>
+   <p class="privacy-note">We keep the information we show about members to a minimum. Read how we handle it, and how to hide or remove yours, on our <a href="/privacy">Privacy page</a>.</p>
+   </div>
   </div>
  </div>
 </section>
@@ -130,6 +156,13 @@
 <script>
 const fmt=n=>Number(n||0).toLocaleString();
 document.getElementById('year').textContent=new Date().getFullYear();
+/* Founders: load their Discord pictures and link each card to the founder's player page. */
+for(const [id,el] of [['424636228751851560','founderMicro'],['382654122135912448','founderGrim']]){
+ fetch('/api/players/'+id).then(r=>r.ok?r.json():null).then(p=>{if(!p)return;const card=document.getElementById(el);
+  if(p.avatar_url)card.querySelector('img').src=p.avatar_url;
+  if(p.user_id){const link=document.createElement('a');link.className='founder-card';link.id=el;link.href='/player/'+encodeURIComponent(p.user_id);link.innerHTML=card.innerHTML;
+   link.querySelector('div').insertAdjacentHTML('beforeend','<span class="founder-link">View profile →</span>');card.replaceWith(link)}}).catch(()=>{});
+}
 fetch('/api/overview').then(r=>r.ok?r.json():null).then(d=>{if(!d)return;const hours=Math.floor(Number(d.total_vc_seconds||0)/3600);if(hours>0){document.getElementById('aboutVoiceHours').textContent=fmt(hours);document.getElementById('aboutVoiceLine').hidden=false}}).catch(()=>{});
 </script>
 </body></html>

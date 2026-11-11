@@ -58,7 +58,7 @@
 @media(max-width:900px){.member-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:460px){.member-grid{grid-template-columns:1fr}.profile-stats{grid-template-columns:repeat(2,1fr)}}
 
-.founders-section{margin:4px 0 34px}.founder-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.founder-card{display:flex;align-items:center;gap:16px;padding:18px;background:linear-gradient(145deg,#1b1b20,#121214);border:1px solid #51401f;border-radius:13px}.founder-card img{width:76px;height:76px;border-radius:50%;object-fit:cover;border:2px solid #b88927;background:#29251d}.founder-card small{font-size:9px;color:var(--gold);letter-spacing:2px;font-weight:800}.founder-card h3{font:700 25px 'Barlow Condensed';margin:4px 0}.founder-card p{font-size:11px;color:#999;margin:0}@media(max-width:600px){.founder-grid{grid-template-columns:1fr}.brand .brand-title{font-size:16px}}
+@media(max-width:600px){.brand .brand-title{font-size:16px}}
 
 /* Interaction affordances and sticky modal controls */
 .clickable-player-row{cursor:pointer;transition:background .15s,box-shadow .15s}
@@ -100,6 +100,7 @@
 .live-pulse strong{display:block;font:700 28px 'Barlow Condensed';color:var(--gold2)}
 .live-pulse span{color:#8f8b82;font-size:11px}
 .week-list{padding:4px 20px 10px}
+@media(min-width:1100px){.week-list{display:grid;grid-template-columns:1fr 1fr;column-gap:22px}.week-item:nth-child(2){border-top:0}}
 .week-item{display:grid;grid-template-columns:44px minmax(0,1fr);gap:14px;align-items:center;padding:15px 0;border-top:1px solid #ffffff0c}
 .week-item:first-child{border-top:0}
 .week-icon{width:44px;height:44px;border-radius:50%;object-fit:cover;background:#211c12;border:1px solid #6e5424;display:grid;place-items:center;color:var(--gold);font-weight:800;font-size:18px;overflow:hidden}
@@ -108,6 +109,11 @@
 .week-item b{display:block;font:700 21px/1.15 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.4px;margin:3px 0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .week-item b a:hover{color:var(--gold)}
 .week-item span{color:#9d998f;font-size:11.5px}
+.week-item b{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.week-item b a,.week-item b .vs{white-space:nowrap}
+.week-item b .vs{color:#777;font:600 13px Inter,sans-serif;margin:0 2px;text-transform:none}
+.week-item[role=button]{cursor:pointer;border-radius:8px;margin:0 -8px;padding-left:8px;padding-right:8px}
+.week-item[role=button]:hover,.week-item[role=button]:focus{background:#242126;outline:none}
 @media(max-width:850px){.live-grid{grid-template-columns:1fr}}
 @media(max-width:460px){.live-match{grid-template-columns:44px minmax(0,1fr)}.live-match .result{display:none}}
 </style>
@@ -148,8 +154,6 @@
  </div>
 </section>
 <!-- LIVE ACTIVITY: end -->
-<section class="founders-section" aria-labelledby="foundersTitle"><div class="section-head"><div><h2 id="foundersTitle">Meet the Founders</h2><p>The people behind The Cheese Club community</p></div><span class="tag">FOUNDERS</span></div><div class="founder-grid"><article class="founder-card"><img id="founderMicroAvatar" src="/static/cheese-club-logo.png" alt="MicroMan profile picture"><div><small>FOUNDER</small><h3>MicroMan</h3><p>Building the community, one match at a time.</p></div></article><article class="founder-card"><img id="founderGrimAvatar" src="/static/cheese-club-logo.png" alt="GrimLord profile picture"><div><small>FOUNDER</small><h3>GrimLord</h3><p>Growing the community and bringing players together.</p></div></article></div></section>
-
 <section id="community">
  <div class="section-head"><div><h2>Community at a glance</h2><p>Live totals from the connected Discord database</p></div><span class="tag" id="syncStatus">Connecting…</span></div>
  <div class="stats">
@@ -207,8 +211,9 @@ function liveLineup(m){
  if(all.length===2)return `${esc(all[0].username)}<span class="vs">vs</span>${esc(all[1].username)}`;
  return all.length?all.map(p=>esc(p.username)).join(', '):`${fmt(m.player_count)} players`;
 }
-function weekRow(label,icon,title,line){return `<div class="week-item"><div class="week-icon">${icon}</div><div style="min-width:0"><small>${label}</small><b>${title}</b><span>${line}</span></div></div>`}
+function weekRow(label,icon,title,line,matchId){return `<div class="week-item"${matchId?` role="button" tabindex="0" data-match="${Number(matchId)}" title="Open match #${Number(matchId)}"`:''}><div class="week-icon">${icon}</div><div style="min-width:0"><small>${label}</small><b>${title}</b><span>${line}</span></div></div>`}
 function personIcon(p){return p.avatar_url?`<img class="week-icon" src="${esc(p.avatar_url)}" alt="">`:esc((p.username||'?').slice(0,1).toUpperCase())}
+function joinNames(a){return a.length<2?(a[0]||''):a.slice(0,-1).join(', ')+' & '+a[a.length-1]}
 function personLink(p){return p.user_id?`<a href="${ccPlayerHref(p.user_id)}">${esc(p.username)}</a>`:esc(p.username)}
 async function loadActivity(){const a=await api('/api/activity');
  const live=a.in_progress||[];
@@ -218,6 +223,10 @@ async function loadActivity(){const a=await api('/api/activity');
  const w=a.week||{};const rows=[];
  if(w.most_wins)rows.push(weekRow('Most wins',personIcon(w.most_wins),personLink(w.most_wins),`${fmt(w.most_wins.wins)} win${w.most_wins.wins===1?'':'s'} in the last 7 days`));
  if(w.hottest_streak)rows.push(weekRow('Hottest streak',personIcon(w.hottest_streak),personLink(w.hottest_streak),`${fmt(w.hottest_streak.streak)} wins in a row and counting`));
+ if(w.most_active)rows.push(weekRow('Most active',personIcon(w.most_active),personLink(w.most_active),`${fmt(w.most_active.games)} game${w.most_active.games===1?'':'s'} played this week`));
+ if(w.rivalry){const [a,b]=w.rivalry.players;const lead=a.wins===b.wins?`level at ${a.wins}–${b.wins}`:`${esc((a.wins>b.wins?a:b).username)} leads ${Math.max(a.wins,b.wins)}–${Math.min(a.wins,b.wins)}`;
+  rows.push(weekRow('Rivalry of the week','<span aria-hidden="true">⚔️</span>',`${personLink(a)} <span class="vs">vs</span> ${personLink(b)}`,`Met ${fmt(w.rivalry.games)} times this week, ${lead}`))}
+ if(w.biggest_upset){const u=w.biggest_upset;rows.push(weekRow('Biggest upset','<span aria-hidden="true">💥</span>',joinNames((u.winners||[]).map(personLink))||'Unknown',`Beat a team rated about ${fmt(u.rating_gap)} higher in ${esc(u.queue_type)} · Match #${Number(u.match_id)}`,u.match_id))}
  if(w.most_played_civ)rows.push(weekRow('Most played civ',civFlag(w.most_played_civ.civ),esc(w.most_played_civ.civ),`Picked ${fmt(w.most_played_civ.picks)} time${w.most_played_civ.picks===1?'':'s'} this week`));
  $('liveWeek').innerHTML=rows.join('')||'<div class="live-empty">No games played in the last 7 days yet. This week\'s top players and civs will show up here.</div>';
 }
@@ -241,8 +250,7 @@ async function refresh(){try{await Promise.all([loadActivity(),loadOverview(),lo
 document.querySelectorAll('.queue-tabs button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.queue-tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');loadAoe(b.dataset.queue).catch(e=>console.error(e))}));
 document.addEventListener('click',e=>{const row=e.target.closest('.clickable-player-row');if(row&&row.dataset.user)openMember(row.dataset.user)});document.addEventListener('keydown',e=>{const row=e.target.closest?.('.clickable-player-row');if(row&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openMember(row.dataset.user)}});
 $('year').textContent=new Date().getFullYear();
-async function loadFounders(){for(const [id,el] of [['424636228751851560','founderMicroAvatar'],['382654122135912448','founderGrimAvatar']]){try{const p=await api('/api/players/'+id);if(p.avatar_url)$(el).src=p.avatar_url}catch(e){console.warn('Founder avatar unavailable',e)}}}
-loadFounders();refresh();setInterval(refresh,30000);
+refresh();setInterval(refresh,30000);
 
 function closeMatchDetail(){const b=document.getElementById('detailBackdrop');if(b)b.style.display='none';const profile=document.getElementById('memberBackdrop');document.body.style.overflow=profile&&profile.style.display==='flex'?'hidden':''}
 async function openMatchDetail(id){const back=document.getElementById('detailBackdrop');if(!back)return;back.style.display='flex';document.body.style.overflow='hidden';document.getElementById('detailTitle').textContent=`Match #${id}`;const box=document.getElementById('detailContent');box.innerHTML='<div class="empty">Loading match details…</div>';try{box.innerHTML=matchDetailHtml(await fetchMatchDetail(id))}catch(e){box.innerHTML=`<div class="empty">${esc(e.message)}. Please try again.</div>`}}

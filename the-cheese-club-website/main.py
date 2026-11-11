@@ -903,16 +903,43 @@ async def activity():
     this_week = [m for m in matches if aware(m["created_at"]) and aware(m["created_at"]) >= week]
     active_players = {p for m in this_week for p in m["players"]}
 
-    week_wins, week_civs = {}, {}
-    for m in this_week:
-        if not decided(m):
-            continue
+    week_wins, week_civs, week_games, pairs = {}, {}, {}, {}
+    week_decided = [m for m in this_week if decided(m)]
+    for m in week_decided:
         for uid in m["team1"] + m["team2"]:
+            week_games[uid] = week_games.get(uid, 0) + 1
             if player_outcome(m, uid) == "win":
                 week_wins[uid] = week_wins.get(uid, 0) + 1
             civ = m["civs"].get(uid)
             if civ:
                 week_civs[civ] = week_civs.get(civ, 0) + 1
+        # Rivalries: every pair of players who were on opposite teams
+        for a in m["team1"]:
+            for b in m["team2"]:
+                if a in HIDDEN_IDS or b in HIDDEN_IDS:
+                    continue
+                key = tuple(sorted((a, b)))
+                r = pairs.setdefault(key, {"games": 0, "wins": {key[0]: 0, key[1]: 0}, "last": None})
+                r["games"] += 1
+                winner = a if player_outcome(m, a) == "win" else b
+                r["wins"][winner] += 1
+                r["last"] = _when(m)
+
+    # Biggest upset: the win with the largest gap between the losing and winning teams'
+    # average community rating in that queue. Ratings are current values, because the bot
+    # does not store rating history.
+    elo_rows = await fetch("SELECT user_id, LOWER(queue_type) AS queue, ROUND(AVG(elo))::int AS elo FROM aoe_queue_stats GROUP BY user_id, LOWER(queue_type)")
+    elo = {(str(r["user_id"]), r["queue"]): r["elo"] for r in elo_rows if r["elo"] is not None}
+    upset = None
+    for m in week_decided:
+        winners, losers = (m["team1"], m["team2"]) if m["result"] == "team1" else (m["team2"], m["team1"])
+        w = [elo[(u, m["queue"])] for u in winners if (u, m["queue"]) in elo]
+        l = [elo[(u, m["queue"])] for u in losers if (u, m["queue"]) in elo]
+        if len(w) != len(winners) or len(l) != len(losers) or not w or not l:
+            continue
+        gap = round(sum(l) / len(l) - sum(w) / len(w))
+        if gap >= 50 and (upset is None or gap > upset[1]):
+            upset = (m, gap)
 
     streaks = {}
     for m in matches:            # oldest first, so the final value is the current run of wins
@@ -924,9 +951,15 @@ async def activity():
     top_winner = max(((u, w) for u, w in week_wins.items() if u not in HIDDEN_IDS), key=lambda x: x[1], default=None)
     hot = max(((u, s) for u, s in streaks.items() if u not in HIDDEN_IDS and s >= 2), key=lambda x: x[1], default=None)
     top_civ = max(week_civs.items(), key=lambda x: x[1], default=None)
+    busiest = max(((u, g) for u, g in week_games.items() if u not in HIDDEN_IDS), key=lambda x: x[1], default=None)
+    rivalry = max(((k, v) for k, v in pairs.items() if v["games"] >= 2),
+                  key=lambda kv: (kv[1]["games"], kv[1]["last"] or datetime.min.replace(tzinfo=timezone.utc)), default=None)
 
     ids = [p for m in live for p in m["team1"] + m["team2"] + m["players"]]
     ids += [u for u in (top_winner[0] if top_winner else None, hot[0] if hot else None) if u]
+    ids += [busiest[0]] if busiest else []
+    ids += list(rivalry[0]) if rivalry else []
+    ids += (upset[0]["team1"] + upset[0]["team2"]) if upset else []
     names = await people(ids)
     return {
         "in_progress": [{
@@ -942,6 +975,16 @@ async def activity():
             "most_wins": {**names[top_winner[0]], "wins": top_winner[1]} if top_winner else None,
             "hottest_streak": {**names[hot[0]], "streak": hot[1]} if hot else None,
             "most_played_civ": {"civ": top_civ[0], "picks": top_civ[1]} if top_civ else None,
+            "most_active": {**names[busiest[0]], "games": busiest[1]} if busiest else None,
+            "rivalry": {
+                "players": [{**names[u], "wins": rivalry[1]["wins"][u]} for u in rivalry[0]],
+                "games": rivalry[1]["games"],
+            } if rivalry else None,
+            "biggest_upset": {
+                "match_id": upset[0]["id"], "queue_type": upset[0]["queue_type"], "rating_gap": upset[1],
+                "winners": [names[u] for u in (upset[0]["team1"] if upset[0]["result"] == "team1" else upset[0]["team2"]) if u in names],
+                "losers": [names[u] for u in (upset[0]["team2"] if upset[0]["result"] == "team1" else upset[0]["team1"]) if u in names],
+            } if upset else None,
         },
     }
 

@@ -72,10 +72,19 @@ function matchResultText(result){
 function matchWinner(result){const r=String(result||'').toLowerCase();return r==='team1'?1:r==='team2'?2:0}
 function ccDateTime(d){return d?new Date(d).toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'Date unavailable'}
 
+/* Load one match. Copes with error pages that are not JSON and with malformed responses. */
+async function fetchMatchDetail(id){
+  const r=await fetch('/api/matches/'+encodeURIComponent(id));
+  const data=await r.json().catch(()=>null);
+  if(!r.ok)throw new Error(data?.detail||`Match details could not be loaded (error ${r.status})`);
+  if(!data||typeof data!=='object')throw new Error('The server sent an invalid match record');
+  return data;
+}
+
 /* Full inner HTML for the match-detail modal body. */
 function matchDetailHtml(m){
   const winner=matchWinner(m.result);
-  const team=n=>{const players=(n===1?m.team1:m.team2)||[];return `<div class="detail-team"><h3>${winner===n?'🏆 ':''}Team ${n}${winner===n?' · Winner':''}</h3>${players.length?players.map(matchPlayer).join(''):'<div class="empty">No players were saved for this team.</div>'}</div>`};
+  const team=n=>{const raw=n===1?m.team1:m.team2;const players=Array.isArray(raw)?raw:[];return `<div class="detail-team"><h3>${winner===n?'🏆 ':''}Team ${n}${winner===n?' · Winner':''}</h3>${players.length?players.map(matchPlayer).join(''):'<div class="empty">No players were saved for this team.</div>'}</div>`};
   return `<p class="detail-meta"><b>${ccEsc(matchResultText(m.result))}</b> · ${ccEsc(m.queue_type)} · ${ccDateTime(m.created_at)} · ${ccFmt(m.player_count)} players</p><div class="detail-teams">${team(1)}${team(2)}</div><div class="detail-meta"><b>Civilization bans:</b> ${ccEsc(formatCivBans(m.civ_bans))}<br><b>Match ID:</b> #${ccEsc(m.id)}<br><b>Finished:</b> ${m.finished_at?ccDateTime(m.finished_at):'Not finished'}</div>`;
 }
 

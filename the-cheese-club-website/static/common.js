@@ -52,6 +52,8 @@ function civFlag(c){
   return file?`<img class="civ-flag-image" src="/static/civ-flags/${encodeURIComponent(file)}" alt="${ccEsc(c)} emblem" title="${ccEsc(c)}" loading="lazy" onerror="this.style.display='none'">`:'⚑';
 }
 
+function ccPlayerHref(publicId){return '/player/'+encodeURIComponent(publicId)}
+
 /* One player row inside the match-detail modal. */
 function matchPlayer(p){
   const player=p||{};
@@ -60,7 +62,8 @@ function matchPlayer(p){
   const civ=player.civ||'Not recorded';
   const elo=player.elo!=null&&player.elo!==''?`${ccFmt(player.elo)} ELO`:'ELO unavailable';
   const hint=player.id_hint||'Unavailable';
-  return `<div class="detail-player"><img src="${ccEsc(avatar)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${CC_DEFAULT_AVATAR}'"><div class="detail-player-info"><b>${ccEsc(username)}</b><small>${ccEsc(civ)} · ${elo}</small><small>Discord ID: ${ccEsc(hint)}</small></div><span class="civ-flag" title="${ccEsc(civ)}">${civFlag(civ)}</span></div>`;
+  const nameHtml=player.user_id?`<a class="player-page-link" href="${ccPlayerHref(player.user_id)}">${ccEsc(username)}</a>`:ccEsc(username);
+  return `<div class="detail-player"><img src="${ccEsc(avatar)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${CC_DEFAULT_AVATAR}'"><div class="detail-player-info"><b>${nameHtml}</b><small>${ccEsc(civ)} · ${elo}</small><small>Discord ID: ${ccEsc(hint)}</small></div><span class="civ-flag" title="${ccEsc(civ)}">${civFlag(civ)}</span></div>`;
 }
 
 /* Plain-text description of a match's civilization bans (escape before inserting). */
@@ -110,4 +113,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');
     if(CC_COMING_SOON.includes(href)){a.classList.add('nav-coming-soon');a.title='Coming soon'}
   });
+  /* Footer: every page links to the privacy page. */
+  let footer=document.querySelector('.footer');
+  if(!footer){const shell=document.querySelector('.shell');if(shell){footer=document.createElement('footer');footer.className='footer cc-footer';footer.innerHTML='<span>© '+new Date().getFullYear()+' THE CHEESE CLUB</span>';shell.appendChild(footer)}}
+  if(footer&&!footer.querySelector('a[href="/privacy"]')){const span=document.createElement('span');span.innerHTML='<a class="footer-link" href="/privacy">Privacy</a>';footer.appendChild(span)}
 });

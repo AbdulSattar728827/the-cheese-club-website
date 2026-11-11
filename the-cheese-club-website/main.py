@@ -7,14 +7,16 @@ import asyncio
 import hashlib
 import logging
 import secrets
+import html
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import asyncpg
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
 log = logging.getLogger("cheese_club")
 
@@ -29,6 +31,15 @@ RATING_CACHE_MAX_ENTRIES = 5000
 _rating_cache: dict = {}           # profile_id -> (expires_at, result)
 _rating_semaphore = asyncio.Semaphore(8)
 EMPTY_RATINGS = {"solo_elo": None, "team_elo": None}
+
+# Members who asked not to appear on the website (see the privacy page).
+# Comma-separated Discord IDs in the HIDDEN_DISCORD_IDS variable.
+HIDDEN_IDS = {x.strip() for x in os.getenv("HIDDEN_DISCORD_IDS", "").split(",") if x.strip()}
+
+
+def visible(rows):
+    """Drop rows belonging to hidden members."""
+    return [r for r in rows if str(r["user_id"]) not in HIDDEN_IDS]
 
 # Voice-time totals, shared by every endpoint so all pages agree.
 # A member's total comes from vc_stats; members who only have session rows
@@ -271,7 +282,8 @@ async def health():
 async def overview():
     total_aoe_players = await fetchval("SELECT COUNT(DISTINCT user_id) FROM aoe_queue_stats")
     total_matches = await fetchval("SELECT COUNT(*) FROM aoe_matches WHERE result <> 'pending'")
-    active_matches = await fetchval("SELECT COUNT(*) FROM aoe_matches WHERE result = 'pending'")
+    active_matches = await fetchval(
+        "SELECT COUNT(*) FROM aoe_matches WHERE result = 'pending' AND created_at >= NOW() - INTERVAL '6 hours'")
     vc_rows = await fetch(f"""
         WITH {VC_TOTALS_CTE}
         SELECT COUNT(*) FILTER (WHERE total_secs > 0) AS members,
@@ -323,7 +335,7 @@ async def aoe_leaderboard(queue: str = "all", limit: int = 100, scope: str = "pu
             ORDER BY wins DESC, (wins + losses) DESC
             LIMIT $2
         """, queue, limit, min_games)
-    return await add_official_ratings(rows)
+    return await add_official_ratings(visible(rows))
 
 
 @app.get("/api/leaderboards/vc")
@@ -350,7 +362,7 @@ async def vc_leaderboard(limit: int = 100, scope: str = "public"):
         WHERE vc.total_secs >= $2
         ORDER BY vc.total_secs DESC LIMIT $1
     """, limit, min_seconds)
-    return [publicize(r) for r in rows]
+    return [publicize(r) for r in visible(rows)]
 
 
 @app.get("/api/members")
@@ -407,7 +419,7 @@ async def members(limit: int = 250, search: str = ""):
                  COALESCE(vc.total_secs,0) DESC, username ASC
         LIMIT $2
     """, search, limit, like_pattern(search))
-    return [publicize(r) for r in rows]
+    return [publicize(r) for r in visible(rows)]
 
 
 @app.get("/api/matches/{match_id}")
@@ -470,6 +482,8 @@ async def match_detail(match_id: int):
             if isinstance(civ_value, dict):
                 civ_value = civ_value.get("name") or civ_value.get("civilization") or civ_value.get("civ")
             item["civ"] = str(civ_value) if civ_value else "Not recorded"
+            if uid in HIDDEN_IDS:
+                item.update(user_id=None, id_hint="", username="Hidden player", avatar_url=None, elo=None)
 
     return {
         "id": row["id"],
@@ -516,7 +530,7 @@ async def matches(limit: int = 100, search: str = ""):
 @app.get("/api/players/{player_id}")
 async def player_profile(player_id: str):
     user_id = from_public_id(player_id)
-    if user_id is None:
+    if user_id is None or user_id in HIDDEN_IDS:
         raise HTTPException(status_code=404, detail="Player not found")
     stats = await fetch("""
         SELECT queue_type, SUM(wins)::int AS wins, SUM(losses)::int AS losses,
@@ -554,17 +568,401 @@ async def player_profile(player_id: str):
 
 
 # ---------------------------------------------------------------------------
+# Match history analysis (player insights, achievements, civ stats, activity)
+# ---------------------------------------------------------------------------
+MATCH_CACHE_SECONDS = 30
+_match_cache = {"at": 0.0, "rows": None}
+_match_lock = asyncio.Lock()
+
+CIV_NAMES = [
+    "English", "French", "Holy Roman Empire", "Rus", "Abbasid Dynasty", "Chinese", "Delhi Sultanate",
+    "Mongols", "Japanese", "Byzantines", "Ottomans", "Malians", "Jeanne d'Arc", "Ayyubids",
+    "Order of the Dragon", "Zhu Xi's Legacy", "Tughlaq Dynasty", "Sengoku Daimyo", "Macedonian Dynasty",
+    "Knights Templar", "Golden Horde", "House of Lancaster", "Jin Dynasty", "Vikings", "Scots", "Random",
+]
+_CIV_ALIASES = {name.lower(): name for name in CIV_NAMES}
+_CIV_ALIASES.update({
+    "hre": "Holy Roman Empire", "roman empire": "Holy Roman Empire", "abbasid": "Abbasid Dynasty",
+    "delhi": "Delhi Sultanate", "mongol": "Mongols", "byzantine": "Byzantines", "ottoman": "Ottomans",
+    "malian": "Malians", "jeanne darc": "Jeanne d'Arc", "ayyubid": "Ayyubids", "zhu xis legacy": "Zhu Xi's Legacy",
+    "tughlaq": "Tughlaq Dynasty", "sengoku": "Sengoku Daimyo", "macedonian": "Macedonian Dynasty",
+    "templar": "Knights Templar", "templars": "Knights Templar", "templar knights": "Knights Templar",
+    "lancaster": "House of Lancaster", "jin": "Jin Dynasty", "viking": "Vikings", "scottish": "Scots",
+})
+_CIV_ALIASES_LONGEST_FIRST = sorted(_CIV_ALIASES, key=len, reverse=True)
+
+
+def canonical_civ(value) -> Optional[str]:
+    """Normalise the many ways the bot may have saved a civilization name."""
+    if isinstance(value, dict):
+        value = value.get("name") or value.get("civilization") or value.get("civ")
+    if not value:
+        return None
+    raw = re.sub(r"\s+", " ", str(value).replace("\u2019", "'").replace("\u2018", "'")).strip()
+    key = raw.lower()
+    if key in ("", "not recorded", "none", "unknown"):
+        return None
+    if key in _CIV_ALIASES:
+        return _CIV_ALIASES[key]
+    words = " " + re.sub(r"[^a-z0-9' ]+", " ", key) + " "
+    words = re.sub(r"\s+", " ", words)
+    for alias in _CIV_ALIASES_LONGEST_FIRST:
+        if len(alias) >= 3 and f" {alias} " in words:
+            return _CIV_ALIASES[alias]
+    return raw
+
+
+def _json_obj(value):
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except (TypeError, ValueError):
+            return {}
+    return value if isinstance(value, (dict, list)) else {}
+
+
+def _ban_list(bans) -> list:
+    """Every civilization named in a match's ban record."""
+    if not bans or (isinstance(bans, dict) and bans.get("skipped")):
+        return []
+    values = bans if isinstance(bans, list) else [v for k, v in bans.items() if k != "skipped"]
+    out = []
+    for v in values:
+        for item in (v if isinstance(v, list) else [v]):
+            civ = canonical_civ(item)
+            if civ:
+                out.append(civ)
+    return out
+
+
+async def load_matches() -> list:
+    """All matches, oldest first, cached briefly. Small communities make this cheap."""
+    now = time.monotonic()
+    if _match_cache["rows"] is not None and now - _match_cache["at"] < MATCH_CACHE_SECONDS:
+        return _match_cache["rows"]
+    async with _match_lock:
+        if _match_cache["rows"] is not None and time.monotonic() - _match_cache["at"] < MATCH_CACHE_SECONDS:
+            return _match_cache["rows"]
+        rows = await fetch("""
+            SELECT id, queue_type, player_ids, team1_ids, team2_ids, result, civ_data,
+                   to_jsonb(aoe_matches)->'civ_bans' AS civ_bans, created_at, finished_at
+            FROM aoe_matches ORDER BY created_at ASC, id ASC
+        """)
+        matches = []
+        for r in rows:
+            civs = _json_obj(r["civ_data"])
+            matches.append({
+                "id": r["id"],
+                "queue": str(r["queue_type"] or "").lower(),
+                "queue_type": r["queue_type"],
+                "team1": [str(x) for x in (r["team1_ids"] or [])],
+                "team2": [str(x) for x in (r["team2_ids"] or [])],
+                "players": [str(x) for x in (r["player_ids"] or [])],
+                "result": str(r["result"] or "").lower(),
+                "civs": {str(k): canonical_civ(v) for k, v in civs.items()} if isinstance(civs, dict) else {},
+                "bans": _ban_list(_json_obj(r["civ_bans"])),
+                "created_at": r["created_at"],
+                "finished_at": r["finished_at"],
+            })
+        _match_cache.update(at=time.monotonic(), rows=matches)
+        return matches
+
+
+def decided(m) -> bool:
+    return m["result"] in ("team1", "team2")
+
+
+def player_outcome(m, uid):
+    """'win', 'loss', or None if the player is not on a team in a decided match."""
+    if not decided(m):
+        return None
+    side = 1 if uid in m["team1"] else 2 if uid in m["team2"] else 0
+    if not side:
+        return None
+    return "win" if m["result"] == f"team{side}" else "loss"
+
+
+def _when(m):
+    return m["finished_at"] or m["created_at"]
+
+
+async def people(ids) -> dict:
+    """Display details for Discord user IDs: public ID, masked hint, name and avatar."""
+    ids = [str(i) for i in dict.fromkeys(ids) if i]
+    if not ids:
+        return {}
+    profile_rows = await fetch("""
+        SELECT DISTINCT ON (user_id) user_id, username, avatar_url FROM discord_member_profiles
+        WHERE user_id = ANY($1::text[]) AND is_bot=FALSE ORDER BY user_id, updated_at DESC
+    """, ids)
+    vc_rows = await fetch("""
+        SELECT DISTINCT ON (user_id) user_id, username FROM vc_logs
+        WHERE user_id = ANY($1::text[]) ORDER BY user_id, left_at DESC
+    """, ids)
+    link_rows = await fetch("""
+        SELECT DISTINCT ON (user_id) user_id, aoe4_name FROM aoe4_links
+        WHERE user_id = ANY($1::text[]) ORDER BY user_id, linked_at DESC
+    """, ids)
+    names = {}
+    for rows, key in ((link_rows, "aoe4_name"), (vc_rows, "username"), (profile_rows, "username")):
+        for r in rows:
+            if r[key]:
+                names[str(r["user_id"])] = r[key]
+    avatars = {str(r["user_id"]): r["avatar_url"] for r in profile_rows}
+    out = {}
+    for uid in ids:
+        if uid in HIDDEN_IDS:
+            out[uid] = {"user_id": None, "id_hint": "", "username": "Hidden player", "avatar_url": None}
+        else:
+            out[uid] = {"user_id": to_public_id(uid), "id_hint": id_hint(uid),
+                        "username": names.get(uid) or f"Player {uid[-4:]}", "avatar_url": avatars.get(uid)}
+    return out
+
+
+ACHIEVEMENTS = [
+    # id, icon, name, description, metric, target
+    ("first_win", "⚔️", "First Blood", "Win your first community match.", "wins", 1),
+    ("veteran", "🛡️", "Veteran", "Play 50 community matches.", "games", 50),
+    ("centurion", "🏰", "Centurion", "Play 100 community matches.", "games", 100),
+    ("on_fire", "🔥", "On Fire", "Win 5 matches in a row.", "best_streak", 5),
+    ("unstoppable", "⚡", "Unstoppable", "Win 10 matches in a row.", "best_streak", 10),
+    ("specialist", "🎯", "Civ Specialist", "Win 10 matches with one civilization.", "best_civ_wins", 10),
+    ("well_travelled", "🧭", "Well Travelled", "Play 8 different civilizations.", "civs_played", 8),
+    ("duelist", "🤺", "Duelist", "Play 25 1v1 matches.", "duels", 25),
+    ("team_player", "🤝", "Team Player", "Play 25 team matches (2v2 and up).", "team_games", 25),
+    ("regular", "🎙️", "Regular", "Spend 100 hours in voice.", "voice_hours", 100),
+    ("voice_of_the_club", "📣", "Voice of the Club", "Spend 1,000 hours in voice.", "voice_hours", 1000),
+    ("officially_ranked", "✅", "Officially Ranked", "Link your AoE4 account.", "linked", 1),
+]
+
+
+def compute_insights(uid: str, matches: list) -> dict:
+    """Everything the player page derives from match history for one player."""
+    record = []                    # (when, outcome, match) for decided matches, oldest first
+    civs, rivals, mates = {}, {}, {}
+    duels = team_games = 0
+    for m in matches:
+        outcome = player_outcome(m, uid)
+        if outcome is None:
+            continue
+        record.append((_when(m), outcome, m))
+        if m["queue"] == "1v1":
+            duels += 1
+        else:
+            team_games += 1
+        civ = m["civs"].get(uid)
+        if civ:
+            c = civs.setdefault(civ, {"civ": civ, "games": 0, "wins": 0, "losses": 0})
+            c["games"] += 1
+            c["wins" if outcome == "win" else "losses"] += 1
+        mine, theirs = (m["team1"], m["team2"]) if uid in m["team1"] else (m["team2"], m["team1"])
+        for other in theirs:
+            r = rivals.setdefault(other, {"games": 0, "wins": 0, "losses": 0})
+            r["games"] += 1
+            r["wins" if outcome == "win" else "losses"] += 1
+        for other in mine:
+            if other != uid:
+                t = mates.setdefault(other, {"games": 0, "wins": 0, "losses": 0})
+                t["games"] += 1
+                t["wins" if outcome == "win" else "losses"] += 1
+
+    best = run = 0
+    for _, outcome, _m in record:
+        run = run + 1 if outcome == "win" else 0
+        best = max(best, run)
+    current = 0
+    current_kind = None
+    for _, outcome, _m in reversed(record):
+        if current_kind is None:
+            current_kind = outcome
+        if outcome != current_kind:
+            break
+        current += 1
+
+    civ_list = sorted(civs.values(), key=lambda c: (-c["games"], -c["wins"], c["civ"]))
+    for c in civ_list:
+        c["win_rate"] = round(100 * c["wins"] / c["games"], 1) if c["games"] else None
+    return {
+        "decided_matches": len(record),
+        "wins_in_matches": sum(1 for r in record if r[1] == "win"),
+        "duels": duels,
+        "team_games": team_games,
+        "best_streak": best,
+        "current_streak": {"type": current_kind, "count": current} if record else None,
+        "civs": civ_list,
+        "favourite_civ": civ_list[0]["civ"] if civ_list else None,
+        "best_civ_wins": max((c["wins"] for c in civ_list), default=0),
+        "rivals": rivals,
+        "teammates": mates,
+        "form": [r[1][0].upper() for r in record[-10:]],   # e.g. W W L W …, oldest to newest
+    }
+
+
+def build_achievements(metrics: dict) -> list:
+    out = []
+    for key, icon, name, desc, metric, target in ACHIEVEMENTS:
+        value = metrics.get(metric, 0) or 0
+        out.append({"id": key, "icon": icon, "name": name, "description": desc,
+                    "earned": value >= target, "progress": min(value, target), "target": target})
+    return out
+
+
+@app.get("/api/players/{player_id}/insights")
+async def player_insights(player_id: str):
+    user_id = from_public_id(player_id)
+    if user_id is None or user_id in HIDDEN_IDS:
+        raise HTTPException(status_code=404, detail="Player not found")
+    matches = await load_matches()
+    ins = compute_insights(user_id, matches)
+
+    totals = await fetch("""
+        SELECT COALESCE(SUM(wins),0)::int AS wins, COALESCE(SUM(losses),0)::int AS losses
+        FROM aoe_queue_stats WHERE user_id=$1
+    """, user_id)
+    vc_seconds = await fetchval(f"WITH {VC_TOTALS_CTE} SELECT total_secs FROM vc WHERE user_id=$1", user_id, default=0)
+    linked = await fetchval("SELECT COUNT(*) FROM aoe4_links WHERE user_id=$1", user_id, default=0)
+    wins = max(totals[0]["wins"], ins["wins_in_matches"]) if totals else ins["wins_in_matches"]
+    games = (totals[0]["wins"] + totals[0]["losses"]) if totals else 0
+    games = max(games, ins["decided_matches"])
+
+    metrics = {"wins": wins, "games": games, "best_streak": ins["best_streak"],
+               "best_civ_wins": ins["best_civ_wins"], "civs_played": len(ins["civs"]),
+               "duels": ins["duels"], "team_games": ins["team_games"],
+               "voice_hours": int(float(vc_seconds or 0) // 3600), "linked": 1 if linked else 0}
+
+    def top(table, n=5):
+        ranked = sorted(table.items(), key=lambda kv: (-kv[1]["games"], -kv[1]["wins"]))
+        return [(uid, stats) for uid, stats in ranked if uid not in HIDDEN_IDS][:n]
+
+    top_rivals, top_mates = top(ins["rivals"]), top(ins["teammates"])
+    names = await people([u for u, _ in top_rivals + top_mates])
+    recent = [m for m in reversed(matches) if user_id in m["players"]][:15]
+    return {
+        "user_id": to_public_id(user_id),
+        "best_streak": ins["best_streak"],
+        "current_streak": ins["current_streak"],
+        "form": ins["form"],
+        "favourite_civ": ins["favourite_civ"],
+        "civs": ins["civs"],
+        "rivals": [{**names[u], **s} for u, s in top_rivals],
+        "teammates": [{**names[u], **s} for u, s in top_mates],
+        "achievements": build_achievements(metrics),
+        "recent_matches": [{
+            "id": m["id"], "queue_type": m["queue_type"], "result": m["result"],
+            "outcome": player_outcome(m, user_id), "civ": m["civs"].get(user_id),
+            "created_at": m["created_at"], "player_count": len(m["players"]),
+        } for m in recent],
+    }
+
+
+@app.get("/api/civs")
+async def civ_stats(queue: str = "all"):
+    queue = (queue or "all").lower()
+    matches = [m for m in await load_matches() if decided(m) and (queue == "all" or m["queue"] == queue)]
+    stats = {}
+
+    def entry(civ):
+        return stats.setdefault(civ, {"civ": civ, "picks": 0, "wins": 0, "losses": 0, "bans": 0})
+
+    counted = 0
+    for m in matches:
+        if m["civs"]:
+            counted += 1
+        for uid, civ in m["civs"].items():
+            outcome = player_outcome(m, uid)
+            if not civ or outcome is None:
+                continue
+            e = entry(civ)
+            e["picks"] += 1
+            e["wins" if outcome == "win" else "losses"] += 1
+        for civ in m["bans"]:
+            entry(civ)["bans"] += 1
+    total_picks = sum(e["picks"] for e in stats.values())
+    rows = []
+    for e in stats.values():
+        e["win_rate"] = round(100 * e["wins"] / e["picks"], 1) if e["picks"] else None
+        e["pick_share"] = round(100 * e["picks"] / total_picks, 1) if total_picks else 0.0
+        rows.append(e)
+    rows.sort(key=lambda e: (-e["picks"], -e["wins"], e["civ"]))
+    return {"queue": queue, "matches": len(matches), "matches_with_civs": counted,
+            "total_picks": total_picks, "min_games_for_win_rate": 5, "civs": rows}
+
+
+@app.get("/api/activity")
+async def activity():
+    matches = await load_matches()
+    now = datetime.now(timezone.utc)
+    live_window, day, week = now - timedelta(hours=6), now - timedelta(days=1), now - timedelta(days=7)
+
+    def aware(dt):
+        return dt if dt is None or dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+    live = [m for m in matches if m["result"] == "pending" and aware(m["created_at"]) and aware(m["created_at"]) >= live_window]
+    finished_today = [m for m in matches if decided(m) and aware(_when(m)) and aware(_when(m)) >= day]
+    this_week = [m for m in matches if aware(m["created_at"]) and aware(m["created_at"]) >= week]
+    active_players = {p for m in this_week for p in m["players"]}
+
+    week_wins, week_civs = {}, {}
+    for m in this_week:
+        if not decided(m):
+            continue
+        for uid in m["team1"] + m["team2"]:
+            if player_outcome(m, uid) == "win":
+                week_wins[uid] = week_wins.get(uid, 0) + 1
+            civ = m["civs"].get(uid)
+            if civ:
+                week_civs[civ] = week_civs.get(civ, 0) + 1
+
+    streaks = {}
+    for m in matches:            # oldest first, so the final value is the current run of wins
+        if not decided(m):
+            continue
+        for uid in m["team1"] + m["team2"]:
+            streaks[uid] = streaks.get(uid, 0) + 1 if player_outcome(m, uid) == "win" else 0
+
+    top_winner = max(((u, w) for u, w in week_wins.items() if u not in HIDDEN_IDS), key=lambda x: x[1], default=None)
+    hot = max(((u, s) for u, s in streaks.items() if u not in HIDDEN_IDS and s >= 2), key=lambda x: x[1], default=None)
+    top_civ = max(week_civs.items(), key=lambda x: x[1], default=None)
+
+    ids = [p for m in live for p in m["team1"] + m["team2"] + m["players"]]
+    ids += [u for u in (top_winner[0] if top_winner else None, hot[0] if hot else None) if u]
+    names = await people(ids)
+    return {
+        "in_progress": [{
+            "id": m["id"], "queue_type": m["queue_type"], "started_at": m["created_at"],
+            "team1": [names[u] for u in m["team1"] if u in names],
+            "team2": [names[u] for u in m["team2"] if u in names],
+            "player_count": len(m["players"]),
+        } for m in reversed(live)],
+        "played_last_24h": len(finished_today),
+        "active_players_7d": len(active_players),
+        "week": {
+            "most_wins": {**names[top_winner[0]], "wins": top_winner[1]} if top_winner else None,
+            "hottest_streak": {**names[hot[0]], "streak": hot[1]} if hot else None,
+            "most_played_civ": {"civ": top_civ[0], "picks": top_civ[1]} if top_civ else None,
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
 # Pages
+# Pages are served with link-preview tags filled in: %%SITE_URL%% becomes the
+# site's address, and player pages get the player's name and record.
 # ---------------------------------------------------------------------------
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+SITE_URL = os.getenv("SITE_URL", "").rstrip("/")
+_page_cache: dict = {}
 
 PAGES = {
     "/": "index.html",
     "/about": "about.html",
+    "/civs": "civs.html",
     "/community": "community.html",
     "/leaderboard": "leaderboard.html",
     "/matches": "matches.html",
     "/voice-activity": "voice-activity.html",
+    "/privacy": "privacy.html",
     "/tournament": "tournament.html",
     "/contact": "contact.html",
     "/login": "login.html",
@@ -572,11 +970,61 @@ PAGES = {
 }
 
 
+def site_url(request: Request) -> str:
+    if SITE_URL:
+        return SITE_URL
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme).split(",")[0].strip()
+    host = request.headers.get("x-forwarded-host", request.headers.get("host", request.url.netloc)).split(",")[0].strip()
+    return f"{proto}://{host}"
+
+
+def _template(filename: str) -> str:
+    path = f"static/{filename}"
+    mtime = os.path.getmtime(path)
+    cached = _page_cache.get(path)
+    if not cached or cached[0] != mtime:
+        with open(path, encoding="utf-8") as fh:
+            cached = (mtime, fh.read())
+        _page_cache[path] = cached
+    return cached[1]
+
+
+def render_page(filename: str, request: Request, **values) -> HTMLResponse:
+    text = _template(filename).replace("%%SITE_URL%%", site_url(request))
+    for key, value in values.items():
+        text = text.replace(f"%%{key}%%", html.escape(str(value), quote=True))
+    return HTMLResponse(text)
+
+
 def _page_route(filename: str):
-    async def page():
-        return FileResponse(f"static/{filename}")
+    async def page(request: Request):
+        return render_page(filename, request)
     return page
 
 
 for _path, _file in PAGES.items():
     app.add_api_route(_path, _page_route(_file), methods=["GET"], include_in_schema=False)
+
+
+@app.get("/player/{player_id}", include_in_schema=False)
+async def player_page(player_id: str, request: Request):
+    title, description = "Player profile — The Cheese Club", "Community match record, civilizations and achievements."
+    user_id = from_public_id(player_id)
+    if user_id and user_id not in HIDDEN_IDS and pool is not None:
+        try:
+            info = await people([user_id])
+            name = info[user_id]["username"]
+            totals = await fetch("""
+                SELECT COALESCE(SUM(wins),0)::int AS wins, COALESCE(SUM(losses),0)::int AS losses
+                FROM aoe_queue_stats WHERE user_id=$1
+            """, user_id)
+            ins = compute_insights(user_id, await load_matches())
+            w, l = (totals[0]["wins"], totals[0]["losses"]) if totals else (0, 0)
+            title = f"{name} — The Cheese Club"
+            description = f"{w} wins and {l} losses in Cheese Club community matches."
+            if ins["favourite_civ"]:
+                description += f" Favourite civilization: {ins['favourite_civ']}."
+        except Exception:
+            log.exception("Could not build link preview for player page")
+    return render_page("player.html", request, OG_TITLE=title, OG_DESCRIPTION=description,
+                       OG_PATH=f"/player/{player_id}")

@@ -11,7 +11,13 @@ Discord bot's existing Railway PostgreSQL database.
 - Match history with search and a match-detail view (teams, civilizations, bans)
 - Member profiles, linkable with `?member=<id>` on `/`, `/community` and `/leaderboard`
 - Automatic refresh every 30 seconds on the homepage and community page
-- Placeholder pages for Tournament, Contact, Login and Sign Up (marked "Soon" in the navigation)
+- Live activity on the homepage: games in progress, recent activity and this week's highlights
+- Player pages (`/player/<id>`): record, form, civilizations, streaks, rivals, teammates, achievements and recent matches
+- Civilization stats (`/civs`): picks, win rates and bans per civilization, filterable by queue
+- 12 achievements calculated from match history and voice time
+- About page (`/about`) and privacy page (`/privacy`)
+- Link previews (Open Graph) on every page, with player-specific previews on player pages
+- Placeholder pages for Tournament, Contact, Login and Sign Up (greyed out in the navigation)
 
 ## Deploy as a NEW Railway service
 1. Push this folder to a NEW GitHub repository.
@@ -23,6 +29,10 @@ Discord bot's existing Railway PostgreSQL database.
    - Add `PUBLIC_ID_SECRET` set to a long random string (for example the output of
      `python -c "import secrets; print(secrets.token_hex(32))"`). Keep it secret and never change it,
      or existing profile links will stop working. See "Member privacy" below.
+   - Optional: `SITE_URL`, your public address such as `https://thecheeseclub.example.com`. Link previews
+     use it to build full links. Without it the site works the address out from each request.
+   - Optional: `HIDDEN_DISCORD_IDS`, a comma-separated list of Discord IDs for members who asked to be
+     hidden. See "Member privacy" below.
    - Do not change the existing bot or Postgres variables.
 5. Deploy. Railway will use the Procfile / railway.json start command.
 6. Generate a public domain in the new website service's Settings → Networking.
@@ -42,6 +52,10 @@ masked hint such as `4246**************`.
   if the database password is rotated. Set `PUBLIC_ID_SECRET` to avoid this.
 - `/api/players/{id}` also accepts a raw Discord ID, so older shared links keep working.
 - Member search matches names, or a complete Discord ID. Partial Discord IDs are not searchable.
+- To hide a member (as offered on the privacy page), add their Discord ID to `HIDDEN_DISCORD_IDS` and
+  redeploy. They disappear from leaderboards, member lists, player pages and highlights, and show as
+  "Hidden player" in match details. Their games still count towards totals and civilization stats.
+- To delete a member's records entirely, remove their rows from the bot's database tables.
 
 ## Voice time
 A member's voice time is their `vc_stats` total. Members with no `vc_stats` rows fall back to the
@@ -82,6 +96,9 @@ uvicorn main:app --reload
 - `GET /api/matches?limit=&search=`
 - `GET /api/matches/{match_id}`
 - `GET /api/players/{public_id}`
+- `GET /api/players/{public_id}/insights`
+- `GET /api/civs?queue=all|1v1|2v2|3v3|4v4`
+- `GET /api/activity`
 
 `scope=community` raises the bar for inclusion: 5+ games for the AoE leaderboard and 100+ hours
 for voice, versus 1 game and 10 hours for `public`.

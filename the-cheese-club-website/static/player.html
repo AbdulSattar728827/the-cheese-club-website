@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/png" sizes="128x128" href="/static/favicon.png?v=3">
+<link rel="shortcut icon" type="image/x-icon" href="/static/favicon.ico?v=3">
+<link rel="apple-touch-icon" href="/static/favicon.png?v=3">
+
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>%%OG_TITLE%%</title>
+<meta name="description" content="%%OG_DESCRIPTION%%">
+<meta name="theme-color" content="#f0b82f">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="The Cheese Club">
+<meta property="og:title" content="%%OG_TITLE%%">
+<meta property="og:description" content="%%OG_DESCRIPTION%%">
+<meta property="og:url" content="%%SITE_URL%%%%OG_PATH%%">
+<meta property="og:image" content="%%SITE_URL%%/static/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The Cheese Club, an Age of Empires IV community">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c0c0e;--panel:#151518;--panel2:#1b1b20;--line:#2b2925;--gold:#f0b82f;--gold2:#ffda70;--muted:#98969a;--white:#f6f3eb;--green:#69d49a}
+*{box-sizing:border-box}body{margin:0;background:#080809;color:var(--white);font-family:Inter,Arial,sans-serif;position:relative;isolation:isolate}body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(rgba(7,7,8,.68),rgba(7,7,8,.82)),url("/static/home-hero-medieval.jpg") center center/cover no-repeat}a{color:inherit;text-decoration:none}.shell{max-width:1400px;margin:auto;padding:0 34px}.topbar{height:88px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff12}.brand{display:flex;align-items:center;gap:14px}.brand img{width:155px;height:68px;object-fit:contain;object-position:left center}.brand small{display:block;color:var(--muted);font-size:10px;letter-spacing:2px;text-transform:uppercase}.brand .brand-title{display:block;color:var(--white);font:800 19px/1.05 'Barlow Condensed',sans-serif;letter-spacing:1.1px;white-space:nowrap}.brand .brand-sub{font-size:9px;letter-spacing:2.5px;margin-top:4px;color:var(--gold)}.nav{display:flex;gap:17px;align-items:center;flex-wrap:wrap;color:#c8c4bc;font-size:12px}.nav a:hover{color:var(--gold)}.discord{background:linear-gradient(135deg,#f5c64c,#c98713);color:#201707;padding:12px 18px;border-radius:9px;font-weight:800;font-size:12px;letter-spacing:.4px;box-shadow:0 5px 24px #e5a61b25}.hero{padding:62px 28px 36px;margin:22px 0 26px;display:grid;grid-template-columns:1.25fr .75fr;gap:34px;align-items:center;border:1px solid #8a682b55;border-radius:18px;overflow:hidden;background:linear-gradient(145deg,#1b1b20,#121214);box-shadow:0 18px 55px #0008}.eyebrow{color:var(--gold);font-weight:800;letter-spacing:2.4px;text-transform:uppercase;font-size:11px}.hero h1{font:800 clamp(44px,6vw,76px)/.94 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;margin:16px 0}.hero h1 span{color:var(--gold)}.hero p{color:#aaa7a0;max-width:610px;line-height:1.8;font-size:14px}.actions{display:flex;gap:12px;margin-top:25px}.btn{padding:14px 19px;border-radius:8px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase}.btn.primary{background:var(--gold);color:#211808}.btn.secondary{border:1px solid #4a4335;color:#eee}.hero-card{background:linear-gradient(145deg,#1b1b20,#121214);border:1px solid #6e5424;border-radius:18px;padding:23px;box-shadow:0 18px 60px #0008;position:relative;overflow:hidden}.hero-card:after{content:"";position:absolute;width:220px;height:220px;border:1px solid #dba62b25;border-radius:50%;right:-75px;top:-95px;box-shadow:0 0 0 25px #dba62b08,0 0 0 55px #dba62b06}.card-top{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1.5px}.live{color:var(--green)}.hero-stat{display:flex;align-items:end;gap:12px;margin:28px 0 12px}.hero-stat strong{font:800 56px 'Barlow Condensed';color:var(--gold)}.hero-stat span{font-size:12px;color:#c7c0b1;margin-bottom:9px}.mini-bars{display:flex;gap:6px;height:45px;align-items:end;margin-top:20px}.mini-bars i{display:block;flex:1;background:linear-gradient(#f8ce61,#98600c);border-radius:3px 3px 0 0;opacity:.8}.section-head{display:flex;align-items:end;justify-content:space-between;margin:28px 0 15px}.section-head h2{font:700 26px 'Barlow Condensed';text-transform:uppercase;letter-spacing:1px;margin:0}.section-head p{color:var(--muted);font-size:11px;margin:5px 0 0}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.stat{background:linear-gradient(145deg,#19191d,#121214);border:1px solid var(--line);border-radius:12px;padding:19px}.stat label{color:var(--muted);font-size:10px;letter-spacing:1.3px;text-transform:uppercase}.stat strong{display:block;font:700 34px 'Barlow Condensed';margin-top:8px;color:var(--gold2)}.stat small{color:#777;font-size:10px}.columns{display:grid;grid-template-columns:1.1fr .9fr;gap:16px;margin:18px 0 50px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:13px;overflow:hidden;display:flex;flex-direction:column}.panel > .table-wrap,.panel > .match-list{flex:1}.panel-footer{margin-top:auto;padding:12px 18px;display:flex;justify-content:flex-end;align-items:center;min-height:62px;border-top:1px solid var(--line);background:#151518}.members-more{display:flex;justify-content:center;margin:8px 0 30px}.members-more button{cursor:pointer;background:#17171b}.panel-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}.panel-head h3{font:700 20px 'Barlow Condensed';text-transform:uppercase;letter-spacing:1px;margin:0}.tag{font-size:9px;letter-spacing:1px;text-transform:uppercase;border:1px solid #69511e;color:var(--gold);padding:6px 9px;border-radius:20px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:420px}th{text-align:left;color:#777;font-size:9px;letter-spacing:1px;text-transform:uppercase;font-weight:700;padding:13px 17px}td{padding:13px 17px;border-top:1px solid #ffffff0b;font-size:12px;color:#dedbd4}tr:hover td{background:#ffffff05}.rank{font:700 18px 'Barlow Condensed';color:var(--gold)}.player{font-weight:700}.sub{display:block;color:#777;font-size:10px;margin-top:3px}.elo{color:var(--gold2);font-weight:800}.queue-tabs{display:flex;gap:5px}.queue-tabs button{background:#222226;border:1px solid #333;color:#aaa;padding:6px 9px;border-radius:6px;font-size:10px;cursor:pointer}.queue-tabs button.active{background:#5b4212;color:#ffdb78;border-color:#99701e}.match-list{padding:5px 18px}.match{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid #ffffff0c;gap:15px}.match:last-child{border:0}.match strong{font-size:12px}.match small{display:block;color:#777;margin-top:4px;font-size:10px}.result{font-size:9px;text-transform:uppercase;color:var(--green);border:1px solid #285a40;padding:6px 8px;border-radius:5px}.result.pending{color:var(--gold);border-color:#6e5424}.empty{padding:28px 20px;color:#777;font-size:12px;text-align:center}.footer{border-top:1px solid #ffffff12;padding:24px 0 35px;color:#777;font-size:10px;display:flex;justify-content:space-between}.toast{position:fixed;bottom:18px;right:18px;background:#251d0f;border:1px solid #72551c;color:#f1d28a;padding:10px 14px;border-radius:8px;font-size:11px;display:none}
+@media(max-width:850px){.shell{padding:0 18px}.nav{display:flex;gap:10px;flex-wrap:wrap;font-size:11px}.hero{grid-template-columns:1fr;padding:42px 18px 26px;background-position:center;background-size:cover}.hero-card{max-width:100%}.columns{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.brand img{width:130px}.footer{gap:10px;flex-direction:column}}
+@media(max-width:460px){.stats{gap:8px}.stat{padding:13px}.stat strong{font-size:28px}.hero h1{font-size:48px}.actions{flex-wrap:wrap}}
+.section-head h1{font:700 30px 'Barlow Condensed';text-transform:uppercase;letter-spacing:1px;margin:0}
+.match{cursor:pointer;border:1px solid transparent;border-radius:8px;padding-left:10px;padding-right:10px;transition:.15s}.match:hover,.match:focus{background:#242126;border-color:#70551e;outline:none}.match-hint{display:block;color:#b08b39;font-size:9px;margin-top:4px}.detail-backdrop{position:fixed;inset:0;background:#000c;display:none;align-items:center;justify-content:center;padding:16px;z-index:100;overflow-y:auto}.detail-modal{width:min(760px,100%);max-height:90vh;overflow:auto;background:#19191e;border:1px solid #72551f;border-radius:14px;padding:22px}.detail-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.detail-head h2{font:700 25px 'Barlow Condensed';margin:0}.detail-close{background:#292930;border:1px solid #494951;color:#fff;border-radius:7px;padding:8px 12px;cursor:pointer}.detail-teams{display:grid;grid-template-columns:1fr 1fr;gap:12px}.detail-team{background:#222228;border:1px solid #33333a;border-radius:10px;padding:13px}.detail-team h3{margin:0 0 12px;font:700 19px 'Barlow Condensed'}.detail-player{display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid #ffffff12}.detail-player img{width:36px;height:36px;border-radius:50%;object-fit:cover}.detail-player b{font-size:12px;display:block}.detail-player small{color:#aaa;font-size:10px;display:block;margin-top:4px}.detail-meta{margin-top:14px;padding:12px;background:#222228;border-radius:9px;color:#aaa;font-size:11px;line-height:1.7}@media(max-width:600px){.detail-teams{grid-template-columns:1fr}}
+</style>
+<style>
+:root{--loss:#e2735f}
+.player-hero{display:grid;grid-template-columns:auto 1fr auto;gap:26px;align-items:center;margin:30px 0 16px;padding:28px 30px;background:linear-gradient(145deg,#1b1b20,#121214);border:1px solid #6e5424;border-radius:16px;box-shadow:0 18px 55px #0006}
+.player-avatar{width:108px;height:108px;border-radius:50%;object-fit:cover;border:2px solid #b88927;background:#29251d;display:grid;place-items:center;font:800 44px 'Barlow Condensed';color:var(--gold)}
+.player-hero h1{font:800 clamp(38px,5vw,58px)/.95 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;overflow-wrap:anywhere}
+.player-meta{color:#a29e95;font-size:12px;margin:0;display:flex;flex-wrap:wrap;gap:6px 16px}
+.player-meta a{color:var(--gold);font-weight:700}
+.player-meta a:hover{text-decoration:underline}
+.form-guide{display:flex;align-items:center;gap:5px;margin-top:14px;flex-wrap:wrap}
+.form-guide small{color:var(--muted);font-size:10px;margin-right:6px}
+.form-chip{width:24px;height:24px;display:grid;place-items:center;border-radius:5px;font:800 13px 'Barlow Condensed';background:#1e3a2b;color:#8fe0b2;border:1px solid #2f6146}
+.form-chip.l{background:#3a201c;color:#f0a090;border-color:#6a3329}
+.player-actions{display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.player-actions .btn{cursor:pointer;background:transparent;font-family:inherit}
+.copy-done{color:var(--green);font-size:11px;min-height:14px}
+.player-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.player-stats .stat strong{font-size:30px}
+.player-stats .stat small{display:block;margin-top:2px}
+.player-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.panel-body{padding:6px 20px 16px}
+.panel-head small{color:var(--muted);font-size:11px}
+.civ-row{display:grid;grid-template-columns:minmax(0,1fr) 54px 64px 110px;gap:12px;align-items:center;padding:11px 0;border-top:1px solid #ffffff0b;font-size:12px}
+.civ-row:first-child{border-top:0}
+.civ-row .civ-name{display:flex;align-items:center;gap:10px;font-weight:700;min-width:0}
+.civ-row .civ-name span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.civ-row .civ-flag{margin:0;padding:3px 5px}
+.civ-row .civ-flag-image{width:24px;height:24px}
+.civ-row .num{color:#cfcac0;text-align:right}
+.rate{display:flex;align-items:center;gap:8px}
+.rate .bar{position:relative;flex:1;height:6px;background:#26262b;border-radius:5px;overflow:hidden}
+.rate .bar i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#98600c,#f0b82f)}
+.rate .bar.below i{background:#6f6f78}
+.rate b{color:var(--gold2);font-size:11px;min-width:34px;text-align:right}
+.achievements{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:16px 20px 20px}
+.badge{padding:13px;border:1px solid #2c2a26;border-radius:11px;background:#141417;min-width:0;opacity:.62}
+.badge.earned{opacity:1;border-color:#8a682b;background:linear-gradient(145deg,#231d10,#16140f)}
+.badge .icon{font-size:22px;line-height:1;filter:grayscale(1)}
+.badge.earned .icon{filter:none}
+.badge b{display:block;margin-top:8px;font:700 16px/1.1 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.4px}
+.badge p{margin:4px 0 8px;color:#8f8b82;font-size:10.5px;line-height:1.45}
+.badge .progress{height:4px;background:#26262b;border-radius:3px;overflow:hidden}
+.badge .progress i{display:block;height:100%;background:#7c7c86}
+.badge .status{display:block;margin-top:5px;font-size:10px;color:#8f8b82}
+.badge.earned .status{color:var(--gold);font-weight:800;letter-spacing:.5px;text-transform:uppercase}
+.people-row{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 0;border-top:1px solid #ffffff0b}
+.people-row:first-child{border-top:0}
+.people-row img,.people-row .initial{width:36px;height:36px;border-radius:50%;object-fit:cover;background:#29251d;display:grid;place-items:center;color:var(--gold);font-weight:800}
+.people-row a{font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.people-row a:hover{color:var(--gold)}
+.people-row small{display:block;color:#777;font-size:10px;margin-top:3px}
+.people-row .rec{font:700 18px 'Barlow Condensed';color:var(--gold2);text-align:right}
+.people-row .rec small{text-align:right}
+.recent .match{display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:14px}
+.outcome{font:800 11px Inter,sans-serif;letter-spacing:.8px;text-transform:uppercase;padding:6px 0;border-radius:6px;text-align:center;border:1px solid #2f6146;color:#8fe0b2;background:#1e3a2b}
+.outcome.loss{border-color:#6a3329;color:#f0a090;background:#3a201c}
+.outcome.other{border-color:#6e5424;color:var(--gold);background:#2a2112}
+.recent-civ{display:flex;align-items:center;gap:8px;color:#bdb8ae;font-size:11px}
+.recent-civ .civ-flag{margin:0;padding:2px 4px;font-size:16px}
+.recent-civ .civ-flag-image{width:22px;height:22px}
+.not-found{margin:60px auto;max-width:520px;text-align:center;padding:40px 24px;background:#17171b;border:1px solid #51401f;border-radius:16px}
+.not-found h1{font:800 40px 'Barlow Condensed';text-transform:uppercase;margin:0 0 10px}
+.not-found p{color:#aaa;line-height:1.7;font-size:13px}
+.not-found a{color:var(--gold);font-weight:700}
+@media(max-width:1000px){.achievements{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:850px){.player-hero{grid-template-columns:auto 1fr}.player-actions{grid-column:1/-1;align-items:flex-start;flex-direction:row;align-items:center}.player-columns{grid-template-columns:1fr}.player-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.player-hero{grid-template-columns:1fr;padding:22px 18px}.player-avatar{width:84px;height:84px}.civ-row{grid-template-columns:minmax(0,1fr) 62px 92px}.civ-row .wl{display:none}.achievements{grid-template-columns:1fr 1fr;padding:14px}.recent .match{grid-template-columns:64px minmax(0,1fr)}.recent .match .recent-civ{display:none}}
+</style>
+<link rel="stylesheet" href="/static/common.css">
+<script src="/static/common.js"></script>
+</head>
+<body>
+<div class="shell">
+<header class="topbar">
+ <a class="brand" href="/"><img src="/static/cheese-club-logo.png" alt="The Cheese Club"><span><small>Age of Empires IV</small><b class="brand-title">THE CHEESE CLUB</b><small class="brand-sub">COMMUNITY HUB</small></span></a>
+ <nav class="nav"><a href="/">Home</a><a href="/leaderboard">Leaderboard</a><a href="/matches">Matches</a><a href="/civs">Civ Stats</a><a href="/community">Community</a><a href="/voice-activity">Voice Activity</a><a href="/tournament">Tournament</a><a href="/about">About</a><a href="/contact">Contact Us</a><a href="/login">Login</a><a href="/signup">Sign Up</a></nav>
+ <a class="discord" id="discordLink" href="https://discord.gg/thecheeseclub" target="_blank" rel="noreferrer">JOIN DISCORD ↗</a>
+</header>
+<main id="playerRoot"><div class="empty" style="padding:80px 20px">Loading player…</div></main>
+<footer class="footer"><span>© <span id="year"></span> THE CHEESE CLUB</span><span>Play Together. Laugh Together. Win Together.</span></footer>
+</div>
+<div class="detail-backdrop" id="detailBackdrop" onclick="if(event.target===this)closeMatchDetail()"><section class="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailTitle"><div class="detail-head"><h2 id="detailTitle">Match Details</h2><button class="detail-close" onclick="closeMatchDetail()">Close ✕</button></div><div id="detailContent"><div class="empty">Loading match details…</div></div></section></div>
+<script>
+const $=id=>document.getElementById(id);
+const esc=ccEsc,fmt=ccFmt;
+$('year').textContent=new Date().getFullYear();
+
+const playerId=decodeURIComponent(location.pathname.split('/')[2]||'');
+const duration=s=>{s=Number(s||0);const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?`${fmt(h)}h ${m}m`:`${m}m`};
+const shortDate=d=>d?new Date(d).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):'';
+const pct=(w,g)=>g?Math.round(100*w/g)+'%':'—';
+function avatarHtml(p,cls){return p.avatar_url?`<img class="${cls}" src="${esc(p.avatar_url)}" alt="" onerror="this.onerror=null;this.src='${CC_DEFAULT_AVATAR}'">`:`<div class="${cls} initial">${esc((p.username||'?').slice(0,1).toUpperCase())}</div>`}
+function streakText(s){if(!s||!s.count)return '—';return `${s.count} ${s.type==='win'?(s.count===1?'win':'wins'):(s.count===1?'loss':'losses')}`}
+function personRow(x,together){const rec=`${x.wins}–${x.losses}`;return `<div class="people-row">${avatarHtml(x,'')}<div style="min-width:0">${x.user_id?`<a href="${ccPlayerHref(x.user_id)}">${esc(x.username)}</a>`:`<span>${esc(x.username)}</span>`}<small>${fmt(x.games)} game${x.games===1?'':'s'} ${together?'together':'against'}</small></div><div class="rec">${rec}<small>${together?'Your record together':'Your record'}</small></div></div>`}
+function outcomeChip(m){if(m.outcome==='win')return '<span class="outcome">Win</span>';if(m.outcome==='loss')return '<span class="outcome loss">Loss</span>';return `<span class="outcome other">${esc(m.result==='pending'?'Live':matchResultText(m.result))}</span>`}
+function render(p,ins){
+ const q=p.queue_stats||[];const wins=q.reduce((a,x)=>a+Number(x.wins||0),0),losses=q.reduce((a,x)=>a+Number(x.losses||0),0),games=wins+losses;
+ const earned=ins.achievements.filter(a=>a.earned).length;
+ document.title=`${p.username} — The Cheese Club`;
+ const aoe=p.aoe4_link;
+ $('playerRoot').innerHTML=`
+ <section class="player-hero">
+  ${avatarHtml(p,'player-avatar')}
+  <div style="min-width:0"><h1>${esc(p.username)}</h1>
+   <p class="player-meta"><span>Discord ID ${esc(p.id_hint)}</span>${aoe?.aoe4_name?`<span>AoE4 name: ${esc(aoe.aoe4_name)}</span>`:''}${aoe?.profile_id?`<a href="https://aoe4world.com/players/${encodeURIComponent(aoe.profile_id)}" target="_blank" rel="noopener noreferrer">AoE4World profile ↗</a>`:''}</p>
+   ${ins.form.length?`<div class="form-guide" aria-label="Last ${ins.form.length} results, oldest first"><small>Last ${ins.form.length} games</small>${ins.form.map(r=>`<span class="form-chip ${r==='L'?'l':''}" title="${r==='W'?'Win':'Loss'}">${r}</span>`).join('')}</div>`:''}
+  </div>
+  <div class="player-actions"><button class="btn secondary" id="copyLink" type="button">Copy profile link</button><span class="copy-done" id="copyDone" aria-live="polite"></span></div>
+ </section>
+ <div class="player-stats">
+  <div class="stat"><label>Record</label><strong>${fmt(wins)}–${fmt(losses)}</strong><small>Wins and losses</small></div>
+  <div class="stat"><label>Win rate</label><strong>${pct(wins,games)}</strong><small>${fmt(games)} community games</small></div>
+  <div class="stat"><label>Current streak</label><strong>${streakText(ins.current_streak)}</strong><small>Best win streak: ${fmt(ins.best_streak)}</small></div>
+  <div class="stat"><label>Voice time</label><strong>${duration(p.vc_seconds)}</strong><small>In club voice channels</small></div>
+  <div class="stat"><label>Solo ELO</label><strong>${p.solo_elo==null?'—':fmt(p.solo_elo)}</strong><small>Official AoE4World rating</small></div>
+  <div class="stat"><label>Team ELO</label><strong>${p.team_elo==null?'—':fmt(p.team_elo)}</strong><small>Official AoE4World rating</small></div>
+  <div class="stat"><label>Favourite civ</label><strong style="font-size:24px">${ins.favourite_civ?esc(ins.favourite_civ):'—'}</strong><small>Most played</small></div>
+  <div class="stat"><label>Achievements</label><strong>${earned} / ${ins.achievements.length}</strong><small>Earned so far</small></div>
+ </div>
+ <div class="player-columns">
+  <section class="panel"><div class="panel-head"><h3>Civilizations</h3><small>${ins.civs.length} played</small></div><div class="panel-body">
+   ${ins.civs.length?ins.civs.map(c=>`<div class="civ-row"><div class="civ-name"><span class="civ-flag">${civFlag(c.civ)}</span><span>${esc(c.civ)}</span></div><span class="num">${fmt(c.games)} game${c.games===1?'':'s'}</span><span class="num wl">${c.wins}–${c.losses}</span><div class="rate"><div class="bar ${c.win_rate<50?'below':''}"><i style="width:${c.win_rate}%"></i></div><b>${Math.round(c.win_rate)}%</b></div></div>`).join(''):'<div class="empty">No civilizations recorded yet.</div>'}
+  </div></section>
+  <section class="panel"><div class="panel-head"><h3>Achievements</h3><small>${earned} of ${ins.achievements.length} earned</small></div>
+   <div class="achievements">${ins.achievements.map(a=>`<div class="badge ${a.earned?'earned':''}"><div class="icon" aria-hidden="true">${a.icon}</div><b>${esc(a.name)}</b><p>${esc(a.description)}</p>${a.earned?'<span class="status">Earned</span>':`<div class="progress"><i style="width:${(100*a.progress/a.target).toFixed(0)}%"></i></div><span class="status">${fmt(a.progress)} / ${fmt(a.target)}</span>`}</div>`).join('')}</div>
+  </section>
+ </div>
+ <div class="player-columns">
+  <section class="panel"><div class="panel-head"><h3>Rivals</h3><small>Most-played opponents</small></div><div class="panel-body">${ins.rivals.length?ins.rivals.map(x=>personRow(x,false)).join(''):'<div class="empty">No opponents recorded yet.</div>'}</div></section>
+  <section class="panel"><div class="panel-head"><h3>Teammates</h3><small>Most games together</small></div><div class="panel-body">${ins.teammates.length?ins.teammates.map(x=>personRow(x,true)).join(''):'<div class="empty">No team games recorded yet.</div>'}</div></section>
+ </div>
+ <section class="panel recent" style="margin-bottom:40px"><div class="panel-head"><h3>Recent matches</h3><small>Select a match for teams and civilizations</small></div>
+  <div class="match-list">${ins.recent_matches.length?ins.recent_matches.map(m=>`<div class="match" role="button" tabindex="0" data-match="${Number(m.id)}">${outcomeChip(m)}<div style="min-width:0"><strong>Match #${m.id} · ${esc(m.queue_type)}</strong><small>${shortDate(m.created_at)} · ${fmt(m.player_count)} players</small></div><span class="recent-civ">${m.civ?`<span class="civ-flag">${civFlag(m.civ)}</span>${esc(m.civ)}`:''}</span></div>`).join(''):'<div class="empty">No matches recorded yet.</div>'}</div>
+ </section>`;
+ $('copyLink').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.origin+location.pathname);$('copyDone').textContent='Link copied'}catch{$('copyDone').textContent='Copy the address from your browser'}});
+}
+async function load(){
+ try{
+  const [pr,ir]=await Promise.all([fetch('/api/players/'+encodeURIComponent(playerId)),fetch('/api/players/'+encodeURIComponent(playerId)+'/insights')]);
+  if(pr.status===404||ir.status===404)throw Object.assign(new Error('missing'),{missing:true});
+  if(!pr.ok||!ir.ok)throw new Error('This profile could not be loaded right now. Refresh the page to try again.');
+  render(await pr.json(),await ir.json());
+ }catch(e){
+  $('playerRoot').innerHTML=e.missing?`<section class="not-found"><h1>Player not found</h1><p>This profile doesn't exist, or the member has chosen to hide it. Browse the <a href="/community">community members</a> or the <a href="/leaderboard">leaderboard</a> instead.</p></section>`:`<section class="not-found"><h1>Something went wrong</h1><p>${esc(e.message)}</p></section>`;
+ }
+}
+function closeMatchDetail(){$('detailBackdrop').style.display='none';document.body.style.overflow=''}
+async function openMatchDetail(id){$('detailBackdrop').style.display='flex';document.body.style.overflow='hidden';$('detailTitle').textContent='Match #'+id;const box=$('detailContent');box.innerHTML='<div class="empty">Loading match details…</div>';try{box.innerHTML=matchDetailHtml(await fetchMatchDetail(id))}catch(e){box.innerHTML=`<div class="empty">${esc(e.message)}. Please try again.</div>`}}
+document.addEventListener('click',e=>{const m=e.target.closest('[data-match]');if(m){openMatchDetail(m.dataset.match)}});
+document.addEventListener('keydown',e=>{const m=e.target.closest?.('[data-match]');if(m&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openMatchDetail(m.dataset.match)}if(e.key==='Escape')closeMatchDetail()});
+load();
+
+</script>
+</body></html>

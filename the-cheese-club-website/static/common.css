@@ -27,3 +27,10 @@
 }
 .nav a.active{color:var(--gold,#f0b82f);font-weight:800;text-shadow:0 0 14px #dba62b35}
 .nav a:focus-visible{outline:1px solid var(--gold,#f0b82f);outline-offset:4px;border-radius:3px}
+
+/* Links to full player pages and the privacy page */
+.full-profile-link{display:inline-block;margin-top:7px;color:var(--gold,#f0b82f);font-size:12px;font-weight:700}
+.full-profile-link:hover,.player-page-link:hover,.footer-link:hover{text-decoration:underline}
+.player-page-link{color:inherit}
+.footer-link{color:#b9b4aa}
+.cc-footer{border-top:1px solid #ffffff12;margin-top:40px;padding:24px 0 35px;color:#777;font-size:10px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}

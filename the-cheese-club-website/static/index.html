@@ -7,7 +7,19 @@
 
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>The Cheese Club — AoE IV Community</title>
-<meta name="description" content="The Cheese Club — Age of Empires IV community, player rankings, match history and voice activity.">
+<meta name="description" content="Ranked community matches, live leaderboards, civilization stats and an active voice community for Age of Empires IV players.">
+<meta name="theme-color" content="#f0b82f">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="The Cheese Club">
+<meta property="og:title" content="The Cheese Club — Age of Empires IV community">
+<meta property="og:description" content="Ranked community matches, live leaderboards, civilization stats and an active voice community for Age of Empires IV players.">
+<meta property="og:url" content="%%SITE_URL%%/">
+<meta property="og:image" content="%%SITE_URL%%/static/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The Cheese Club, an Age of Empires IV community">
+<meta name="twitter:card" content="summary_large_image">
+
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -62,6 +74,44 @@
 .member-modal,.detail-modal{overscroll-behavior:contain}
 .detail-player{position:relative}.detail-player-info{min-width:0;flex:1}.civ-flag-image{width:30px;height:30px;object-fit:contain;display:block}.civ-flag{margin-left:auto;flex:0 0 auto;font-size:25px;line-height:1;padding:4px 7px;border-radius:7px;background:#17171b;border:1px solid #3a3327}
 .nav a.active{color:var(--gold);font-weight:800;text-shadow:0 0 14px #dba62b35}.nav a:focus-visible{outline:1px solid var(--gold);outline-offset:4px;border-radius:3px}</style><style>.match{cursor:pointer;border:1px solid transparent;border-radius:8px;padding-left:10px;padding-right:10px;transition:.15s}.match:hover,.match:focus{background:#242126;border-color:#70551e;outline:none}.match-hint{display:block;color:#b08b39;font-size:9px;margin-top:4px}.detail-backdrop{position:fixed;inset:0;background:#000c;display:none;align-items:center;justify-content:center;padding:16px;z-index:100;overflow-y:auto}.detail-modal{width:min(760px,100%);max-height:90vh;overflow:auto;background:#19191e;border:1px solid #72551f;border-radius:14px;padding:22px}.detail-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.detail-head h2{font:700 25px 'Barlow Condensed';margin:0}.detail-close{background:#292930;border:1px solid #494951;color:#fff;border-radius:7px;padding:8px 12px;cursor:pointer}.detail-teams{display:grid;grid-template-columns:1fr 1fr;gap:12px}.detail-team{background:#222228;border:1px solid #33333a;border-radius:10px;padding:13px}.detail-team h3{margin:0 0 12px;font:700 19px 'Barlow Condensed'}.detail-player{display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid #ffffff12}.detail-player img{width:36px;height:36px;border-radius:50%;object-fit:cover}.detail-player b{font-size:12px;display:block}.detail-player small{color:#aaa;font-size:10px;display:block;margin-top:4px}.detail-meta{margin-top:14px;padding:12px;background:#222228;border-radius:9px;color:#aaa;font-size:11px;line-height:1.7}@media(max-width:600px){.detail-teams{grid-template-columns:1fr}}</style>
+<!-- LIVE ACTIVITY STYLES: start -->
+<style id="live-activity-styles">
+.live-activity{margin:4px 0 34px}
+.live-tag{display:inline-flex;align-items:center;gap:7px;color:var(--green);border-color:#285a40}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 #69d49a80;animation:livePulse 2s infinite}
+@keyframes livePulse{0%{box-shadow:0 0 0 0 #69d49a80}70%{box-shadow:0 0 0 7px #69d49a00}100%{box-shadow:0 0 0 0 #69d49a00}}
+@media(prefers-reduced-motion:reduce){.live-dot{animation:none}}
+.live-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}
+.live-count{font:700 13px Inter,sans-serif;color:var(--muted)}
+.live-count b{color:var(--green);font-size:15px}
+.live-list{padding:6px 18px;flex:1}
+.live-match{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:14px;align-items:center;padding:13px 10px;border-bottom:1px solid #ffffff0c;border-radius:8px;cursor:pointer}
+.live-match:last-child{border-bottom:0}
+.live-match:hover,.live-match:focus{background:#242126;outline:none}
+.live-queue{font:800 16px 'Barlow Condensed';color:var(--gold);text-align:center;border:1px solid #6e5424;border-radius:6px;padding:5px 0}
+.live-match b{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.live-match b .vs{color:#777;font-weight:600;margin:0 6px}
+.live-match small{display:block;color:#888;font-size:10.5px;margin-top:4px}
+.live-empty{padding:30px 12px;color:#8f8b82;font-size:12.5px;line-height:1.7}
+.live-empty a{color:var(--gold);font-weight:700}
+.live-pulse{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)}
+.live-pulse div{padding:15px 20px}
+.live-pulse div+div{border-left:1px solid var(--line)}
+.live-pulse strong{display:block;font:700 28px 'Barlow Condensed';color:var(--gold2)}
+.live-pulse span{color:#8f8b82;font-size:11px}
+.week-list{padding:4px 20px 10px}
+.week-item{display:grid;grid-template-columns:44px minmax(0,1fr);gap:14px;align-items:center;padding:15px 0;border-top:1px solid #ffffff0c}
+.week-item:first-child{border-top:0}
+.week-icon{width:44px;height:44px;border-radius:50%;object-fit:cover;background:#211c12;border:1px solid #6e5424;display:grid;place-items:center;color:var(--gold);font-weight:800;font-size:18px;overflow:hidden}
+.week-icon .civ-flag-image{width:34px;height:34px}
+.week-item small{display:block;color:var(--gold);font-size:9.5px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase}
+.week-item b{display:block;font:700 21px/1.15 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.4px;margin:3px 0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.week-item b a:hover{color:var(--gold)}
+.week-item span{color:#9d998f;font-size:11.5px}
+@media(max-width:850px){.live-grid{grid-template-columns:1fr}}
+@media(max-width:460px){.live-match{grid-template-columns:44px minmax(0,1fr)}.live-match .result{display:none}}
+</style>
+<!-- LIVE ACTIVITY STYLES: end -->
 <link rel="stylesheet" href="/static/common.css">
 <script src="/static/common.js"></script>
 </head>
@@ -69,7 +119,7 @@
 <div class="shell">
 <header class="topbar">
  <a class="brand" href="/"><img src="/static/cheese-club-logo.png" alt="The Cheese Club"><span><small>Age of Empires IV</small><b class="brand-title">THE CHEESE CLUB</b><small class="brand-sub">COMMUNITY HUB</small></span></a>
- <nav class="nav"><a href="/">Home</a><a href="/leaderboard">Leaderboard</a><a href="/matches">Matches</a><a href="/community">Community</a><a href="/voice-activity">Voice Activity</a><a href="/tournament">Tournament</a><a href="/about">About</a><a href="/contact">Contact Us</a><a href="/login">Login</a><a href="/signup">Sign Up</a></nav>
+ <nav class="nav"><a href="/">Home</a><a href="/leaderboard">Leaderboard</a><a href="/matches">Matches</a><a href="/civs">Civ Stats</a><a href="/community">Community</a><a href="/voice-activity">Voice Activity</a><a href="/tournament">Tournament</a><a href="/about">About</a><a href="/contact">Contact Us</a><a href="/login">Login</a><a href="/signup">Sign Up</a></nav>
  <a class="discord" id="discordLink" href="https://discord.gg/thecheeseclub" target="_blank" rel="noreferrer">JOIN DISCORD ↗</a>
 </header>
 <section class="hero">
@@ -84,7 +134,20 @@
   <div class="mini-bars"><i style="height:35%"></i><i style="height:54%"></i><i style="height:42%"></i><i style="height:70%"></i><i style="height:58%"></i><i style="height:88%"></i><i style="height:67%"></i><i style="height:100%"></i><i style="height:76%"></i><i style="height:90%"></i><i style="height:64%"></i><i style="height:83%"></i></div>
  </div>
 </section>
-
+<!-- LIVE ACTIVITY: start -->
+<section class="live-activity" aria-labelledby="liveTitle">
+ <div class="section-head"><div><h2 id="liveTitle">Live activity</h2><p>What's happening in the club right now</p></div><span class="tag live-tag"><i class="live-dot" aria-hidden="true"></i>Updates every 30 seconds</span></div>
+ <div class="live-grid">
+  <section class="panel"><div class="panel-head"><h3>Happening now</h3><span class="live-count" id="liveCount"></span></div>
+   <div class="live-list" id="liveMatches"><div class="empty">Loading live games…</div></div>
+   <div class="live-pulse"><div><strong id="live24h">—</strong><span>Games finished in the last 24 hours</span></div><div><strong id="live7d">—</strong><span>Players active this week</span></div></div>
+  </section>
+  <section class="panel"><div class="panel-head"><h3>This week</h3><a class="live-count" href="/civs" style="color:var(--gold)">Civ stats →</a></div>
+   <div class="week-list" id="liveWeek"><div class="empty">Loading this week's highlights…</div></div>
+  </section>
+ </div>
+</section>
+<!-- LIVE ACTIVITY: end -->
 <section class="founders-section" aria-labelledby="foundersTitle"><div class="section-head"><div><h2 id="foundersTitle">Meet the Founders</h2><p>The people behind The Cheese Club community</p></div><span class="tag">FOUNDERS</span></div><div class="founder-grid"><article class="founder-card"><img id="founderMicroAvatar" src="/static/cheese-club-logo.png" alt="MicroMan profile picture"><div><small>FOUNDER</small><h3>MicroMan</h3><p>Building the community, one match at a time.</p></div></article><article class="founder-card"><img id="founderGrimAvatar" src="/static/cheese-club-logo.png" alt="GrimLord profile picture"><div><small>FOUNDER</small><h3>GrimLord</h3><p>Growing the community and bringing players together.</p></div></article></div></section>
 
 <section id="community">
@@ -92,7 +155,7 @@
  <div class="stats">
   <div class="stat"><label>AoE IV players</label><strong id="aoePlayers">—</strong><small>Players with recorded stats</small></div>
   <div class="stat"><label>Completed matches</label><strong id="completedMatches">—</strong><small>Recorded match results</small></div>
-  <div class="stat"><label>Active matches</label><strong id="activeMatches">—</strong><small>Pending match records</small></div>
+  <div class="stat"><label>Games in progress</label><strong id="activeMatches">—</strong><small>Started in the last 6 hours</small></div>
   <div class="stat"><label>VC tracked members</label><strong id="vcPlayers">—</strong><small>Members with voice time</small></div>
  </div>
 </section>
@@ -133,6 +196,24 @@ async function loadOverview(){const d=await api('/api/overview');$('aoePlayers')
 async function loadAoe(queue='all'){const rows=await api('/api/leaderboards/aoe?queue='+encodeURIComponent(queue)+'&limit=5');$('aoeRows').innerHTML=rows.length?rows.map((r,i)=>`<tr class="clickable-player-row" title="Open community profile" data-user="${esc(r.user_id)}" tabindex="0"><td class="rank">${String(i+1).padStart(2,'0')}</td><td><a class="player player-link" href="/community?member=${encodeURIComponent(r.user_id)}">${esc(r.aoe4_name||shortId(r.user_id))}</a><span class="sub">${esc(r.id_hint)}</span></td><td>${fmt(r.wins)} / ${fmt(r.losses)}</td><td class="elo">${r.solo_elo==null?'N/A':fmt(r.solo_elo)}</td><td class="elo">${r.team_elo==null?'N/A':fmt(r.team_elo)}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">No eligible linked players found yet.</td></tr>'}
 async function loadVc(){const rows=await api('/api/leaderboards/vc?limit=5');$('vcRows').innerHTML=rows.length?rows.map((r,i)=>`<tr class="clickable-player-row" title="Open community profile" data-user="${esc(r.user_id)}" tabindex="0"><td class="rank">${String(i+1).padStart(2,'0')}</td><td><a class="player player-link" href="/community?member=${encodeURIComponent(r.user_id)}">${esc(r.username||shortId(r.user_id))}</a><span class="sub">Discord ID: ${esc(r.id_hint)}</span></td><td class="elo">${duration(r.total_secs)}</td></tr>`).join(''):'<tr><td colspan="3" class="empty">No voice activity recorded yet.</td></tr>'}
 async function loadMatches(){const rows=await api('/api/matches?limit=5');$('matchRows').innerHTML=rows.length?rows.map(m=>{const count=Number(m.player_count||0);const pending=m.result==='pending';return `<div class="match" role="button" tabindex="0" onclick="openMatchDetail(${Number(m.id)})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openMatchDetail(${Number(m.id)})}"><div><strong>Match #${m.id} · ${esc(m.queue_type)}</strong><small>${count} players · ${date(m.created_at)}</small><span class="match-hint">Click to view match result, teams & civilizations ↗</span></div><span class="result ${pending?'pending':''}">${esc(matchResultText(m.result))}</span></div>`}).join(''):'<div class="empty">No match records found yet.</div>'}
+
+/* LIVE ACTIVITY */
+const ago=d=>{const m=Math.max(0,Math.round((Date.now()-new Date(d))/60000));return m<1?'just now':m<60?`${m} min ago`:`${Math.floor(m/60)}h ${m%60}m ago`};
+const teamNames=t=>(t||[]).map(p=>esc(p.username)).join(' & ')||'Unknown';
+function weekRow(label,icon,title,line){return `<div class="week-item"><div class="week-icon">${icon}</div><div style="min-width:0"><small>${label}</small><b>${title}</b><span>${line}</span></div></div>`}
+function personIcon(p){return p.avatar_url?`<img class="week-icon" src="${esc(p.avatar_url)}" alt="">`:esc((p.username||'?').slice(0,1).toUpperCase())}
+function personLink(p){return p.user_id?`<a href="${ccPlayerHref(p.user_id)}">${esc(p.username)}</a>`:esc(p.username)}
+async function loadActivity(){const a=await api('/api/activity');
+ const live=a.in_progress||[];
+ $('liveCount').innerHTML=live.length?`<b>${live.length}</b> in progress`:'';
+ $('liveMatches').innerHTML=live.length?live.map(m=>`<div class="live-match" role="button" tabindex="0" data-match="${Number(m.id)}"><span class="live-queue">${esc(String(m.queue_type||'').toUpperCase())}</span><div style="min-width:0"><b>${teamNames(m.team1)}<span class="vs">vs</span>${teamNames(m.team2)}</b><small>Started ${ago(m.started_at)} · Match #${Number(m.id)}</small></div><span class="result pending">In progress</span></div>`).join(''):`<div class="live-empty">No games in progress right now. Queue up in our <a href="https://discord.gg/thecheeseclub" target="_blank" rel="noopener noreferrer">Discord</a> to start one.</div>`;
+ $('live24h').textContent=fmt(a.played_last_24h);$('live7d').textContent=fmt(a.active_players_7d);
+ const w=a.week||{};const rows=[];
+ if(w.most_wins)rows.push(weekRow('Most wins',personIcon(w.most_wins),personLink(w.most_wins),`${fmt(w.most_wins.wins)} win${w.most_wins.wins===1?'':'s'} in the last 7 days`));
+ if(w.hottest_streak)rows.push(weekRow('Hottest streak',personIcon(w.hottest_streak),personLink(w.hottest_streak),`${fmt(w.hottest_streak.streak)} wins in a row and counting`));
+ if(w.most_played_civ)rows.push(weekRow('Most played civ',civFlag(w.most_played_civ.civ),esc(w.most_played_civ.civ),`Picked ${fmt(w.most_played_civ.picks)} time${w.most_played_civ.picks===1?'':'s'} this week`));
+ $('liveWeek').innerHTML=rows.join('')||'<div class="live-empty">No games played in the last 7 days yet. This week\'s top players and civs will show up here.</div>';
+}
 let allMembers=[], filteredMembers=[], membersShown=24;
 function renderMembers(rows, reset=true){if(reset)membersShown=24;filteredMembers=rows;$('memberCount').textContent=`${rows.length} MEMBERS`;if(!rows.length){$('memberGrid').innerHTML='<div class="empty">No matching members found.</div>';$('membersMore').hidden=true;return}
 const visible=rows.slice(0,membersShown);
@@ -142,14 +223,14 @@ const remaining=Math.max(0,rows.length-membersShown);$('membersMore').hidden=rem
 let profileQueryHandled=false;
 async function loadMembers(){allMembers=await api('/api/members?limit=500');await searchMembers(false);const target=new URLSearchParams(location.search).get('member');if(target&&!profileQueryHandled){profileQueryHandled=true;openMember(target)}}
 $('loadMoreMembers').addEventListener('click',()=>{membersShown+=24;renderMembers(filteredMembers,false)});
-async function openMember(id){const profileUrl=new URL(location.href);profileUrl.searchParams.set('member',id);history.replaceState(history.state,'',profileUrl);$('memberBackdrop').style.display='flex';document.body.style.overflow='hidden';$('memberProfile').innerHTML='<div class="empty">Loading profile…</div>';try{const p=await api('/api/players/'+encodeURIComponent(id));const q=p.queue_stats||[];const wins=q.reduce((a,x)=>a+Number(x.wins||0),0),losses=q.reduce((a,x)=>a+Number(x.losses||0),0);$('memberProfile').innerHTML=`<div class="profile-hero">${p.avatar_url?`<img src="${esc(p.avatar_url)}" alt="">`:''}<div><h3>${esc(p.username||shortId(id))}</h3><small>Discord ID: ${esc(p.id_hint)} ${p.aoe4_link?.aoe4_name?' · AoE4: '+esc(p.aoe4_link.aoe4_name):''}</small></div></div><div class="profile-stats"><div class="profile-stat"><small>VC time</small><b>${duration(p.vc_seconds)}</b></div><div class="profile-stat"><small>Wins / Losses</small><b>${wins} / ${losses}</b></div><div class="profile-stat"><small>Matches played</small><b>${wins+losses}</b></div><div class="profile-stat"><small>Solo ELO · AoE4World</small><b>${p.solo_elo==null?'N/A':fmt(p.solo_elo)}</b></div><div class="profile-stat"><small>TG ELO · AoE4World</small><b>${p.team_elo==null?'N/A':fmt(p.team_elo)}</b></div></div><h3 style="font:700 20px 'Barlow Condensed';margin:12px 0">AOE IV QUEUE RECORDS</h3>${q.length?q.map(x=>{const queue=String(x.queue_type||'').toLowerCase();const targetName=p.aoe4_link?.aoe4_name||p.username||'';return `<a class="match queue-record-link" href="/leaderboard?queue=${encodeURIComponent(queue)}&search=${encodeURIComponent(targetName)}&user=${encodeURIComponent(id)}&returnTo=${encodeURIComponent(location.pathname+location.search)}"><div><strong>${esc(x.queue_type)} <span class="click-indicator">↗</span></strong><small>${fmt(x.wins)} wins · ${fmt(x.losses)} losses · ${fmt(x.no_results)} no results</small></div><span class="elo">${fmt(x.wins+x.losses)} games</span></a>`}).join(''):'<div class="empty">No AoE IV queue statistics recorded.</div>'}<h3 style="font:700 20px 'Barlow Condensed';margin:18px 0 10px">RECENT MATCHES</h3>${(p.recent_matches||[]).length?p.recent_matches.map(m=>`<div class="match profile-match" role="button" tabindex="0" data-match="${Number(m.id)}"><div><strong>Match #${m.id} · ${esc(m.queue_type)} <span class="click-indicator">↗</span></strong><small>${date(m.created_at)}</small><span class="match-hint">CLICK TO VIEW MATCH DETAILS</span></div><span class="result ${m.result==='pending'?'pending':''}">${esc(matchResultText(m.result))}</span></div>`).join(''):'<div class="empty">No recent match records.</div>'}`}catch(e){$('memberProfile').innerHTML=`<div class="empty">Could not load profile: ${esc(e.message)}</div>`}}
+async function openMember(id){const profileUrl=new URL(location.href);profileUrl.searchParams.set('member',id);history.replaceState(history.state,'',profileUrl);$('memberBackdrop').style.display='flex';document.body.style.overflow='hidden';$('memberProfile').innerHTML='<div class="empty">Loading profile…</div>';try{const p=await api('/api/players/'+encodeURIComponent(id));const q=p.queue_stats||[];const wins=q.reduce((a,x)=>a+Number(x.wins||0),0),losses=q.reduce((a,x)=>a+Number(x.losses||0),0);$('memberProfile').innerHTML=`<div class="profile-hero">${p.avatar_url?`<img src="${esc(p.avatar_url)}" alt="">`:''}<div><h3>${esc(p.username||shortId(id))}</h3><small>Discord ID: ${esc(p.id_hint)} ${p.aoe4_link?.aoe4_name?' · AoE4: '+esc(p.aoe4_link.aoe4_name):''}</small>${p.user_id?`<a class="full-profile-link" href="/player/${encodeURIComponent(p.user_id)}">View full profile →</a>`:''}</div></div><div class="profile-stats"><div class="profile-stat"><small>VC time</small><b>${duration(p.vc_seconds)}</b></div><div class="profile-stat"><small>Wins / Losses</small><b>${wins} / ${losses}</b></div><div class="profile-stat"><small>Matches played</small><b>${wins+losses}</b></div><div class="profile-stat"><small>Solo ELO · AoE4World</small><b>${p.solo_elo==null?'N/A':fmt(p.solo_elo)}</b></div><div class="profile-stat"><small>TG ELO · AoE4World</small><b>${p.team_elo==null?'N/A':fmt(p.team_elo)}</b></div></div><h3 style="font:700 20px 'Barlow Condensed';margin:12px 0">AOE IV QUEUE RECORDS</h3>${q.length?q.map(x=>{const queue=String(x.queue_type||'').toLowerCase();const targetName=p.aoe4_link?.aoe4_name||p.username||'';return `<a class="match queue-record-link" href="/leaderboard?queue=${encodeURIComponent(queue)}&search=${encodeURIComponent(targetName)}&user=${encodeURIComponent(id)}&returnTo=${encodeURIComponent(location.pathname+location.search)}"><div><strong>${esc(x.queue_type)} <span class="click-indicator">↗</span></strong><small>${fmt(x.wins)} wins · ${fmt(x.losses)} losses · ${fmt(x.no_results)} no results</small></div><span class="elo">${fmt(x.wins+x.losses)} games</span></a>`}).join(''):'<div class="empty">No AoE IV queue statistics recorded.</div>'}<h3 style="font:700 20px 'Barlow Condensed';margin:18px 0 10px">RECENT MATCHES</h3>${(p.recent_matches||[]).length?p.recent_matches.map(m=>`<div class="match profile-match" role="button" tabindex="0" data-match="${Number(m.id)}"><div><strong>Match #${m.id} · ${esc(m.queue_type)} <span class="click-indicator">↗</span></strong><small>${date(m.created_at)}</small><span class="match-hint">CLICK TO VIEW MATCH DETAILS</span></div><span class="result ${m.result==='pending'?'pending':''}">${esc(matchResultText(m.result))}</span></div>`).join(''):'<div class="empty">No recent match records.</div>'}`}catch(e){$('memberProfile').innerHTML=`<div class="empty">Could not load profile: ${esc(e.message)}</div>`}}
 function closeMember(){$('memberBackdrop').style.display='none';const profileUrl=new URL(location.href);profileUrl.searchParams.delete('member');history.replaceState(history.state,'',profileUrl);const detail=$('detailBackdrop');document.body.style.overflow=detail&&detail.style.display==='flex'?'hidden':''}
 $('closeMember').addEventListener('click',closeMember);$('memberBackdrop').addEventListener('click',e=>{if(e.target===$('memberBackdrop'))closeMember()});
 function memberMatches(m,q){return !q||(m.username||'').toLowerCase().includes(q)||(m.aoe4_name||'').toLowerCase().includes(q)||String(m.id_hint||'').startsWith(q)||m.user_id===q}
 let memberSearchSeq=0;
 async function searchMembers(reset=true){const q=$('memberSearch').value.trim().toLowerCase();const seq=++memberSearchSeq;let rows=allMembers.filter(m=>memberMatches(m,q));if(/^\d{15,20}$/.test(q)){try{rows=await api('/api/members?limit=5&search='+encodeURIComponent(q))}catch(e){rows=[]}if(seq!==memberSearchSeq)return}renderMembers(rows,reset)}
 $('memberSearch').addEventListener('input',()=>searchMembers(true));
-async function refresh(){try{await Promise.all([loadOverview(),loadAoe(document.querySelector('.queue-tabs button.active')?.dataset.queue||'all'),loadVc(),loadMatches(),loadMembers()])}catch(e){$('syncStatus').textContent='DATABASE NOT CONNECTED';$('syncStatus').style.color='#e7a65b';$('toast').textContent=e.message;$('toast').style.display='block'}}
+async function refresh(){try{await Promise.all([loadActivity(),loadOverview(),loadAoe(document.querySelector('.queue-tabs button.active')?.dataset.queue||'all'),loadVc(),loadMatches(),loadMembers()])}catch(e){$('syncStatus').textContent='DATABASE NOT CONNECTED';$('syncStatus').style.color='#e7a65b';$('toast').textContent=e.message;$('toast').style.display='block'}}
 document.querySelectorAll('.queue-tabs button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.queue-tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');loadAoe(b.dataset.queue).catch(e=>console.error(e))}));
 document.addEventListener('click',e=>{const row=e.target.closest('.clickable-player-row');if(row&&row.dataset.user)openMember(row.dataset.user)});document.addEventListener('keydown',e=>{const row=e.target.closest?.('.clickable-player-row');if(row&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openMember(row.dataset.user)}});
 $('year').textContent=new Date().getFullYear();

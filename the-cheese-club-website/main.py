@@ -461,21 +461,37 @@ async def match_detail(match_id: int):
             FROM vc_logs WHERE user_id = ANY($1::text[])
             ORDER BY user_id, left_at DESC
         """, all_ids)
+        # Community rating for this match's queue (the same figure "Biggest upset" uses),
+        # falling back to the player's average across queues if they have none for it.
         elo_rows = await fetch("""
-            SELECT user_id, ROUND(AVG(elo))::int AS elo
+            SELECT user_id,
+                   ROUND(AVG(elo) FILTER (WHERE LOWER(queue_type) = LOWER($2)))::int AS queue_elo,
+                   ROUND(AVG(elo))::int AS any_elo
             FROM aoe_queue_stats WHERE user_id = ANY($1::text[])
             GROUP BY user_id
+        """, all_ids, str(row["queue_type"] or ""))
+        link_rows = await fetch("""
+            SELECT DISTINCT ON (user_id) user_id, profile_id FROM aoe4_links
+            WHERE user_id = ANY($1::text[]) ORDER BY user_id, linked_at DESC
         """, all_ids)
+        # Official AoE4World rating: Solo for 1v1, Team (TG) for everything else.
+        is_solo = str(row["queue_type"] or "").lower() == "1v1"
+        official_type = "Solo" if is_solo else "TG"
+        profile_ids = {str(r["user_id"]): r["profile_id"] for r in link_rows}
+        official = dict(zip(profile_ids, await asyncio.gather(*(aoe4world_ratings(pid) for pid in profile_ids.values()))))
         for uid in all_ids:
             players[uid] = {"user_id": to_public_id(uid), "id_hint": id_hint(uid),
-                            "username": None, "avatar_url": None, "elo": None}
+                            "username": None, "avatar_url": None, "elo": None,
+                            "official_elo": None, "official_elo_type": official_type}
         for r in profile_rows:
             players[str(r["user_id"])].update(username=r["username"], avatar_url=r["avatar_url"])
         for r in vc_rows:
             item = players[str(r["user_id"])]
             item["username"] = item["username"] or r["username"]
         for r in elo_rows:
-            players[str(r["user_id"])]["elo"] = r["elo"]
+            players[str(r["user_id"])]["elo"] = r["queue_elo"] if r["queue_elo"] is not None else r["any_elo"]
+        for uid, ratings in official.items():
+            players[uid]["official_elo"] = ratings.get("solo_elo" if is_solo else "team_elo")
         for uid, item in players.items():
             item["username"] = item["username"] or f"Player {uid[-4:]}"
             civ_value = civs.get(uid)
@@ -483,7 +499,7 @@ async def match_detail(match_id: int):
                 civ_value = civ_value.get("name") or civ_value.get("civilization") or civ_value.get("civ")
             item["civ"] = str(civ_value) if civ_value else "Not recorded"
             if uid in HIDDEN_IDS:
-                item.update(user_id=None, id_hint="", username="Hidden player", avatar_url=None, elo=None)
+                item.update(user_id=None, id_hint="", username="Hidden player", avatar_url=None, elo=None, official_elo=None)
 
     return {
         "id": row["id"],

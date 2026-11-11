@@ -60,10 +60,14 @@ function matchPlayer(p){
   const username=player.username||'Unknown player';
   const avatar=player.avatar_url||CC_DEFAULT_AVATAR;
   const civ=player.civ||'Not recorded';
-  const elo=player.elo!=null&&player.elo!==''?`${ccFmt(player.elo)} ELO`:'ELO unavailable';
+  /* Official AoE4World rating (TG for team games, Solo for 1v1) and the club's own rating for this queue. */
+  const ratings=[];
+  if(player.official_elo!=null)ratings.push(`${ccEsc(player.official_elo_type||'TG')} ELO ${ccFmt(player.official_elo)}`);
+  if(player.elo!=null&&player.elo!=='')ratings.push(`Community ${ccFmt(player.elo)}`);
+  const elo=ratings.join(' · ')||'Ratings unavailable';
   const hint=player.id_hint||'Unavailable';
   const nameHtml=player.user_id?`<a class="player-page-link" href="${ccPlayerHref(player.user_id)}">${ccEsc(username)}</a>`:ccEsc(username);
-  return `<div class="detail-player"><img src="${ccEsc(avatar)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${CC_DEFAULT_AVATAR}'"><div class="detail-player-info"><b>${nameHtml}</b><small>${ccEsc(civ)} · ${elo}</small><small>Discord ID: ${ccEsc(hint)}</small></div><span class="civ-flag" title="${ccEsc(civ)}">${civFlag(civ)}</span></div>`;
+  return `<div class="detail-player"><img src="${ccEsc(avatar)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${CC_DEFAULT_AVATAR}'"><div class="detail-player-info"><b>${nameHtml}</b><small>${ccEsc(civ)}</small><small>${elo}</small><small>Discord ID: ${ccEsc(hint)}</small></div><span class="civ-flag" title="${ccEsc(civ)}">${civFlag(civ)}</span></div>`;
 }
 
 /* Plain-text description of a match's civilization bans (escape before inserting). */

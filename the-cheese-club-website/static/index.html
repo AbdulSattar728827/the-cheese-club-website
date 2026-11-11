@@ -226,7 +226,7 @@ async function loadActivity(){const a=await api('/api/activity');
  if(w.most_active)rows.push(weekRow('Most active',personIcon(w.most_active),personLink(w.most_active),`${fmt(w.most_active.games)} game${w.most_active.games===1?'':'s'} played this week`));
  if(w.rivalry){const [a,b]=w.rivalry.players;const lead=a.wins===b.wins?`level at ${a.wins}–${b.wins}`:`${esc((a.wins>b.wins?a:b).username)} leads ${Math.max(a.wins,b.wins)}–${Math.min(a.wins,b.wins)}`;
   rows.push(weekRow('Rivalry of the week','<span aria-hidden="true">⚔️</span>',`${personLink(a)} <span class="vs">vs</span> ${personLink(b)}`,`Met ${fmt(w.rivalry.games)} times this week, ${lead}`))}
- if(w.biggest_upset){const u=w.biggest_upset;rows.push(weekRow('Biggest upset','<span aria-hidden="true">💥</span>',joinNames((u.winners||[]).map(personLink))||'Unknown',`Beat a team rated about ${fmt(u.rating_gap)} higher in ${esc(u.queue_type)} · Match #${Number(u.match_id)}`,u.match_id))}
+ if(w.biggest_upset){const u=w.biggest_upset;rows.push(weekRow('Biggest upset','<span aria-hidden="true">💥</span>',joinNames((u.winners||[]).map(personLink))||'Unknown',`Beat a team with a community rating about ${fmt(u.rating_gap)} higher in ${esc(u.queue_type)} · Match #${Number(u.match_id)}`,u.match_id))}
  if(w.most_played_civ)rows.push(weekRow('Most played civ',civFlag(w.most_played_civ.civ),esc(w.most_played_civ.civ),`Picked ${fmt(w.most_played_civ.picks)} time${w.most_played_civ.picks===1?'':'s'} this week`));
  $('liveWeek').innerHTML=rows.join('')||'<div class="live-empty">No games played in the last 7 days yet. This week\'s top players and civs will show up here.</div>';
 }

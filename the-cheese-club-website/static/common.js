@@ -28,7 +28,7 @@ const CIV_FLAG_FILES={
   "tughlaq dynasty":"Tughlaq.png","tughlaq":"Tughlaq.png",
   "sengoku daimyo":"Sengoku.png","sengoku":"Sengoku.png",
   "macedonian dynasty":"Maccedonian.png","macedonian":"Maccedonian.png",
-  "knights templar":"Templar.png","templar":"Templar.png",
+  "knights templar":"Templar.png","templar knights":"Templar.png","templar":"Templar.png","templars":"Templar.png",
   "golden horde":"Horde.png",
   "house of lancaster":"Lancaster.png","lancaster":"Lancaster.png",
   "jin dynasty":"Jin.png","jin":"Jin.png",
@@ -37,8 +37,18 @@ const CIV_FLAG_FILES={
   "random":"Random.png"
 };
 function civKey(c){return String(c||'').trim().toLowerCase().replace(/[\u2018\u2019\u02bc`]/g,"'").replace(/\s+/g,' ')}
+/* Exact name first; otherwise the longest known name that appears as whole words in it,
+   so "Templar Knights" or "The Order of the Dragon" still find their flag. */
+const CIV_KEYS_LONGEST_FIRST=Object.keys(CIV_FLAG_FILES).sort((a,b)=>b.length-a.length);
+function civFlagFile(c){
+  const key=civKey(c);if(!key)return null;
+  if(CIV_FLAG_FILES[key])return CIV_FLAG_FILES[key];
+  const words=` ${key.replace(/[^a-z0-9' ]+/g,' ').replace(/\s+/g,' ').trim()} `;
+  const hit=CIV_KEYS_LONGEST_FIRST.find(k=>k.length>=3&&words.includes(` ${k} `));
+  return hit?CIV_FLAG_FILES[hit]:null;
+}
 function civFlag(c){
-  const file=CIV_FLAG_FILES[civKey(c)];
+  const file=civFlagFile(c);
   return file?`<img class="civ-flag-image" src="/static/civ-flags/${encodeURIComponent(file)}" alt="${ccEsc(c)} emblem" title="${ccEsc(c)}" loading="lazy" onerror="this.style.display='none'">`:'⚑';
 }
 

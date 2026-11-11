@@ -1,4 +1,5 @@
 /* The Cheese Club — styles shared by every page (loaded after each page's own styles). */
+[hidden]{display:none!important}
 .nav a.nav-coming-soon{color:#8d8980}
 .nav a.nav-coming-soon:hover{color:#c8c4bc}
 .nav a.nav-coming-soon.active{color:var(--gold,#f0b82f)}

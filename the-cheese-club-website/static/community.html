@@ -152,12 +152,16 @@ function renderMembers(rows, reset=true){
   return `<article class="member-card" data-user="${esc(m.user_id)}"><div class="member-top">${avatar}<div style="min-width:0"><div class="member-name">${esc(m.username||shortId(m.user_id))}</div><div class="member-id">Discord · ${maskDiscordId(m.user_id)}</div></div></div><div class="member-tags">${m.has_aoe?'<span class="member-tag">⚔ AOE IV PLAYER</span>':''}${m.has_vc?'<span class="member-tag vc">🎙 VC MEMBER</span>':''}</div><div class="member-metrics"><span>W / L<b>${fmt(m.wins)} / ${fmt(m.losses)}</b></span><span>GAMES<b>${m.has_aoe?fmt(m.games):'—'}</b></span><span>VOICE TIME<b>${duration(voiceSeconds)}</b></span></div></article>`;
  }).join('');
  $('memberGrid').querySelectorAll('.member-card').forEach(card=>card.addEventListener('click',()=>openMember(card.dataset.user)));
- const remaining=Math.max(0, filteredMembers.length - Math.min(membersShown, filteredMembers.length));
- const moreWrap=$('membersMore');
- moreWrap.hidden = remaining <= 0;
+ const totalMembers = filteredMembers.length;
+ membersShown = Math.min(Math.max(0, Number(membersShown) || 0), totalMembers);
+ const remaining = Math.max(0, totalMembers - membersShown);
+ const moreWrap = $('membersMore');
+ const moreButton = $('loadMoreMembers');
+ moreWrap.hidden = remaining === 0;
  if (remaining > 0) {
-   $('loadMoreMembers').textContent = `LOAD MORE (${Math.min(24, remaining)} MORE)`;
+   moreButton.textContent = `LOAD MORE (${Math.min(24, remaining)} MORE)`;
  }
+
 }
 let profileQueryHandled=false;
 async function loadMembers(){
@@ -171,6 +175,7 @@ async function loadMembers(){
 }
 $('loadMoreMembers').addEventListener('click',()=>{
  const total = filteredMembers.length;
+ membersShown = Math.min(Math.max(0, Number(membersShown) || 0), total);
  if (membersShown >= total) {
    $('membersMore').hidden = true;
    return;

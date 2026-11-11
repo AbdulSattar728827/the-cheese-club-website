@@ -1,0 +1,9 @@
+/* The Cheese Club — styles shared by every page (loaded after each page's own styles). */
+.nav a.nav-coming-soon{color:#8d8980}
+.nav a.nav-coming-soon:hover{color:#c8c4bc}
+.nav a.nav-coming-soon.active{color:var(--gold,#f0b82f)}
+.nav-soon{display:inline-block;margin-left:5px;padding:1px 5px;border:1px solid #4a3d22;border-radius:20px;color:#b98f2c;font-size:8px;font-weight:700;letter-spacing:.5px;vertical-align:2px;text-transform:uppercase}
+.back-link{display:none;align-items:center;gap:6px;margin:0 0 14px;color:var(--gold,#f0b82f);font-size:12px;font-weight:700}
+.back-link.show{display:inline-flex}
+.back-link:hover{text-decoration:underline}
+.back-link:focus-visible{outline:1px solid var(--gold,#f0b82f);outline-offset:4px;border-radius:3px}

@@ -199,14 +199,21 @@ async function loadMatches(){const rows=await api('/api/matches?limit=5');$('mat
 
 /* LIVE ACTIVITY */
 const ago=d=>{const m=Math.max(0,Math.round((Date.now()-new Date(d))/60000));return m<1?'just now':m<60?`${m} min ago`:`${Math.floor(m/60)}h ${m%60}m ago`};
-const teamNames=t=>(t||[]).map(p=>esc(p.username)).join(' & ')||'Unknown';
+const teamNames=t=>(t||[]).map(p=>esc(p.username)).join(' & ');
+/* Teams are saved after the coin flip, veto and civ picks; until then show who is in the game. */
+function liveLineup(m){
+ const t1=m.team1||[],t2=m.team2||[],all=m.players||[];
+ if(t1.length||t2.length)return `${teamNames(t1)||'To be decided'}<span class="vs">vs</span>${teamNames(t2)||'To be decided'}`;
+ if(all.length===2)return `${esc(all[0].username)}<span class="vs">vs</span>${esc(all[1].username)}`;
+ return all.length?all.map(p=>esc(p.username)).join(', '):`${fmt(m.player_count)} players`;
+}
 function weekRow(label,icon,title,line){return `<div class="week-item"><div class="week-icon">${icon}</div><div style="min-width:0"><small>${label}</small><b>${title}</b><span>${line}</span></div></div>`}
 function personIcon(p){return p.avatar_url?`<img class="week-icon" src="${esc(p.avatar_url)}" alt="">`:esc((p.username||'?').slice(0,1).toUpperCase())}
 function personLink(p){return p.user_id?`<a href="${ccPlayerHref(p.user_id)}">${esc(p.username)}</a>`:esc(p.username)}
 async function loadActivity(){const a=await api('/api/activity');
  const live=a.in_progress||[];
  $('liveCount').innerHTML=live.length?`<b>${live.length}</b> in progress`:'';
- $('liveMatches').innerHTML=live.length?live.map(m=>`<div class="live-match" role="button" tabindex="0" data-match="${Number(m.id)}"><span class="live-queue">${esc(String(m.queue_type||'').toUpperCase())}</span><div style="min-width:0"><b>${teamNames(m.team1)}<span class="vs">vs</span>${teamNames(m.team2)}</b><small>Started ${ago(m.started_at)} · Match #${Number(m.id)}</small></div><span class="result pending">In progress</span></div>`).join(''):`<div class="live-empty">No games in progress right now. Queue up in our <a href="https://discord.gg/thecheeseclub" target="_blank" rel="noopener noreferrer">Discord</a> to start one.</div>`;
+ $('liveMatches').innerHTML=live.length?live.map(m=>`<div class="live-match" role="button" tabindex="0" data-match="${Number(m.id)}"><span class="live-queue">${esc(String(m.queue_type||'').toUpperCase())}</span><div style="min-width:0"><b>${liveLineup(m)}</b><small>${(m.team1||[]).length||(m.team2||[]).length?'':'Setting up teams · '}Started ${ago(m.started_at)} · Match #${Number(m.id)}</small></div><span class="result pending">In progress</span></div>`).join(''):`<div class="live-empty">No games in progress right now. Queue up in our <a href="https://discord.gg/thecheeseclub" target="_blank" rel="noopener noreferrer">Discord</a> to start one.</div>`;
  $('live24h').textContent=fmt(a.played_last_24h);$('live7d').textContent=fmt(a.active_players_7d);
  const w=a.week||{};const rows=[];
  if(w.most_wins)rows.push(weekRow('Most wins',personIcon(w.most_wins),personLink(w.most_wins),`${fmt(w.most_wins.wins)} win${w.most_wins.wins===1?'':'s'} in the last 7 days`));

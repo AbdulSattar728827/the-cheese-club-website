@@ -495,6 +495,7 @@ async def match_detail(match_id: int):
         "civ_bans": civ_bans,
         "team1": [players[x] for x in team1 if x in players],
         "team2": [players[x] for x in team2 if x in players],
+        "players": [players[x] for x in player_ids if x in players],
     }
 
 
@@ -932,6 +933,7 @@ async def activity():
             "id": m["id"], "queue_type": m["queue_type"], "started_at": m["created_at"],
             "team1": [names[u] for u in m["team1"] if u in names],
             "team2": [names[u] for u in m["team2"] if u in names],
+            "players": [names[u] for u in m["players"] if u in names],
             "player_count": len(m["players"]),
         } for m in reversed(live)],
         "played_last_24h": len(finished_today),

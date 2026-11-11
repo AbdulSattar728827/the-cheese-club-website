@@ -97,8 +97,13 @@ async function fetchMatchDetail(id){
 /* Full inner HTML for the match-detail modal body. */
 function matchDetailHtml(m){
   const winner=matchWinner(m.result);
+  const t1=Array.isArray(m.team1)?m.team1:[],t2=Array.isArray(m.team2)?m.team2:[],everyone=Array.isArray(m.players)?m.players:[];
+  /* Before the bot saves teams (coin flip, veto, civ picks), list everyone in the match instead. */
+  const lineup=(!t1.length&&!t2.length&&everyone.length)
+    ?`<div class="detail-teams"><div class="detail-team" style="grid-column:1/-1"><h3>Players</h3><p class="detail-note" style="margin:0 0 6px;color:#9d998f;font-size:11px">Teams appear here once they're set up in Discord.</p>${everyone.map(matchPlayer).join('')}</div></div>`
+    :null;
   const team=n=>{const raw=n===1?m.team1:m.team2;const players=Array.isArray(raw)?raw:[];return `<div class="detail-team"><h3>${winner===n?'🏆 ':''}Team ${n}${winner===n?' · Winner':''}</h3>${players.length?players.map(matchPlayer).join(''):'<div class="empty">No players were saved for this team.</div>'}</div>`};
-  return `<p class="detail-meta"><b>${ccEsc(matchResultText(m.result))}</b> · ${ccEsc(m.queue_type)} · ${ccDateTime(m.created_at)} · ${ccFmt(m.player_count)} players</p><div class="detail-teams">${team(1)}${team(2)}</div><div class="detail-meta"><b>Civilization bans:</b> ${ccEsc(formatCivBans(m.civ_bans))}<br><b>Match ID:</b> #${ccEsc(m.id)}<br><b>Finished:</b> ${m.finished_at?ccDateTime(m.finished_at):'Not finished'}</div>`;
+  return `<p class="detail-meta"><b>${ccEsc(matchResultText(m.result))}</b> · ${ccEsc(m.queue_type)} · ${ccDateTime(m.created_at)} · ${ccFmt(m.player_count)} players</p>${lineup||`<div class="detail-teams">${team(1)}${team(2)}</div>`}<div class="detail-meta"><b>Civilization bans:</b> ${ccEsc(formatCivBans(m.civ_bans))}<br><b>Match ID:</b> #${ccEsc(m.id)}<br><b>Finished:</b> ${m.finished_at?ccDateTime(m.finished_at):'Not finished'}</div>`;
 }
 
 /* Navigation: highlight the current page and grey out pages that are not live yet. */

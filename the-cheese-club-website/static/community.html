@@ -195,19 +195,53 @@ refresh();setInterval(refresh,30000);
 
 function closeMatchDetail(){const b=document.getElementById('detailBackdrop');if(b)b.style.display='none';const profile=document.getElementById('memberBackdrop');document.body.style.overflow=profile&&profile.style.display==='flex'?'hidden':''}
 const CIV_FLAG_FILES={"english": "English.png", "french": "French.png", "holy roman empire": "Roman empire.png", "rus": "Rus.png", "abbasid dynasty": "Abbasid.png", "abbasid": "Abbasid.png", "chinese": "Chinese (2).png", "delhi sultanate": "Delhi.png", "delhi": "Delhi.png", "mongols": "Mongal.png", "mongol": "Mongal.png", "japanese": "Japnese.png", "byzantines": "Byzantine.png", "byzantine": "Byzantine.png", "ottomans": "Ottoman.png", "ottoman": "Ottoman.png", "malians": "Malians.png", "jeanne d’arc": "Jenne d arc.png", "jeanne d'arc": "Jenne d arc.png", "ayyubids": "Ayyubid.png", "order of the dragon": "Order.png", "zhu xi's legacy": "Zi Legacy.png", "tughlaq dynasty": "Tughlaq.png", "tughlaq": "Tughlaq.png", "sengoku daimyo": "Sengoku.png", "macedonian dynasty": "Maccedonian.png", "knights templar": "Templar.png", "golden horde": "Horde.png", "house of lancaster": "Lancaster.png", "vikings": "Vikings.webp", "scots": "Scots.webp", "roman empire": "Roman empire.png"};function civFlag(c){const key=String(c||'').trim().toLowerCase();const file=CIV_FLAG_FILES[key];return file?`<img class="civ-flag-image" src="/static/civ-flags/${encodeURIComponent(file)}" alt="${esc(c)} emblem" title="${esc(c)}" loading="lazy" onerror="this.style.display='none'">`:'⚑'}
-window.matchPlayer = function matchPlayer(p){
- const player = p || {};
- const username = player.username || player.discord_username || player.name || player.player_name || 'Unknown player';
- const avatar = player.avatar_url || player.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png';
- const civ = player.civ || player.civilization || player.civilisation || 'Not recorded';
- const eloValue = player.elo ?? player.rating ?? player.mmr;
- const elo = eloValue != null && eloValue !== '' ? `${esc(eloValue)} ELO` : 'ELO unavailable';
- const rawId = player.user_id ?? player.discord_id ?? player.discord_user_id;
- const discordId = rawId != null ? maskDiscordId(rawId) : 'Unavailable';
- return `<div class="detail-player"><img src="${esc(avatar)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='https://cdn.discordapp.com/embed/avatars/0.png'"><div class="detail-player-info"><b>${esc(username)}</b><small>${esc(civ)} · ${elo}</small><small>Discord ID: ${esc(discordId)}</small></div><span class="civ-flag" title="${esc(civ)}">${civFlag(civ)}</span></div>`;
-};
 
- async function openMatchDetail(id){const back=document.getElementById('detailBackdrop');if(!back)return;back.style.display='flex';document.body.style.overflow='hidden';document.getElementById('detailTitle').textContent=`Match #${id}`;const box=document.getElementById('detailContent');box.innerHTML='<div class="empty">Loading match details…</div>';try{const r=await fetch(`/api/matches/${encodeURIComponent(id)}`);const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.detail||`Match API request failed (${r.status})`);if(!data||typeof data!=='object')throw new Error('Invalid match details response');const result=String(data.result||'').toLowerCase();const winner=result==='team1'?1:result==='team2'?2:0;const team=(n,players)=>`<div class="detail-team"><h3>${winner===n?'🏆 ':''}Team ${n}${winner===n?' · Winner':''}</h3>${players.length?players.map(player => window.matchPlayer(player)).join(''):'<div class="empty">No team players were saved for this match.</div>'}</div>`;const bans=data.civ_bans||{};const banText=bans.skipped?'Skipped — no civilizations were banned':([...(bans.team1||[]).map(x=>'Team 1: '+x),...(bans.team2||[]).map(x=>'Team 2: '+x)].join(' · ')||'No ban information recorded');box.innerHTML=`<p class="detail-meta"><b>${esc(result==='team1'?'Team 1 Victory':result==='team2'?'Team 2 Victory':result.replaceAll('_',' ')||'Result unavailable')}</b> · ${esc(data.queue_type)} · ${new Date(data.created_at).toLocaleString()}</p><div class="detail-teams">${team(1,Array.isArray(data.team1)?data.team1:[])}${team(2,Array.isArray(data.team2)?data.team2:[])}</div><div class="detail-meta"><b>Civilization bans:</b> ${esc(banText)}<br><b>Match ID:</b> #${esc(data.id)}<br><b>Finished:</b> ${data.finished_at?new Date(data.finished_at).toLocaleString():'Not finished'}</div>`}catch(e){box.innerHTML=`<div class="empty">${esc(e.message)}. Please try again.</div>`}}
+
+ async function openMatchDetail(id){
+ const back=document.getElementById('detailBackdrop');
+ if(!back)return;
+ back.style.display='flex';
+ document.body.style.overflow='hidden';
+ document.getElementById('detailTitle').textContent=`Match #${id}`;
+ const box=document.getElementById('detailContent');
+ box.innerHTML='<div class="empty">Loading match details…</div>';
+ try{
+  const response=await fetch(`/api/matches/${encodeURIComponent(id)}`);
+  const data=await response.json().catch(()=>null);
+  if(!response.ok)throw new Error(data?.detail||`Match API request failed (${response.status})`);
+  if(!data||typeof data!=='object')throw new Error('Invalid match details response');
+
+  const result=String(data.result||'').toLowerCase();
+  const winner=result==='team1'?1:result==='team2'?2:0;
+  const civData=data.civ_data&&typeof data.civ_data==='object'?data.civ_data:{};
+
+  // Keep the player renderer local to this function: no global matchPlayer dependency.
+  const renderPlayer=player=>{
+   const p=player||{};
+   const idValue=p.user_id??p.discord_id??p.discord_user_id??'';
+   const username=p.username||p.discord_username||p.name||p.player_name||'Unknown player';
+   const avatar=p.avatar_url||p.avatar||'https://cdn.discordapp.com/embed/avatars/0.png';
+   const civ=p.civ||p.civilization||p.civilisation||civData[String(idValue)]||'Not recorded';
+   const eloValue=p.elo??p.rating??p.mmr;
+   const elo=eloValue!=null&&eloValue!==''?`${esc(eloValue)} ELO`:'ELO unavailable';
+   const discordId=idValue?maskDiscordId(idValue):'Unavailable';
+   return `<div class="detail-player"><img src="${esc(avatar)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='https://cdn.discordapp.com/embed/avatars/0.png'"><div class="detail-player-info"><b>${esc(username)}</b><small>${esc(civ)} · ${elo}</small><small>Discord ID: ${esc(discordId)}</small></div><span class="civ-flag" title="${esc(civ)}">${civFlag(civ)}</span></div>`;
+  };
+
+  const renderTeam=(teamNumber,players)=>{
+   const safePlayers=Array.isArray(players)?players:[];
+   return `<div class="detail-team"><h3>${winner===teamNumber?'🏆 ':''}Team ${teamNumber}${winner===teamNumber?' · Winner':''}</h3>${safePlayers.length?safePlayers.map(renderPlayer).join(''):'<div class="empty">No team players were saved for this match.</div>'}</div>`;
+  };
+
+  const bans=data.civ_bans||{};
+  const banText=bans.skipped?'Skipped — no civilizations were banned':([...(Array.isArray(bans.team1)?bans.team1:[]).map(x=>'Team 1: '+x),...(Array.isArray(bans.team2)?bans.team2:[]).map(x=>'Team 2: '+x)].join(' · ')||'No ban information recorded');
+  const created=data.created_at?new Date(data.created_at).toLocaleString():'Date unavailable';
+  const finished=data.finished_at?new Date(data.finished_at).toLocaleString():'Not finished';
+  box.innerHTML=`<p class="detail-meta"><b>${esc(result==='team1'?'Team 1 Victory':result==='team2'?'Team 2 Victory':result.replaceAll('_',' ')||'Result unavailable')}</b> · ${esc(data.queue_type||'Queue unavailable')} · ${esc(created)}</p><div class="detail-teams">${renderTeam(1,data.team1)}${renderTeam(2,data.team2)}</div><div class="detail-meta"><b>Civilization bans:</b> ${esc(banText)}<br><b>Match ID:</b> #${esc(data.id??id)}<br><b>Finished:</b> ${esc(finished)}</div>`;
+ }catch(error){
+  box.innerHTML=`<div class="empty">${esc(error.message||'Could not load match details')}. Please try again.</div>`;
+ }
+}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMatchDetail()});
 </script>
 <script>(function(){const clean=p=>{p=(p||'/').replace(/\/+$/,'');return p||'/'};const path=clean(location.pathname);document.querySelectorAll('.nav a').forEach(a=>{const href=clean(new URL(a.getAttribute('href'),location.origin).pathname);const active=href===path;a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')})})();</script></body></html>

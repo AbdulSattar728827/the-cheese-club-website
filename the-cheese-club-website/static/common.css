@@ -3,8 +3,27 @@
 .nav a.nav-coming-soon{color:#8d8980}
 .nav a.nav-coming-soon:hover{color:#c8c4bc}
 .nav a.nav-coming-soon.active{color:var(--gold,#f0b82f)}
-.nav-soon{display:inline-block;margin-left:5px;padding:1px 5px;border:1px solid #4a3d22;border-radius:20px;color:#b98f2c;font-size:8px;font-weight:700;letter-spacing:.5px;vertical-align:2px;text-transform:uppercase}
 .back-link{display:none;align-items:center;gap:6px;margin:0 0 14px;color:var(--gold,#f0b82f);font-size:12px;font-weight:700}
 .back-link.show{display:inline-flex}
 .back-link:hover{text-decoration:underline}
 .back-link:focus-visible{outline:1px solid var(--gold,#f0b82f);outline-offset:4px;border-radius:3px}
+
+/* Header layout for every page: one row on wide screens, nav on its own row below that,
+   and a wrapped nav on phones so nothing overlaps or runs off the screen. */
+.topbar{gap:18px}
+.topbar .brand{flex:0 0 auto;min-width:0}
+.topbar .discord{flex:0 0 auto;white-space:nowrap}
+.nav a{white-space:nowrap}
+@media(max-width:1440px){.nav{gap:13px}}
+@media(max-width:1200px){
+  .topbar{height:auto;min-height:0;flex-wrap:wrap;padding:14px 0 12px;row-gap:12px}
+  .topbar .nav{order:3;flex:1 0 100%;gap:8px 18px;padding-top:12px;border-top:1px solid #ffffff0d}
+}
+@media(max-width:520px){
+  .topbar .brand img{width:110px;height:auto}
+  .topbar .brand span{display:none}
+  .topbar .discord{padding:10px 13px;font-size:11px}
+  .topbar .nav{gap:8px 14px;font-size:12px}
+}
+.nav a.active{color:var(--gold,#f0b82f);font-weight:800;text-shadow:0 0 14px #dba62b35}
+.nav a:focus-visible{outline:1px solid var(--gold,#f0b82f);outline-offset:4px;border-radius:3px}

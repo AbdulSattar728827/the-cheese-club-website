@@ -98,7 +98,7 @@ function matchDetailHtml(m){
   return `<p class="detail-meta"><b>${ccEsc(matchResultText(m.result))}</b> · ${ccEsc(m.queue_type)} · ${ccDateTime(m.created_at)} · ${ccFmt(m.player_count)} players</p><div class="detail-teams">${team(1)}${team(2)}</div><div class="detail-meta"><b>Civilization bans:</b> ${ccEsc(formatCivBans(m.civ_bans))}<br><b>Match ID:</b> #${ccEsc(m.id)}<br><b>Finished:</b> ${m.finished_at?ccDateTime(m.finished_at):'Not finished'}</div>`;
 }
 
-/* Navigation: highlight the current page and mark pages that are not live yet. */
+/* Navigation: highlight the current page and grey out pages that are not live yet. */
 const CC_COMING_SOON=['/tournament','/contact','/login','/signup'];
 document.addEventListener('DOMContentLoaded',()=>{
   const clean=p=>{p=(p||'/').replace(/\/+$/,'');return p||'/'};
@@ -108,10 +108,6 @@ document.addEventListener('DOMContentLoaded',()=>{
     const active=href===path;
     a.classList.toggle('active',active);
     if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');
-    if(CC_COMING_SOON.includes(href)&&!a.querySelector('.nav-soon')){
-      a.classList.add('nav-coming-soon');
-      a.insertAdjacentHTML('beforeend','<span class="nav-soon">Soon</span>');
-      a.title='Coming soon';
-    }
+    if(CC_COMING_SOON.includes(href)){a.classList.add('nav-coming-soon');a.title='Coming soon'}
   });
 });

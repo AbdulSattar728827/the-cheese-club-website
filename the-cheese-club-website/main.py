@@ -560,6 +560,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 PAGES = {
     "/": "index.html",
+    "/about": "about.html",
     "/community": "community.html",
     "/leaderboard": "leaderboard.html",
     "/matches": "matches.html",

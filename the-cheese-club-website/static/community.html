@@ -211,4 +211,5 @@ function closeMatchDetail(){const b=document.getElementById('detailBackdrop');if
 async function openMatchDetail(id){const back=document.getElementById('detailBackdrop');if(!back)return;back.style.display='flex';document.body.style.overflow='hidden';document.getElementById('detailTitle').textContent=`Match #${id}`;const box=document.getElementById('detailContent');box.innerHTML='<div class="empty">Loading match details…</div>';try{box.innerHTML=matchDetailHtml(await fetchMatchDetail(id))}catch(e){box.innerHTML=`<div class="empty">${esc(e.message)}. Please try again.</div>`}}
 document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if($('detailBackdrop').style.display==='flex')closeMatchDetail();else if($('memberBackdrop').style.display==='flex')closeMember()});
 </script>
+<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "2b0d231e55714801ba9356211021134c"}'></script><!-- End Cloudflare Web Analytics -->
 </body></html>

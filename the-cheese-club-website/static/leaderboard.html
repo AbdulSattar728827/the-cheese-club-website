@@ -60,4 +60,5 @@ async function openMatch(id){$('matchBackdrop').style.display='flex';document.bo
 function closeMatch(){ $('matchBackdrop').style.display='none';document.body.style.overflow=$('profileBackdrop').style.display==='flex'?'hidden':'' }
 document.addEventListener('click',e=>{const match=e.target.closest('[data-match]');if(match){e.preventDefault();e.stopPropagation();openMatch(match.dataset.match);return}const row=e.target.closest('.player-row');if(row&&row.dataset.user){e.preventDefault();openProfile(row.dataset.user)}});document.addEventListener('keydown',e=>{const row=e.target.closest?.('.player-row');if(row&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openProfile(row.dataset.user)}const m=e.target.closest?.('[data-match]');if(m&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openMatch(m.dataset.match)}if(e.key==='Escape'){if($('matchBackdrop').style.display==='flex')closeMatch();else if($('profileBackdrop').style.display==='flex')closeProfile()}});
 load();const initialMember=params.get('member');if(initialMember)openProfile(initialMember);
-</script></body></html>
+</script><!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "2b0d231e55714801ba9356211021134c"}'></script><!-- End Cloudflare Web Analytics -->
+</body></html>

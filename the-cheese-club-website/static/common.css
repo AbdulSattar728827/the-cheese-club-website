@@ -34,3 +34,11 @@
 .player-page-link{color:inherit}
 .footer-link{color:#b9b4aa}
 .cc-footer{border-top:1px solid #ffffff12;margin-top:40px;padding:24px 0 35px;color:#777;font-size:10px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+
+/* Running match banner in match pop-ups */
+.cc-live-banner{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin:0 0 12px;padding:11px 14px;border:1px solid #285a40;border-radius:9px;background:#13241b;color:#cfe9d9;font-size:12px;line-height:1.5}
+.cc-live-banner b{color:#8fe0b2}
+.cc-live-banner small{margin-left:auto;color:#7fae93;font-size:10px}
+.cc-live-dot{width:8px;height:8px;border-radius:50%;background:#69d49a;flex:0 0 8px;animation:ccPulse 2s infinite}
+@keyframes ccPulse{0%{box-shadow:0 0 0 0 #69d49a80}70%{box-shadow:0 0 0 7px #69d49a00}100%{box-shadow:0 0 0 0 #69d49a00}}
+@media(prefers-reduced-motion:reduce){.cc-live-dot{animation:none}}

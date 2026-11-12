@@ -57,6 +57,19 @@ masked hint such as `4246**************`.
   "Hidden player" in match details. Their games still count towards totals and civilization stats.
 - To delete a member's records entirely, remove their rows from the bot's database tables.
 
+## Live data from the Discord bot
+These need the bot version that saves live state (Cheese Club bot, November 2026 or later). With an
+older bot the site still works and simply shows less.
+- **Matches in progress:** the bot saves each running match's state to `aoe_matches.active_state`
+  every 10 seconds when something changes. The website shows the phase, the teams as they are
+  drafted, the map, and civ bans and picks **only once Discord has revealed them** (the server strips
+  hidden picks before anything reaches a browser). Open match pop-ups refresh every 15 seconds.
+- **Ratings at match time:** the AoE4World ratings the bot froze at queue pop are kept in
+  `aoe_matches.elo_snapshot` and shown in match pop-ups. "Biggest upset" uses them when every
+  player has one.
+- **In voice now:** the bot keeps `vc_live` up to date with who is in a public voice channel
+  (visible to @everyone, AFK excluded). Rows not refreshed for 10 minutes are ignored.
+
 ## Voice time
 A member's voice time is their `vc_stats` total. Members with no `vc_stats` rows fall back to the
 sum of their `vc_logs` sessions. Every page and endpoint uses this same rule.

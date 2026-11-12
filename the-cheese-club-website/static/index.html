@@ -112,6 +112,18 @@
 .week-item b{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .week-item b a,.week-item b .vs{white-space:nowrap}
 .week-item b .vs{color:#777;font:600 13px Inter,sans-serif;margin:0 2px;text-transform:none}
+.voice-now{margin-top:16px}
+.voice-channels{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;padding:16px 18px 18px}
+.voice-channel{background:#141417;border:1px solid #2c2a26;border-radius:11px;padding:12px 14px;min-width:0}
+.voice-channel h4{display:flex;align-items:center;gap:8px;margin:0 0 8px;font:700 17px 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.voice-channel h4 small{margin-left:auto;color:var(--muted);font:600 11px Inter,sans-serif;text-transform:none;letter-spacing:0}
+.voice-member{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 0}
+.voice-member img,.voice-member .initial{width:28px;height:28px;border-radius:50%;object-fit:cover;background:#29251d;display:grid;place-items:center;color:var(--gold);font-weight:800;font-size:12px}
+.voice-member a,.voice-member span.name{font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.voice-member a:hover{color:var(--gold)}
+.voice-member small{color:#888;font-size:10.5px;white-space:nowrap}
+.voice-empty{padding:22px 18px;color:#8f8b82;font-size:12.5px;line-height:1.7}
+.voice-empty a{color:var(--gold);font-weight:700}
 .week-item[role=button]{cursor:pointer;border-radius:8px;margin:0 -8px;padding-left:8px;padding-right:8px}
 .week-item[role=button]:hover,.week-item[role=button]:focus{background:#242126;outline:none}
 @media(max-width:850px){.live-grid{grid-template-columns:1fr}}
@@ -142,7 +154,7 @@
 </section>
 <!-- LIVE ACTIVITY: start -->
 <section class="live-activity" aria-labelledby="liveTitle">
- <div class="section-head"><div><h2 id="liveTitle">Live activity</h2><p>What's happening in the club right now</p></div><span class="tag live-tag"><i class="live-dot" aria-hidden="true"></i>Updates every 30 seconds</span></div>
+ <div class="section-head"><div><h2 id="liveTitle">Live activity</h2><p>What's happening in the club right now</p></div><span class="tag live-tag"><i class="live-dot" aria-hidden="true"></i>Updates every 15 seconds</span></div>
  <div class="live-grid">
   <section class="panel"><div class="panel-head"><h3>Happening now</h3><span class="live-count" id="liveCount"></span></div>
    <div class="live-list" id="liveMatches"><div class="empty">Loading live games…</div></div>
@@ -152,6 +164,9 @@
    <div class="week-list" id="liveWeek"><div class="empty">Loading this week's highlights…</div></div>
   </section>
  </div>
+ <section class="panel voice-now" id="voiceNowPanel" hidden><div class="panel-head"><h3>In voice now</h3><span class="live-count" id="voiceCount"></span></div>
+  <div class="voice-channels" id="voiceNow"></div>
+ </section>
 </section>
 <!-- LIVE ACTIVITY: end -->
 <section id="community">
@@ -215,10 +230,15 @@ function weekRow(label,icon,title,line,matchId){return `<div class="week-item"${
 function personIcon(p){return p.avatar_url?`<img class="week-icon" src="${esc(p.avatar_url)}" alt="">`:esc((p.username||'?').slice(0,1).toUpperCase())}
 function joinNames(a){return a.length<2?(a[0]||''):a.slice(0,-1).join(', ')+' & '+a[a.length-1]}
 function personLink(p){return p.user_id?`<a href="${ccPlayerHref(p.user_id)}">${esc(p.username)}</a>`:esc(p.username)}
-async function loadActivity(){const a=await api('/api/activity');
+function since(d){const m=Math.max(0,Math.round((Date.now()-new Date(d))/60000));return m<60?`${m}m`:`${Math.floor(m/60)}h ${m%60}m`}
+function renderVoiceNow(v){const panel=$('voiceNowPanel');if(!v||!v.available){panel.hidden=true;return}panel.hidden=false;
+ $('voiceCount').innerHTML=v.total?`<b>${fmt(v.total)}</b> in voice`:'';
+ $('voiceNow').innerHTML=v.channels.length?v.channels.map(c=>`<div class="voice-channel"><h4><span aria-hidden="true">🔊</span>${esc(c.name)}<small>${c.members.length}</small></h4>${c.members.map(p=>`<div class="voice-member">${p.avatar_url?`<img src="${esc(p.avatar_url)}" alt="" loading="lazy">`:`<span class="initial">${esc((p.username||'?').slice(0,1).toUpperCase())}</span>`}${p.user_id?`<a href="${ccPlayerHref(p.user_id)}">${esc(p.username)}</a>`:`<span class="name">${esc(p.username)}</span>`}<small title="Time in this channel">${since(p.joined_at)}</small></div>`).join('')}</div>`).join(''):`<div class="voice-empty" style="grid-column:1/-1">Nobody's in our public voice channels right now. Hop into one on <a href="https://discord.gg/thecheeseclub" target="_blank" rel="noopener noreferrer">Discord</a> and you'll show up here.</div>`;
+}
+async function loadActivity(){const a=await api('/api/activity');renderVoiceNow(a.voice_now);
  const live=a.in_progress||[];
  $('liveCount').innerHTML=live.length?`<b>${live.length}</b> in progress`:'';
- $('liveMatches').innerHTML=live.length?live.map(m=>`<div class="live-match" role="button" tabindex="0" data-match="${Number(m.id)}"><span class="live-queue">${esc(String(m.queue_type||'').toUpperCase())}</span><div style="min-width:0"><b>${liveLineup(m)}</b><small>${(m.team1||[]).length||(m.team2||[]).length?'':'Setting up teams · '}Started ${ago(m.started_at)} · Match #${Number(m.id)}</small></div><span class="result pending">In progress</span></div>`).join(''):`<div class="live-empty">No games in progress right now. Queue up in our <a href="https://discord.gg/thecheeseclub" target="_blank" rel="noopener noreferrer">Discord</a> to start one.</div>`;
+ $('liveMatches').innerHTML=live.length?live.map(m=>`<div class="live-match" role="button" tabindex="0" data-match="${Number(m.id)}"><span class="live-queue">${esc(String(m.queue_type||'').toUpperCase())}</span><div style="min-width:0"><b>${liveLineup(m)}</b><small>${m.phase_label?esc(m.phase_label)+' · ':((m.team1||[]).length||(m.team2||[]).length?'':'Setting up teams · ')}${m.map?'Map: '+esc(m.map)+' · ':''}${m.pool_count?fmt(m.pool_count)+' still to draft · ':''}Started ${ago(m.started_at)} · Match #${Number(m.id)}</small></div><span class="result pending">In progress</span></div>`).join(''):`<div class="live-empty">No games in progress right now. Queue up in our <a href="https://discord.gg/thecheeseclub" target="_blank" rel="noopener noreferrer">Discord</a> to start one.</div>`;
  $('live24h').textContent=fmt(a.played_last_24h);$('live7d').textContent=fmt(a.active_players_7d);
  const w=a.week||{};const rows=[];
  if(w.most_wins)rows.push(weekRow('Most wins',personIcon(w.most_wins),personLink(w.most_wins),`${fmt(w.most_wins.wins)} win${w.most_wins.wins===1?'':'s'} in the last 7 days`));
@@ -226,7 +246,7 @@ async function loadActivity(){const a=await api('/api/activity');
  if(w.most_active)rows.push(weekRow('Most active',personIcon(w.most_active),personLink(w.most_active),`${fmt(w.most_active.games)} game${w.most_active.games===1?'':'s'} played this week`));
  if(w.rivalry){const [a,b]=w.rivalry.players;const lead=a.wins===b.wins?`level at ${a.wins}–${b.wins}`:`${esc((a.wins>b.wins?a:b).username)} leads ${Math.max(a.wins,b.wins)}–${Math.min(a.wins,b.wins)}`;
   rows.push(weekRow('Rivalry of the week','<span aria-hidden="true">⚔️</span>',`${personLink(a)} <span class="vs">vs</span> ${personLink(b)}`,`Met ${fmt(w.rivalry.games)} times this week, ${lead}`))}
- if(w.biggest_upset){const u=w.biggest_upset;rows.push(weekRow('Biggest upset','<span aria-hidden="true">💥</span>',joinNames((u.winners||[]).map(personLink))||'Unknown',`Beat a team with a community rating about ${fmt(u.rating_gap)} higher in ${esc(u.queue_type)} · Match #${Number(u.match_id)}`,u.match_id))}
+ if(w.biggest_upset){const u=w.biggest_upset;rows.push(weekRow('Biggest upset','<span aria-hidden="true">💥</span>',joinNames((u.winners||[]).map(personLink))||'Unknown',`Beat a team ${u.rating_basis==='aoe4world'?'rated':'with a community rating'} about ${fmt(u.rating_gap)} higher${u.rating_basis==='aoe4world'?' on AoE4World':''} in ${esc(u.queue_type)} · Match #${Number(u.match_id)}`,u.match_id))}
  if(w.most_played_civ)rows.push(weekRow('Most played civ',civFlag(w.most_played_civ.civ),esc(w.most_played_civ.civ),`Picked ${fmt(w.most_played_civ.picks)} time${w.most_played_civ.picks===1?'':'s'} this week`));
  $('liveWeek').innerHTML=rows.join('')||'<div class="live-empty">No games played in the last 7 days yet. This week\'s top players and civs will show up here.</div>';
 }
@@ -251,6 +271,8 @@ document.querySelectorAll('.queue-tabs button').forEach(b=>b.addEventListener('c
 document.addEventListener('click',e=>{const row=e.target.closest('.clickable-player-row');if(row&&row.dataset.user)openMember(row.dataset.user)});document.addEventListener('keydown',e=>{const row=e.target.closest?.('.clickable-player-row');if(row&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openMember(row.dataset.user)}});
 $('year').textContent=new Date().getFullYear();
 refresh();setInterval(refresh,30000);
+/* The live section refreshes faster than the rest of the page. */
+setInterval(()=>{if(!document.hidden)loadActivity().catch(()=>{})},15000);
 
 function closeMatchDetail(){const b=document.getElementById('detailBackdrop');if(b)b.style.display='none';const profile=document.getElementById('memberBackdrop');document.body.style.overflow=profile&&profile.style.display==='flex'?'hidden':''}
 async function openMatchDetail(id){const back=document.getElementById('detailBackdrop');if(!back)return;back.style.display='flex';document.body.style.overflow='hidden';document.getElementById('detailTitle').textContent=`Match #${id}`;const box=document.getElementById('detailContent');box.innerHTML='<div class="empty">Loading match details…</div>';try{box.innerHTML=matchDetailHtml(await fetchMatchDetail(id))}catch(e){box.innerHTML=`<div class="empty">${esc(e.message)}. Please try again.</div>`}}

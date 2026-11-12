@@ -62,12 +62,13 @@ function matchPlayer(p){
   const civ=player.civ||'Not recorded';
   /* Official AoE4World rating (TG for team games, Solo for 1v1) and the club's own rating for this queue. */
   const ratings=[];
-  if(player.official_elo!=null)ratings.push(`${ccEsc(player.official_elo_type||'TG')} ELO ${ccFmt(player.official_elo)}`);
+  if(player.official_elo!=null)ratings.push(`${ccEsc(player.official_elo_type||'TG')} ELO ${ccFmt(player.official_elo)}${player.official_elo_at_match?' at queue pop':''}`);
   if(player.elo!=null&&player.elo!=='')ratings.push(`Community ${ccFmt(player.elo)}`);
   const elo=ratings.join(' · ')||'Ratings unavailable';
   const hint=player.id_hint||'Unavailable';
-  const nameHtml=player.user_id?`<a class="player-page-link" href="${ccPlayerHref(player.user_id)}">${ccEsc(username)}</a>`:ccEsc(username);
-  return `<div class="detail-player"><img src="${ccEsc(avatar)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${CC_DEFAULT_AVATAR}'"><div class="detail-player-info"><b>${nameHtml}</b><small>${ccEsc(civ)}</small><small>${elo}</small><small>Discord ID: ${ccEsc(hint)}</small></div><span class="civ-flag" title="${ccEsc(civ)}">${civFlag(civ)}</span></div>`;
+  const nameHtml=(player.user_id?`<a class="player-page-link" href="${ccPlayerHref(player.user_id)}">${ccEsc(username)}</a>`:ccEsc(username))+(player.captain?' <span title="Captain">👑</span>':'');
+  const flagHtml=player.civ_status==='ready'?'<span title="Civ chosen, hidden until both captains lock in">✅</span>':player.civ_status==='picking'?'<span title="Choosing a civ">⏳</span>':civFlag(civ);
+  return `<div class="detail-player"><img src="${ccEsc(avatar)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${CC_DEFAULT_AVATAR}'"><div class="detail-player-info"><b>${nameHtml}</b><small>${ccEsc(civ)}</small><small>${elo}</small><small>Discord ID: ${ccEsc(hint)}</small></div><span class="civ-flag" title="${ccEsc(civ)}">${flagHtml}</span></div>`;
 }
 
 /* Plain-text description of a match's civilization bans (escape before inserting). */
@@ -106,9 +107,34 @@ function matchDetailHtml(m){
   const lineup=(!t1.length&&!t2.length&&everyone.length)
     ?`<div class="detail-teams"><div class="detail-team" style="grid-column:1/-1"><h3>Players</h3><p class="detail-note" style="margin:0 0 6px;color:#9d998f;font-size:11px">Teams appear here once they're set up in Discord.</p>${everyone.map(matchPlayer).join('')}</div></div>`
     :null;
+  const live=m.live||null;
+  let liveHtml='';
+  if(live){
+    const bits=[`<b>${ccEsc(live.phase_label||'In progress')}</b>`];
+    if(live.map)bits.push(`Map: ${ccEsc(live.map)}`);
+    if(live.phase==='civ_select')bits.push(`Team 1 ${live.team1_locked?'locked in ✅':'picking ⏳'} · Team 2 ${live.team2_locked?'locked in ✅':'picking ⏳'}`);
+    if(live.bans&&live.bans.status==='choosing')bits.push(`Bans: Team 1 ${live.bans.team1_locked?'locked ✅':'choosing ⏳'} · Team 2 ${live.bans.team2_locked?'locked ✅':'choosing ⏳'}`);
+    liveHtml=`<div class="cc-live-banner"><i class="cc-live-dot" aria-hidden="true"></i><span>${bits.join(' · ')}</span><small>Updates automatically</small></div>`;
+  }
+  const pool=Array.isArray(m.pool)?m.pool:[];
+  const poolHtml=pool.length?`<div class="detail-team" style="margin-top:12px"><h3>Waiting to be drafted</h3>${pool.map(matchPlayer).join('')}</div>`:'';
   const team=n=>{const raw=n===1?m.team1:m.team2;const players=Array.isArray(raw)?raw:[];return `<div class="detail-team"><h3>${winner===n?'🏆 ':''}Team ${n}${winner===n?' · Winner':''}</h3>${players.length?players.map(matchPlayer).join(''):'<div class="empty">No players were saved for this team.</div>'}</div>`};
-  return `<p class="detail-meta"><b>${ccEsc(matchResultText(m.result))}</b> · ${ccEsc(m.queue_type)} · ${ccDateTime(m.created_at)} · ${ccFmt(m.player_count)} players</p>${lineup||`<div class="detail-teams">${team(1)}${team(2)}</div>`}<div class="detail-meta"><b>Civilization bans:</b> ${ccEsc(formatCivBans(m.civ_bans))}<br><b>Match ID:</b> #${ccEsc(m.id)}<br><b>Finished:</b> ${m.finished_at?ccDateTime(m.finished_at):'Not finished'}</div>`;
+  const html=`${liveHtml}<p class="detail-meta"><b>${ccEsc(matchResultText(m.result))}</b> · ${ccEsc(m.queue_type)} · ${ccDateTime(m.created_at)} · ${ccFmt(m.player_count)} players</p>${lineup||`<div class="detail-teams">${team(1)}${team(2)}</div>`}${poolHtml}<div class="detail-meta"><b>Civilization bans:</b> ${live&&live.bans&&live.bans.status==='choosing'?'Hidden until both sides lock in':live&&!live.bans?'Not decided yet':ccEsc(formatCivBans(m.civ_bans))}<br><b>Match ID:</b> #${ccEsc(m.id)}<br><b>Finished:</b> ${m.finished_at?ccDateTime(m.finished_at):'Not finished'}</div>`;
+  /* Running matches refresh themselves while their pop-up is open (see below). */
+  return m.result==='pending'?`<div data-live-match="${Number(m.id)}">${html}</div>`:html;
 }
+
+/* Every 15 seconds, reload any running match whose details are on screen. Works on
+   every page with match pop-ups; stops by itself once the pop-up closes or the match ends. */
+let ccLiveRefreshBusy=false;
+setInterval(async()=>{
+  if(ccLiveRefreshBusy||document.hidden)return;
+  const boxes=[...document.querySelectorAll('[data-live-match]')].filter(el=>el.offsetParent!==null);
+  if(!boxes.length)return;
+  ccLiveRefreshBusy=true;
+  try{for(const el of boxes){try{const m=await fetchMatchDetail(el.dataset.liveMatch);if(el.isConnected)el.outerHTML=matchDetailHtml(m)}catch(e){}}}
+  finally{ccLiveRefreshBusy=false}
+},15000);
 
 /* Navigation: highlight the current page and grey out pages that are not live yet. */
 const CC_COMING_SOON=['/tournament','/contact','/login','/signup'];

@@ -427,7 +427,10 @@ async def match_detail(match_id: int):
     """Return a complete, JSON-safe match detail record for the website modal."""
     rows = await fetch("""
         SELECT id, queue_type, player_ids, team1_ids, team2_ids,
-               result, civ_data, to_jsonb(aoe_matches)->'civ_bans' AS civ_bans, created_at, finished_at
+               result, civ_data, to_jsonb(aoe_matches)->'civ_bans' AS civ_bans,
+               CASE WHEN result = 'pending' THEN to_jsonb(aoe_matches)->'active_state' END AS active_state,
+               to_jsonb(aoe_matches)->'elo_snapshot' AS elo_snapshot,
+               created_at, finished_at
         FROM aoe_matches WHERE id=$1 LIMIT 1
     """, match_id)
     if not rows:
@@ -447,7 +450,24 @@ async def match_detail(match_id: int):
     team1 = [str(x) for x in (row["team1_ids"] or [])]
     team2 = [str(x) for x in (row["team2_ids"] or [])]
     player_ids = [str(x) for x in (row["player_ids"] or [])]
-    all_ids = list(dict.fromkeys(team1 + team2 + player_ids))
+    pool = []
+    # Running match: use the bot's live state, already stripped of anything Discord hasn't revealed
+    live = live_view(json_object(row["active_state"])) if row["result"] == "pending" else None
+    live_civs = {}
+    if live:
+        team1, team2, pool = live["team1"], live["team2"], live["pool"]
+        live_civs = live["civs"]
+        civs = {uid: c["civ"] for uid, c in live_civs.items() if c.get("civ")}
+        bans = live["bans"] or {}
+        if bans.get("status") == "skipped":
+            civ_bans = {"skipped": True}
+        elif bans.get("status") == "revealed":
+            civ_bans = {"team1": bans.get("team1") or [], "team2": bans.get("team2") or []}
+        else:
+            civ_bans = {}
+    # AoE4World ratings frozen when the queue popped (exact rating at match time)
+    snapshot = live["elo_tags"] if live else json_object(row["elo_snapshot"])
+    all_ids = list(dict.fromkeys(team1 + team2 + pool + player_ids))
 
     players = {}
     if all_ids:
@@ -492,14 +512,26 @@ async def match_detail(match_id: int):
             players[str(r["user_id"])]["elo"] = r["queue_elo"] if r["queue_elo"] is not None else r["any_elo"]
         for uid, ratings in official.items():
             players[uid]["official_elo"] = ratings.get("solo_elo" if is_solo else "team_elo")
+        for uid, value in snapshot.items():
+            if uid in players and _rating_number(value) is not None:
+                players[uid]["official_elo"] = _rating_number(value)
+                players[uid]["official_elo_at_match"] = True
         for uid, item in players.items():
             item["username"] = item["username"] or f"Player {uid[-4:]}"
             civ_value = civs.get(uid)
             if isinstance(civ_value, dict):
                 civ_value = civ_value.get("name") or civ_value.get("civilization") or civ_value.get("civ")
             item["civ"] = str(civ_value) if civ_value else "Not recorded"
+            if uid in live_civs and live_civs[uid]["status"] in ("ready", "picking"):
+                item["civ"] = "Civ chosen · hidden until reveal" if live_civs[uid]["status"] == "ready" else "Choosing a civ…"
+                item["civ_status"] = live_civs[uid]["status"]
             if uid in HIDDEN_IDS:
                 item.update(user_id=None, id_hint="", username="Hidden player", avatar_url=None, elo=None, official_elo=None)
+
+    if live:
+        for cap in live["captains"]:
+            if cap in players and cap not in HIDDEN_IDS:
+                players[cap]["captain"] = True
 
     return {
         "id": row["id"],
@@ -512,6 +544,13 @@ async def match_detail(match_id: int):
         "team1": [players[x] for x in team1 if x in players],
         "team2": [players[x] for x in team2 if x in players],
         "players": [players[x] for x in player_ids if x in players],
+        "pool": [players[x] for x in pool if x in players],
+        "live": {
+            "phase": live["phase"], "phase_label": live["phase_label"], "map": live["map"],
+            "civs_revealed": live["civs_revealed"], "bans": live["bans"],
+            "team1_locked": live["team1_locked"], "team2_locked": live["team2_locked"],
+            "captains": [to_public_id(c) for c in live["captains"] if c],
+        } if live else None,
     }
 
 
@@ -587,7 +626,7 @@ async def player_profile(player_id: str):
 # ---------------------------------------------------------------------------
 # Match history analysis (player insights, achievements, civ stats, activity)
 # ---------------------------------------------------------------------------
-MATCH_CACHE_SECONDS = 30
+MATCH_CACHE_SECONDS = 10
 _match_cache = {"at": 0.0, "rows": None}
 _match_lock = asyncio.Lock()
 
@@ -662,7 +701,10 @@ async def load_matches() -> list:
             return _match_cache["rows"]
         rows = await fetch("""
             SELECT id, queue_type, player_ids, team1_ids, team2_ids, result, civ_data,
-                   to_jsonb(aoe_matches)->'civ_bans' AS civ_bans, created_at, finished_at
+                   to_jsonb(aoe_matches)->'civ_bans' AS civ_bans,
+                   CASE WHEN result = 'pending' THEN to_jsonb(aoe_matches)->'active_state' END AS active_state,
+                   to_jsonb(aoe_matches)->'elo_snapshot' AS elo_snapshot,
+                   created_at, finished_at
             FROM aoe_matches ORDER BY created_at ASC, id ASC
         """)
         matches = []
@@ -678,11 +720,92 @@ async def load_matches() -> list:
                 "result": str(r["result"] or "").lower(),
                 "civs": {str(k): canonical_civ(v) for k, v in civs.items()} if isinstance(civs, dict) else {},
                 "bans": _ban_list(_json_obj(r["civ_bans"])),
+                "state": _json_obj(r["active_state"]) if r["active_state"] else {},
+                "elo_snapshot": _json_obj(r["elo_snapshot"]) if r["elo_snapshot"] else {},
                 "created_at": r["created_at"],
                 "finished_at": r["finished_at"],
             })
         _match_cache.update(at=time.monotonic(), rows=matches)
         return matches
+
+
+# ---------------------------------------------------------------------------
+# Live match state from the Discord bot
+# The bot saves each running match's full state, including secret picks. Only
+# what Discord has already revealed may leave the server:
+#   - civ picks: only after BOTH captains lock in (before that: ready / picking)
+#   - civ bans:  only after both sides lock in, or when bans were skipped
+# ---------------------------------------------------------------------------
+PHASE_LABELS = {
+    "team_size_pick": "Choosing team sizes",
+    "coin_flip": "Coin flip for first pick",
+    "draft": "Drafting teams",
+    "teams_confirm": "Confirming teams",
+    "map_veto_coinflip": "Coin flip for map veto",
+    "map_veto": "Map veto",
+    "civ_ban": "Civilization bans",
+    "civ_select": "Picking civilizations",
+    "pre_match": "Civs revealed, about to start",
+    "in_match": "Game in progress",
+}
+
+
+def live_view(state: dict) -> Optional[dict]:
+    """Public, spoiler-free view of a running match's state (Discord IDs still raw)."""
+    if not state:
+        return None
+    phase = str(state.get("phase") or "")
+    ids = lambda key: [str(x) for x in (state.get(key) or [])]
+    is_1v1 = str(state.get("queue_type") or "").lower() == "1v1"
+
+    revealed = bool(state.get("cap1_locked") and state.get("cap2_locked")) or phase in ("pre_match", "in_match")
+    picks = {str(k): v for k, v in (state.get("civ_picks") or {}).items()}
+    civs = {}
+    for uid in ids("team1_ids") + ids("team2_ids"):
+        if revealed:
+            civs[uid] = {"civ": canonical_civ(picks.get(uid)) or picks.get(uid), "status": "revealed"}
+        elif phase == "civ_select":
+            civs[uid] = {"civ": None, "status": "ready" if uid in picks else "picking"}
+
+    if state.get("bans_skipped"):
+        bans = {"status": "skipped"}
+    else:
+        if is_1v1:
+            locked1, locked2 = bool(state.get("civ_ban_p1_locked")), bool(state.get("civ_ban_p2_locked"))
+            lists = ([state["civ_ban_p1_choice"]] if state.get("civ_ban_p1_choice") else [],
+                     [state["civ_ban_p2_choice"]] if state.get("civ_ban_p2_choice") else [])
+        else:
+            locked1, locked2 = bool(state.get("ban_locked_t1")), bool(state.get("ban_locked_t2"))
+            lists = (list(state.get("civ_bans_t1") or []), list(state.get("civ_bans_t2") or []))
+        if locked1 and locked2:
+            bans = {"status": "revealed", "team1": lists[0], "team2": lists[1]}
+        elif phase == "civ_ban":
+            bans = {"status": "choosing", "team1_locked": locked1, "team2_locked": locked2}
+        else:
+            bans = None
+
+    pending = state.get("pending_action")
+    label = PHASE_LABELS.get(phase, "Setting up")
+    if pending == "victory":
+        label = "Result being confirmed"
+    elif pending == "cancel":
+        label = "Cancellation being confirmed"
+    return {
+        "phase": phase, "phase_label": label,
+        "team1": ids("team1_ids"), "team2": ids("team2_ids"), "pool": ids("remaining_ids"),
+        "captains": [str(state.get("captain1_id") or ""), str(state.get("captain2_id") or "")],
+        "team1_locked": bool(state.get("cap1_locked")), "team2_locked": bool(state.get("cap2_locked")),
+        "civs": civs, "civs_revealed": revealed, "bans": bans,
+        "map": state.get("final_map") if is_1v1 else None,
+        "elo_tags": {str(k): v for k, v in (state.get("elo_tags") or {}).items()},
+    }
+
+
+def _rating_number(value):
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
 
 
 def decided(m) -> bool:
@@ -905,6 +1028,29 @@ async def civ_stats(queue: str = "all"):
             "total_picks": total_picks, "min_games_for_win_rate": 5, "civs": rows}
 
 
+async def voice_now() -> dict:
+    """Members in the server's public voice channels right now, grouped by channel.
+    Empty until the bot version that records live voice presence is running."""
+    exists = await fetchval("SELECT to_regclass('vc_live') IS NOT NULL", default=False)
+    if not exists:
+        return {"available": False, "total": 0, "channels": []}
+    rows = await fetch("""
+        SELECT user_id, username, avatar_url, channel_id, channel_name, joined_at
+        FROM vc_live WHERE updated_at >= NOW() - INTERVAL '10 minutes'
+        ORDER BY channel_name, joined_at
+    """)
+    channels = {}
+    for r in rows:
+        uid = str(r["user_id"])
+        if uid in HIDDEN_IDS:
+            continue
+        ch = channels.setdefault(str(r["channel_id"]), {"name": r["channel_name"], "members": []})
+        ch["members"].append({"user_id": to_public_id(uid), "username": r["username"],
+                              "avatar_url": r["avatar_url"], "joined_at": r["joined_at"]})
+    ordered = sorted(channels.values(), key=lambda c: (-len(c["members"]), c["name"].lower()))
+    return {"available": True, "total": sum(len(c["members"]) for c in ordered), "channels": ordered}
+
+
 @app.get("/api/activity")
 async def activity():
     matches = await load_matches()
@@ -942,20 +1088,28 @@ async def activity():
                 r["last"] = _when(m)
 
     # Biggest upset: the win with the largest gap between the losing and winning teams'
-    # average community rating in that queue. Ratings are current values, because the bot
-    # does not store rating history.
+    # average rating. Uses the AoE4World ratings the bot froze when the queue popped
+    # (exact, at match time) when every player has one; otherwise the community rating
+    # for that queue (current value, as the bot does not keep its history).
     elo_rows = await fetch("SELECT user_id, LOWER(queue_type) AS queue, ROUND(AVG(elo))::int AS elo FROM aoe_queue_stats GROUP BY user_id, LOWER(queue_type)")
     elo = {(str(r["user_id"]), r["queue"]): r["elo"] for r in elo_rows if r["elo"] is not None}
     upset = None
     for m in week_decided:
         winners, losers = (m["team1"], m["team2"]) if m["result"] == "team1" else (m["team2"], m["team1"])
-        w = [elo[(u, m["queue"])] for u in winners if (u, m["queue"]) in elo]
-        l = [elo[(u, m["queue"])] for u in losers if (u, m["queue"]) in elo]
-        if len(w) != len(winners) or len(l) != len(losers) or not w or not l:
+        snap = {u: _rating_number(v) for u, v in (m["elo_snapshot"] or {}).items()}
+        if winners and losers and all(snap.get(u) for u in winners + losers):
+            w, l, basis = [snap[u] for u in winners], [snap[u] for u in losers], "aoe4world"
+        else:
+            w = [elo[(u, m["queue"])] for u in winners if (u, m["queue"]) in elo]
+            l = [elo[(u, m["queue"])] for u in losers if (u, m["queue"]) in elo]
+            basis = "community"
+            if len(w) != len(winners) or len(l) != len(losers):
+                continue
+        if not w or not l:
             continue
         gap = round(sum(l) / len(l) - sum(w) / len(w))
         if gap >= 50 and (upset is None or gap > upset[1]):
-            upset = (m, gap)
+            upset = (m, gap, basis)
 
     streaks = {}
     for m in matches:            # oldest first, so the final value is the current run of wins
@@ -971,7 +1125,9 @@ async def activity():
     rivalry = max(((k, v) for k, v in pairs.items() if v["games"] >= 2),
                   key=lambda kv: (kv[1]["games"], kv[1]["last"] or datetime.min.replace(tzinfo=timezone.utc)), default=None)
 
+    live_views = {m["id"]: live_view(m["state"]) for m in live}
     ids = [p for m in live for p in m["team1"] + m["team2"] + m["players"]]
+    ids += [p for v in live_views.values() if v for p in v["team1"] + v["team2"] + v["pool"]]
     ids += [u for u in (top_winner[0] if top_winner else None, hot[0] if hot else None) if u]
     ids += [busiest[0]] if busiest else []
     ids += list(rivalry[0]) if rivalry else []
@@ -980,11 +1136,16 @@ async def activity():
     return {
         "in_progress": [{
             "id": m["id"], "queue_type": m["queue_type"], "started_at": m["created_at"],
-            "team1": [names[u] for u in m["team1"] if u in names],
-            "team2": [names[u] for u in m["team2"] if u in names],
+            "team1": [names[u] for u in (live_views[m["id"]] or m)["team1"] if u in names],
+            "team2": [names[u] for u in (live_views[m["id"]] or m)["team2"] if u in names],
             "players": [names[u] for u in m["players"] if u in names],
             "player_count": len(m["players"]),
+            "phase": live_views[m["id"]]["phase"] if live_views[m["id"]] else None,
+            "phase_label": live_views[m["id"]]["phase_label"] if live_views[m["id"]] else None,
+            "map": live_views[m["id"]]["map"] if live_views[m["id"]] else None,
+            "pool_count": len(live_views[m["id"]]["pool"]) if live_views[m["id"]] else 0,
         } for m in reversed(live)],
+        "voice_now": await voice_now(),
         "played_last_24h": len(finished_today),
         "active_players_7d": len(active_players),
         "week": {
@@ -998,6 +1159,7 @@ async def activity():
             } if rivalry else None,
             "biggest_upset": {
                 "match_id": upset[0]["id"], "queue_type": upset[0]["queue_type"], "rating_gap": upset[1],
+                "rating_basis": upset[2],
                 "winners": [names[u] for u in (upset[0]["team1"] if upset[0]["result"] == "team1" else upset[0]["team2"]) if u in names],
                 "losers": [names[u] for u in (upset[0]["team2"] if upset[0]["result"] == "team1" else upset[0]["team1"]) if u in names],
             } if upset else None,

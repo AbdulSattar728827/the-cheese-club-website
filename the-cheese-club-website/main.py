@@ -1619,6 +1619,147 @@ async def api_my_stats(request: Request, days: int = 90):
     }
 
 
+# ---------------------------------------------------------------------------
+# Queues. The Discord bot is in charge: it publishes who is waiting
+# (aoe_queue_live) and carries out Join/Leave requests made here
+# (aoe_queue_requests) with the same code as its Discord queue menu.
+# ---------------------------------------------------------------------------
+QUEUE_ORDER = ["1v1", "2v2", "3v3", "4v4", "4v3", "3v2"]   # same order as the Discord queue menu
+_queue_request_times: dict = {}
+
+
+async def _queue_tables_ready() -> bool:
+    return bool(await fetchval("SELECT to_regclass('aoe_queue_live') IS NOT NULL AND to_regclass('aoe_queue_requests') IS NOT NULL", default=False))
+
+
+async def queue_snapshot() -> dict:
+    """Live queues as published by the bot, with display names (Discord IDs stay raw here)."""
+    if not await _queue_tables_ready():
+        return {"available": False}
+    guild = await club_guild_id()
+    rows = await fetch("""
+        SELECT queues, require_voice, updated_at, updated_at >= NOW() - INTERVAL '60 seconds' AS online
+        FROM aoe_queue_live WHERE ($1::text IS NULL OR guild_id=$1) ORDER BY updated_at DESC LIMIT 1
+    """, guild)
+    if not rows:
+        return {"available": False}
+    data = json_obj_safe(rows[0]["queues"])
+    ids = [p["user_id"] for q in data.values() if isinstance(q, dict) for p in q.get("players", [])]
+    names = await people(ids)
+    queues = []
+    for qt in QUEUE_ORDER + [q for q in data if q not in QUEUE_ORDER]:
+        q = data.get(qt)
+        if not isinstance(q, dict):
+            continue
+        players = [{**names.get(str(p["user_id"]), {}), "raw_id": str(p["user_id"]), "joined_at": p.get("joined_at")}
+                   for p in q.get("players", [])]
+        queues.append({"queue": qt, "size": q.get("size"), "players": players})
+    return {"available": True, "online": bool(rows[0]["online"]), "require_voice": bool(rows[0]["require_voice"]),
+            "updated_at": rows[0]["updated_at"], "queues": queues}
+
+
+def json_obj_safe(value):
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _public_queues(snap: dict) -> dict:
+    out = dict(snap)
+    if snap.get("available"):
+        out["queues"] = [{**q, "players": [{k: v for k, v in p.items() if k != "raw_id"} for p in q["players"]]}
+                         for q in snap["queues"]]
+    return out
+
+
+@app.get("/api/queue")
+async def api_queue():
+    """Who is waiting in each queue right now (public)."""
+    return _public_queues(await queue_snapshot())
+
+
+@app.get("/api/me/queue")
+async def api_my_queue(request: Request):
+    user = require_login(request)
+    uid = user["uid"]
+    snap = await queue_snapshot()
+    my_queue = None
+    if snap.get("available"):
+        for q in snap["queues"]:
+            for p in q["players"]:
+                if p["raw_id"] == uid:
+                    my_queue = {"queue": q["queue"], "joined_at": p["joined_at"], "count": len(q["players"]), "size": q["size"]}
+    guild = await club_guild_id()
+    present = await fetchval("""
+        SELECT COUNT(*) FROM discord_member_profiles
+        WHERE user_id=$1 AND is_present AND ($2::text IS NULL OR guild_id=$2)
+    """, uid, guild, default=0)
+    link = await _link_row(uid)
+    in_voice = None
+    if await fetchval("SELECT to_regclass('vc_live') IS NOT NULL", default=False):
+        in_voice = await fetchval("""
+            SELECT channel_name FROM vc_live WHERE user_id=$1 AND updated_at >= NOW() - INTERVAL '10 minutes' LIMIT 1
+        """, uid, default=None)
+    now = datetime.now(timezone.utc)
+    match = next((m for m in reversed(await load_matches())
+                  if m["result"] == "pending" and uid in m["players"]
+                  and (m["created_at"] if m["created_at"].tzinfo else m["created_at"].replace(tzinfo=timezone.utc)) >= now - timedelta(hours=6)), None)
+    pending = None
+    if snap.get("available"):
+        pending = await fetchval("""
+            SELECT id FROM aoe_queue_requests WHERE user_id=$1 AND status='pending' ORDER BY id DESC LIMIT 1
+        """, uid, default=None)
+    return {
+        "available": bool(snap.get("available")), "online": bool(snap.get("online")),
+        "require_voice": bool(snap.get("require_voice", True)),
+        "in_server": bool(present) or bool(user.get("g")),
+        "linked": bool(link and (link["profile_id"] or link["bypassed"])),
+        "in_voice": in_voice, "my_queue": my_queue, "pending_request": pending,
+        "match": {"id": match["id"], "queue_type": match["queue_type"]} if match else None,
+        "invite_url": DISCORD_INVITE_URL,
+    }
+
+
+@app.post("/api/me/queue")
+async def api_queue_action(request: Request):
+    user = require_login(request)
+    require_same_site(request)
+    body = await request.json()
+    action = str(body.get("action") or "")
+    queue_type = str(body.get("queue_type") or "").lower() or None
+    if action not in ("join", "leave") or (action == "join" and queue_type not in QUEUE_ORDER):
+        raise HTTPException(status_code=400, detail="Choose a queue to join.")
+    if not await _queue_tables_ready():
+        raise HTTPException(status_code=503, detail="Queueing from the website isn't switched on yet.")
+    snap = await queue_snapshot()
+    if not snap.get("online"):
+        raise HTTPException(status_code=503, detail="The queue bot is offline right now. Please try again shortly.")
+    now = time.time()
+    if now - _queue_request_times.get(user["uid"], 0) < 2:
+        raise HTTPException(status_code=429, detail="One moment, your last request is still being handled.")
+    busy = await fetchval("SELECT id FROM aoe_queue_requests WHERE user_id=$1 AND status='pending' LIMIT 1", user["uid"], default=None)
+    if busy:
+        raise HTTPException(status_code=429, detail="One moment, your last request is still being handled.")
+    _queue_request_times[user["uid"]] = now
+    guild = await club_guild_id()
+    request_id = await fetchval("""
+        INSERT INTO aoe_queue_requests (guild_id, user_id, action, queue_type) VALUES ($1, $2, $3, $4) RETURNING id
+    """, guild, user["uid"], action, queue_type)
+    return {"request_id": request_id}
+
+
+@app.get("/api/me/queue/requests/{request_id}")
+async def api_queue_request_status(request: Request, request_id: int):
+    user = require_login(request)
+    rows = await fetch("SELECT status, message FROM aoe_queue_requests WHERE id=$1 AND user_id=$2", request_id, user["uid"])
+    if not rows:
+        raise HTTPException(status_code=404, detail="Request not found")
+    return {"status": rows[0]["status"], "message": rows[0]["message"]}
+
+
 @app.post("/api/me/privacy")
 async def api_privacy(request: Request):
     user = require_login(request)
@@ -1659,6 +1800,7 @@ PAGES = {
     "/dashboard": "dashboard.html",
     "/stats": "stats.html",
     "/settings": "settings.html",
+    "/queue": "queue.html",
 }
 
 

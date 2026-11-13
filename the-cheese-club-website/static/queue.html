@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/png" sizes="128x128" href="/static/favicon.png?v=3">
+<link rel="shortcut icon" type="image/x-icon" href="/static/favicon.ico?v=3">
+<link rel="apple-touch-icon" href="/static/favicon.png?v=3">
+
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Queue — The Cheese Club</title>
+<meta name="robots" content="noindex">
+<meta name="description" content="Join a Cheese Club match from the website.">
+<meta name="theme-color" content="#f0b82f">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="The Cheese Club">
+<meta property="og:title" content="Queue — The Cheese Club">
+<meta property="og:description" content="Join a Cheese Club match from the website.">
+<meta property="og:url" content="%%SITE_URL%%/queue">
+<meta property="og:image" content="%%SITE_URL%%/static/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The Cheese Club, an Age of Empires IV community">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c0c0e;--panel:#151518;--panel2:#1b1b20;--line:#2b2925;--gold:#f0b82f;--gold2:#ffda70;--muted:#98969a;--white:#f6f3eb;--green:#69d49a}
+*{box-sizing:border-box}body{margin:0;background:#080809;color:var(--white);font-family:Inter,Arial,sans-serif;position:relative;isolation:isolate}body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(rgba(7,7,8,.68),rgba(7,7,8,.82)),url("/static/home-hero-medieval.jpg") center center/cover no-repeat}a{color:inherit;text-decoration:none}.shell{max-width:1400px;margin:auto;padding:0 34px}.topbar{height:88px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff12}.brand{display:flex;align-items:center;gap:14px}.brand img{width:155px;height:68px;object-fit:contain;object-position:left center}.brand small{display:block;color:var(--muted);font-size:10px;letter-spacing:2px;text-transform:uppercase}.brand .brand-title{display:block;color:var(--white);font:800 19px/1.05 'Barlow Condensed',sans-serif;letter-spacing:1.1px;white-space:nowrap}.brand .brand-sub{font-size:9px;letter-spacing:2.5px;margin-top:4px;color:var(--gold)}.nav{display:flex;gap:17px;align-items:center;flex-wrap:wrap;color:#c8c4bc;font-size:12px}.nav a:hover{color:var(--gold)}.discord{background:linear-gradient(135deg,#f5c64c,#c98713);color:#201707;padding:12px 18px;border-radius:9px;font-weight:800;font-size:12px;letter-spacing:.4px;box-shadow:0 5px 24px #e5a61b25}.hero{padding:62px 28px 36px;margin:22px 0 26px;display:grid;grid-template-columns:1.25fr .75fr;gap:34px;align-items:center;border:1px solid #8a682b55;border-radius:18px;overflow:hidden;background:linear-gradient(145deg,#1b1b20,#121214);box-shadow:0 18px 55px #0008}.eyebrow{color:var(--gold);font-weight:800;letter-spacing:2.4px;text-transform:uppercase;font-size:11px}.hero h1{font:800 clamp(44px,6vw,76px)/.94 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;margin:16px 0}.hero h1 span{color:var(--gold)}.hero p{color:#aaa7a0;max-width:610px;line-height:1.8;font-size:14px}.actions{display:flex;gap:12px;margin-top:25px}.btn{padding:14px 19px;border-radius:8px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase}.btn.primary{background:var(--gold);color:#211808}.btn.secondary{border:1px solid #4a4335;color:#eee}.hero-card{background:linear-gradient(145deg,#1b1b20,#121214);border:1px solid #6e5424;border-radius:18px;padding:23px;box-shadow:0 18px 60px #0008;position:relative;overflow:hidden}.hero-card:after{content:"";position:absolute;width:220px;height:220px;border:1px solid #dba62b25;border-radius:50%;right:-75px;top:-95px;box-shadow:0 0 0 25px #dba62b08,0 0 0 55px #dba62b06}.card-top{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1.5px}.live{color:var(--green)}.hero-stat{display:flex;align-items:end;gap:12px;margin:28px 0 12px}.hero-stat strong{font:800 56px 'Barlow Condensed';color:var(--gold)}.hero-stat span{font-size:12px;color:#c7c0b1;margin-bottom:9px}.mini-bars{display:flex;gap:6px;height:45px;align-items:end;margin-top:20px}.mini-bars i{display:block;flex:1;background:linear-gradient(#f8ce61,#98600c);border-radius:3px 3px 0 0;opacity:.8}.section-head{display:flex;align-items:end;justify-content:space-between;margin:28px 0 15px}.section-head h2{font:700 26px 'Barlow Condensed';text-transform:uppercase;letter-spacing:1px;margin:0}.section-head p{color:var(--muted);font-size:11px;margin:5px 0 0}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.stat{background:linear-gradient(145deg,#19191d,#121214);border:1px solid var(--line);border-radius:12px;padding:19px}.stat label{color:var(--muted);font-size:10px;letter-spacing:1.3px;text-transform:uppercase}.stat strong{display:block;font:700 34px 'Barlow Condensed';margin-top:8px;color:var(--gold2)}.stat small{color:#777;font-size:10px}.columns{display:grid;grid-template-columns:1.1fr .9fr;gap:16px;margin:18px 0 50px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:13px;overflow:hidden;display:flex;flex-direction:column}.panel > .table-wrap,.panel > .match-list{flex:1}.panel-footer{margin-top:auto;padding:12px 18px;display:flex;justify-content:flex-end;align-items:center;min-height:62px;border-top:1px solid var(--line);background:#151518}.members-more{display:flex;justify-content:center;margin:8px 0 30px}.members-more button{cursor:pointer;background:#17171b}.panel-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}.panel-head h3{font:700 20px 'Barlow Condensed';text-transform:uppercase;letter-spacing:1px;margin:0}.tag{font-size:9px;letter-spacing:1px;text-transform:uppercase;border:1px solid #69511e;color:var(--gold);padding:6px 9px;border-radius:20px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:420px}th{text-align:left;color:#777;font-size:9px;letter-spacing:1px;text-transform:uppercase;font-weight:700;padding:13px 17px}td{padding:13px 17px;border-top:1px solid #ffffff0b;font-size:12px;color:#dedbd4}tr:hover td{background:#ffffff05}.rank{font:700 18px 'Barlow Condensed';color:var(--gold)}.player{font-weight:700}.sub{display:block;color:#777;font-size:10px;margin-top:3px}.elo{color:var(--gold2);font-weight:800}.queue-tabs{display:flex;gap:5px}.queue-tabs button{background:#222226;border:1px solid #333;color:#aaa;padding:6px 9px;border-radius:6px;font-size:10px;cursor:pointer}.queue-tabs button.active{background:#5b4212;color:#ffdb78;border-color:#99701e}.match-list{padding:5px 18px}.match{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid #ffffff0c;gap:15px}.match:last-child{border:0}.match strong{font-size:12px}.match small{display:block;color:#777;margin-top:4px;font-size:10px}.result{font-size:9px;text-transform:uppercase;color:var(--green);border:1px solid #285a40;padding:6px 8px;border-radius:5px}.result.pending{color:var(--gold);border-color:#6e5424}.empty{padding:28px 20px;color:#777;font-size:12px;text-align:center}.footer{border-top:1px solid #ffffff12;padding:24px 0 35px;color:#777;font-size:10px;display:flex;justify-content:space-between}.toast{position:fixed;bottom:18px;right:18px;background:#251d0f;border:1px solid #72551c;color:#f1d28a;padding:10px 14px;border-radius:8px;font-size:11px;display:none}
+@media(max-width:850px){.shell{padding:0 18px}.nav{display:flex;gap:10px;flex-wrap:wrap;font-size:11px}.hero{grid-template-columns:1fr;padding:42px 18px 26px;background-position:center;background-size:cover}.hero-card{max-width:100%}.columns{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.brand img{width:130px}.footer{gap:10px;flex-direction:column}}
+@media(max-width:460px){.stats{gap:8px}.stat{padding:13px}.stat strong{font-size:28px}.hero h1{font-size:48px}.actions{flex-wrap:wrap}}
+.section-head h1{font:700 30px 'Barlow Condensed';text-transform:uppercase;letter-spacing:1px;margin:0}
+
+</style>
+<style>
+.q-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:16px}
+.q-card{position:relative;padding:20px;border-radius:16px;background:linear-gradient(150deg,#1b1b20,#121214);border:1px solid #2c2a26}
+.q-card.hot{border-color:#8a682b;box-shadow:0 0 0 1px #8a682b55,0 16px 40px #0007}
+.q-card.mine{border-color:#2f6146;background:linear-gradient(150deg,#16251c,#121214)}
+.q-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.q-name{font:800 34px/1 'Barlow Condensed',sans-serif;color:var(--gold);letter-spacing:.5px}
+.q-count{font:700 13px Inter,sans-serif;color:#cfcac0}
+.q-count b{font:800 22px 'Barlow Condensed';color:var(--white)}
+.q-tag{font:800 9.5px Inter;letter-spacing:.6px;text-transform:uppercase;padding:4px 9px;border-radius:20px}
+.q-tag.hot{background:#2a2213;border:1px solid #6e5424;color:var(--gold)}
+.q-tag.mine{background:#13241b;border:1px solid #285a40;color:#8fe0b2}
+.slots{display:grid;gap:6px;margin-bottom:14px}
+.slot{height:8px;border-radius:5px;background:#26262b}
+.slot.f{background:linear-gradient(90deg,#98600c,#f0b82f)}
+.q-card.mine .slot.f{background:linear-gradient(90deg,#2f8f5c,#69d49a)}
+.waiting{display:flex;flex-direction:column;gap:7px;min-height:118px;margin-bottom:14px}
+.w{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;font-size:12.5px}
+.w .av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#29251d;border:1px solid #6e5424;color:var(--gold);font-weight:800;font-size:12px}
+.w.me .av{border-color:#69d49a;color:#8fe0b2;background:#13241b}
+.w b{font-weight:700}.w small{color:#888;font-size:11px}
+.w.empty{color:#6f6c66;font-style:italic}
+.w.empty .av{border-style:dashed;border-color:#3a3327;background:transparent}
+.q-actions{display:flex;gap:8px;align-items:center}
+.q-actions .btn{flex:1;justify-content:center;text-align:center;padding:12px 14px}
+.q-actions .btn[disabled]{opacity:.45;cursor:not-allowed}
+.q-actions .btn{font-family:inherit;cursor:pointer}
+.q-actions .btn.secondary{background:transparent;color:var(--white)}
+.btn-leave{background:transparent;border:1px solid #6a3329;color:#f0a090}
+.q-note{font-size:11px;color:#8f8b82;margin-top:9px}
+.you{display:flex;align-items:center;gap:16px;padding:16px 20px;margin-bottom:16px;border-radius:14px;border:1px solid #2f6146;background:linear-gradient(135deg,#13241b,#121214)}
+.you .pulse{width:12px;height:12px;border-radius:50%;background:#69d49a;box-shadow:0 0 0 6px #69d49a22}
+.you b{display:block;font:700 20px/1.1 'Barlow Condensed';text-transform:uppercase}.you small{color:#a9c9b6;font-size:12px}
+.you .btn{margin-left:auto}
+.need{display:flex;align-items:center;gap:16px;padding:16px 20px;margin-bottom:16px;border-radius:14px;border:1px solid #6e5424;background:linear-gradient(135deg,#2a2213,#121214)}
+.need .ic{font-size:26px}.need b{display:block;font:700 20px/1.1 'Barlow Condensed';text-transform:uppercase}.need small{color:#c9bfa8;font-size:12px}
+.need .btn{margin-left:auto;white-space:nowrap}
+.how{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;padding:18px 20px}
+.how div{font-size:12px;color:#a29e95;line-height:1.55}.how b{display:block;color:var(--white);font-size:13px;margin-bottom:4px}
+.how span{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1px solid #6e5424;color:var(--gold);font-weight:800;font-size:11px;margin-bottom:8px}
+@media(max-width:900px){.q-grid{grid-template-columns:1fr}.how{grid-template-columns:1fr 1fr}.you,.need{flex-wrap:wrap}.you .btn,.need .btn{margin-left:0;width:100%;text-align:center}}
+
+.q-card.loading{opacity:.6}
+.q-uneven{margin-top:4px;color:#8f8b82;font-size:11px}
+.q-actions .btn{font-family:inherit;cursor:pointer}
+.q-actions .btn.secondary{background:transparent;color:var(--white)}
+.q-actions .btn.btn-leave:hover{background:#3a201c}
+.offline{display:flex;align-items:center;gap:14px;padding:16px 20px;margin-bottom:16px;border-radius:14px;border:1px solid #3a3327;background:#17171b;color:#cfcac0;font-size:13px}
+.match-on{display:flex;align-items:center;gap:16px;padding:16px 20px;margin-bottom:16px;border-radius:14px;border:1px solid #5865f2;background:linear-gradient(135deg,#1c1f3a,#121214)}
+.match-on b{display:block;font:700 20px/1.1 'Barlow Condensed';text-transform:uppercase}.match-on small{color:#b9bde8;font-size:12px}
+.match-on .btn{margin-left:auto;white-space:nowrap}
+.q-msg{padding:11px 14px;border-radius:10px;font-size:12.5px;margin-bottom:14px}
+.q-msg.ok{border:1px solid #285a40;background:#13241b;color:#cfe9d9}.q-msg.err{border:1px solid #6a3329;background:#3a201c;color:#f3b4a6}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:qs .7s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes qs{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.spin{animation:none}}
+@media(max-width:900px){.q-card.mine{order:-1}.match-on{flex-wrap:wrap}.match-on .btn{margin-left:0;width:100%;text-align:center}}
+</style>
+<link rel="stylesheet" href="/static/common.css">
+<link rel="stylesheet" href="/static/member.css">
+<script src="/static/common.js"></script>
+<script src="/static/member.js"></script>
+</head>
+<body>
+<div class="shell">
+<header class="topbar">
+ <a class="brand" href="/"><img src="/static/cheese-club-logo.png" alt="The Cheese Club"><span><small>Age of Empires IV</small><b class="brand-title">THE CHEESE CLUB</b><small class="brand-sub">COMMUNITY HUB</small></span></a>
+ <nav class="nav"><a href="/">Home</a><a href="/leaderboard">Leaderboard</a><a href="/matches">Matches</a><a href="/civs">Civ Stats</a><a href="/community">Community</a><a href="/voice-activity">Voice Activity</a><a href="/tournament">Tournament</a><a href="/about">About</a><a href="/contact">Contact Us</a><a href="/login">Log in</a></nav>
+ <a class="discord" id="discordLink" href="https://discord.gg/thecheeseclub" target="_blank" rel="noreferrer">JOIN DISCORD ↗</a>
+</header>
+<div class="member-layout"><aside class="side" id="memberSide" aria-label="Member menu"></aside><main id="memberMain"><div class="m-empty" style="padding:80px 10px">Loading…</div></main></div>
+<footer class="footer"><span>© <span id="year"></span> THE CHEESE CLUB</span><span>Play Together. Laugh Together. Win Together.</span></footer>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=ccEsc,fmt=ccFmt;
+$('year').textContent=new Date().getFullYear();
+
+async function call(method,url,body){
+ const r=await fetch(url,{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,credentials:'same-origin'});
+ const data=await r.json().catch(()=>({}));
+ if(!r.ok)throw new Error(data.detail||'Something went wrong. Please try again.');
+ return data;
+}
+let me=null,busy=null,flash=null,timer=null;
+const UNEVEN={'4v3':'Uneven teams: captains decide who plays 4 and who plays 3','3v2':'Uneven teams: captains decide who plays 3 and who plays 2'};
+const mins=iso=>{const m=Math.max(0,Math.round((Date.now()-new Date(iso))/60000));return m<1?'just now':m<60?`${m} min`:`${Math.floor(m/60)}h ${m%60}m`};
+function blockReason(st){
+ if(!st.available)return 'Queueing from the website isn\'t switched on yet';
+ if(!st.online)return 'Queue bot offline';
+ if(st.match)return 'You\'re in a match';
+ if(!st.in_server)return 'Join the Discord first';
+ if(!st.linked)return 'Link your AoE4 account';
+ if(st.require_voice&&!st.in_voice)return '🔒 Join voice to queue';
+ return null}
+function card(q,st){
+ const filled=q.players.length,need=Math.max(q.size-filled,0),mine=st.my_queue&&st.my_queue.queue===q.queue,hot=!mine&&filled>0&&need<=2&&need>0;
+ const tag=mine?'<span class="q-tag mine">● You\'re in this queue</span>':hot?`<span class="q-tag hot">🔥 ${need} more to start</span>`:'';
+ const slots=Array.from({length:q.size},(_,i)=>`<i class="slot ${i<filled?'f':''}"></i>`).join('');
+ const meIdx=q.players.findIndex(p=>p.user_id&&p.user_id===me.user_id);
+ const shown=meIdx>=4?[...q.players.slice(0,3),q.players[meIdx]]:q.players.slice(0,4);   // always show yourself
+ let rows=shown.map(p=>{const you=p.user_id&&p.user_id===me.user_id;return `<div class="w ${you?'me':''}"><span class="av">${esc((p.username||'?').slice(0,1).toUpperCase())}</span><b>${p.user_id&&!you?`<a href="${ccPlayerHref(p.user_id)}">${esc(p.username)}</a>`:esc(p.username||'Player')}${you?' (you)':''}</b><small>waiting ${mins(p.joined_at)}</small></div>`}).join('');
+ if(filled>4)rows+=`<div class="w"><span class="av">+${filled-4}</span><small>and ${filled-4} more waiting</small><span></span></div>`;
+ if(!filled)rows='<div class="w empty"><span class="av"></span>Nobody waiting yet. Be the first!<span></span></div>';
+ const reason=blockReason(st),isBusy=busy&&(busy.queue===q.queue||(busy.action==='leave'&&mine));
+ let btn;
+ if(isBusy)btn=`<button class="btn ${mine?'btn-leave':'primary'}" type="button" disabled><span class="spin"></span>${busy.action==='leave'?'Leaving…':'Joining…'}</button>`;
+ else if(mine)btn=`<button class="btn btn-leave" type="button" data-leave>Leave queue</button>`;
+ else if(reason)btn=`<button class="btn secondary" type="button" disabled>${esc(reason)}</button>`;
+ else if(busy)btn=`<button class="btn secondary" type="button" disabled>${st.my_queue?'Switch to '+esc(q.queue):'Join '+esc(q.queue)}</button>`;
+ else btn=`<button class="btn ${filled?'primary':'secondary'}" type="button" data-join="${esc(q.queue)}">${st.my_queue?'Switch to '+esc(q.queue):'Join '+esc(q.queue)}</button>`;
+ const note=st.my_queue&&!mine&&!reason?`<p class="q-note">Joining another queue moves you out of ${esc(st.my_queue.queue)}.</p>`:'';
+ return `<div class="q-card ${mine?'mine':hot?'hot':''}"><div class="q-top"><div><div class="q-name">${esc(q.queue.toUpperCase())}</div><div class="q-count"><b>${filled}</b> / ${q.size} players</div>${UNEVEN[q.queue]?`<div class="q-uneven">${UNEVEN[q.queue]}</div>`:''}</div>${tag}</div><div class="slots" style="grid-template-columns:repeat(${q.size},1fr)">${slots}</div><div class="waiting">${rows}</div><div class="q-actions">${btn}</div>${note}</div>`}
+async function load(){
+ let snap,st;
+ try{[snap,st]=await Promise.all([call('GET','/api/queue'),call('GET','/api/me/queue')])}catch(e){$('memberMain').innerHTML=`<div class="m-empty">${esc(e.message)}</div>`;return}
+ const chips=[st.in_server?'<span class="good">✅ In The Cheese Club server</span>':`<a class="fix" href="${esc(st.invite_url)}" target="_blank" rel="noopener noreferrer">➕ Join the Discord server</a>`,
+  st.linked?`<span class="good">✅ AoE4 linked${me.aoe4?' · '+esc(me.aoe4.name):''}</span>`:'<a class="fix" href="/account">🔗 Link your AoE4 account</a>',
+  st.in_voice?`<span class="good">🎙️ In voice · ${esc(st.in_voice)}</span>`:(st.require_voice?`<a class="fix" href="${esc(st.invite_url)}" target="_blank" rel="noopener noreferrer">🎙️ Join a voice channel</a>`:'<span>🎙️ Not in voice</span>')].join('');
+ let banner='';
+ if(st.match)banner=`<div class="match-on"><span style="font-size:26px">🎮</span><div><b>Your ${esc(st.match.queue_type)} match is on!</b><small>Match #${Number(st.match.id)} is being set up in Discord. Head over for the draft, map veto and civ picks.</small></div><a class="btn primary" href="${esc(st.invite_url)}" target="_blank" rel="noopener noreferrer">Open Discord ↗</a></div>`;
+ else if(!st.available)banner='<div class="offline">⏳ Queueing from the website isn\'t switched on yet. Join queues in Discord for now.</div>';
+ else if(!st.online)banner='<div class="offline">⚠️ The queue bot is offline right now. Queues will be back shortly; you can\'t join from the website until then.</div>';
+ else if(st.my_queue){const q=st.my_queue,need=Math.max(q.size-q.count,0);banner=`<div class="you"><i class="pulse"></i><div><b>You're in the ${esc(q.queue)} queue</b><small>Waiting ${mins(q.joined_at)} · ${need} more player${need===1?'':'s'} needed · You'll be pinged in Discord when it starts</small></div><button class="btn btn-leave" type="button" data-leave ${busy?'disabled':''}>${busy&&busy.action==='leave'?'<span class="spin"></span>Leaving…':'Leave queue'}</button></div>`}
+ else if(st.require_voice&&!st.in_voice)banner=`<div class="need"><span class="ic">🎙️</span><div><b>Join a voice channel to queue</b><small>So you're ready the moment the match starts. Hop into any public Cheese Club voice channel and the Join buttons unlock.</small></div><a class="btn primary" href="${esc(st.invite_url)}" target="_blank" rel="noopener noreferrer">Open Discord ↗</a></div>`;
+ else if(!st.require_voice&&!st.in_voice)banner='<div class="offline">🎙️ Make sure you\'re on Discord when your queue pops, so the match can start right away.</div>';
+ const queues=snap.available?snap.queues:[];
+ $('memberMain').innerHTML=`
+  <div class="m-head"><div><h1>Queue</h1><p>Join a club match. When a queue fills up, the match starts in Discord.</p></div></div>
+  <div class="m-status">${chips}</div>
+  ${flash?`<div class="q-msg ${flash.ok?'ok':'err'}" role="status">${esc(flash.text)}</div>`:''}
+  ${banner}
+  <div class="q-grid">${queues.map(q=>card(q,st)).join('')}</div>
+  <section class="panel"><div class="panel-head"><h3>How it works</h3></div><div class="how">
+   <div><span>1</span><b>Join here or in Discord</b>Both work the same. You can only be in one queue at a time.</div>
+   <div><span>2</span><b>Wait for it to fill</b>You'll see who's waiting. Players are removed after 30 minutes if the queue doesn't fill.</div>
+   <div><span>3</span><b>The bot pings you</b>When the queue is full, everyone is pinged in Discord and the match thread opens.</div>
+   <div><span>4</span><b>Play in Discord</b>Draft, map veto, civ picks and voice all happen in Discord as usual.</div></div></section>`;
+ ccMemberQueueBadge(snap,me);
+}
+async function act(action,queue){
+ if(busy)return;busy={action,queue};flash=null;await load();
+ try{
+  const {request_id}=await call('POST','/api/me/queue',{action,queue_type:queue});
+  let res=null;for(let i=0;i<25;i++){await new Promise(r=>setTimeout(r,800));res=await call('GET','/api/me/queue/requests/'+request_id);if(res.status!=='pending')break}
+  if(!res||res.status==='pending')flash={ok:false,text:"The queue bot hasn't answered yet. Check the queue in Discord, or try again."};
+  else flash={ok:res.status==='done',text:res.message||(res.status==='done'?'Done.':'That didn\'t work. Please try again.')};
+ }catch(e){flash={ok:false,text:e.message}}
+ busy=null;await load();
+}
+document.addEventListener('click',e=>{const j=e.target.closest('[data-join]'),l=e.target.closest('[data-leave]');if(j)act('join',j.dataset.join);else if(l)act('leave',null)});
+(async()=>{me=await ccMemberInit('queue');if(!me)return;await load();timer=setInterval(()=>{if(!busy&&!document.hidden)load()},4000)})();
+
+</script>
+<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "2b0d231e55714801ba9356211021134c"}'></script><!-- End Cloudflare Web Analytics -->
+</body></html>

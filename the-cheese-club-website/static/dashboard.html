@@ -80,7 +80,7 @@ document.addEventListener('keydown',e=>{const m=e.target.closest?.('[data-match]
  const voiceTotal=d.weeks.reduce((a,w)=>a+w.voice_hours,0);
  const last=d.last_match;
  main.innerHTML=`
-  <div class="m-head"><div><h1>Welcome back, ${esc(me.username)}</h1><p>Here's how you're doing in the club.</p></div><a class="btn primary" href="${esc(me.invite_url)}" target="_blank" rel="noopener noreferrer">⚔️ Queue up in Discord</a></div>
+  <div class="m-head"><div><h1>Welcome back, ${esc(me.username)}</h1><p>Here's how you're doing in the club.</p></div><a class="btn primary" href="/queue">⚔️ Queue up</a></div>
   <div class="m-status">${status}</div>
   <div class="m-tiles">
    <div class="stat"><label>Record</label><strong>${fmt(r.wins)}–${fmt(r.losses)}</strong><small>Club wins and losses</small></div>

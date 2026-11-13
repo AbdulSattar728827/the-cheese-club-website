@@ -23,6 +23,7 @@ Discord bot's existing Railway PostgreSQL database.
   - `/stats`: official AoE4World rating over time, games per queue, and when you usually play
   - `/account`: link your AoE4 account (shared with the bot's `/aoe4link`) and Discord server status
   - `/settings`: hide your profile, log out
+  - `/queue`: live queues (1v1, 2v2, 3v3, 4v4, 4v3, 3v2) with Join, Switch and Leave
   - Logged-in members also get a "Welcome back" strip on the homepage
 - Placeholder pages for Tournament and Contact (greyed out in the navigation)
 
@@ -96,6 +97,17 @@ older bot the site still works and simply shows less.
   player has one.
 - **In voice now:** the bot keeps `vc_live` up to date with who is in a public voice channel
   (visible to @everyone, AFK excluded). Rows not refreshed for 10 minutes are ignored.
+
+## Queueing from the website
+Needs the bot version with website queueing (it creates `aoe_queue_live` and `aoe_queue_requests`).
+- The bot publishes who is waiting in each queue every few seconds, plus a heartbeat. If the website
+  hasn't heard from the bot for 60 seconds, it shows the queue as offline and disables joining.
+- Join, Switch and Leave on the website create a request that the bot carries out with the same code
+  as its Discord queue menu (same lock, auto-switching, 30-minute timeout, queue message and match
+  start). The website then shows the bot's answer.
+- Members must be in the server and linked to AoE4World (or bypassed by an admin). By default they
+  must also be in a public voice channel. To drop that rule, set `WEB_QUEUE_REQUIRE_VOICE=false` on
+  the **bot** service in Railway; the website then shows a reminder instead.
 
 ## Voice time
 A member's voice time is their `vc_stats` total. Members with no `vc_stats` rows fall back to the

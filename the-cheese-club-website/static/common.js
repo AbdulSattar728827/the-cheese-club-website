@@ -169,12 +169,13 @@ async function ccSetupAccountNav(){
   <div class="nav-menu" role="menu" hidden>
     <a role="menuitem" href="/dashboard">🏠 Dashboard</a>
     <a role="menuitem" href="/stats">📊 Stats</a>
+    <a role="menuitem" href="/queue">⚔️ Queue</a>
     ${me.hidden?'':`<a role="menuitem" href="${ccPlayerHref(me.user_id)}">👤 My profile</a>`}
     <a role="menuitem" href="/account">🔗 AoE4 account</a>
     <a role="menuitem" href="/settings">⚙️ Settings</a>
-    <a role="menuitem" href="/auth/logout?next=${encodeURIComponent(['/account','/dashboard','/stats','/settings'].some(x=>here.startsWith(x))?'/':here)}">🚪 Log out</a>
+    <a role="menuitem" href="/auth/logout?next=${encodeURIComponent(['/account','/dashboard','/stats','/settings','/queue'].some(x=>here.startsWith(x))?'/':here)}">🚪 Log out</a>
   </div>`;
-  if(['/account','/dashboard','/stats','/settings'].includes(location.pathname))wrap.classList.add('active');
+  if(['/account','/dashboard','/stats','/settings','/queue'].includes(location.pathname))wrap.classList.add('active');
   link.replaceWith(wrap);
   ccWelcomeStrip(me);
   const btn=wrap.querySelector('button'),menu=wrap.querySelector('.nav-menu');

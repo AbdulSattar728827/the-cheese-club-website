@@ -15,15 +15,23 @@ async function ccMemberInit(active){
     <nav aria-label="Member menu">
       ${item('dashboard','🏠','Dashboard','/dashboard')}
       ${item('stats','📊','Stats','/stats')}
-      <span class="off" title="Coming soon"><span aria-hidden="true">⚔️</span>Queue<span class="pill">Soon</span></span>
+      <a href="/queue" class="${active==='queue'?'on':''}"${active==='queue'?' aria-current="page"':''}><span aria-hidden="true">⚔️</span>Queue<span class="pill" id="queuePill" hidden></span></a>
       ${me.hidden?`<span class="off" title="Your profile is hidden (see Settings)"><span aria-hidden="true">👤</span>My Profile<span class="pill">Hidden</span></span>`:item('profile','👤','My Profile',ccPlayerHref(me.user_id))}
       ${item('account','🔗','AoE4 Account','/account')}
       ${item('settings','⚙️','Settings','/settings')}
       <hr>
       <a class="logout" href="/auth/logout?next=/"><span aria-hidden="true">🚪</span>Log out<span></span></a>
     </nav>`;
+  if(active!=='queue')fetch('/api/queue').then(r=>r.ok?r.json():null).then(s=>ccMemberQueueBadge(s,me)).catch(()=>{});
   return me;
 }
+/* Side-menu badge: your queue (green), or the fullest queue. */
+function ccMemberQueueBadge(snap,me){const pill=document.getElementById('queuePill');if(!pill||!snap||!snap.available)return;
+  const mine=snap.queues.find(q=>q.players.some(p=>p.user_id&&p.user_id===me.user_id));
+  const best=mine||[...snap.queues].filter(q=>q.players.length).sort((a,b)=>(b.players.length/b.size)-(a.players.length/a.size))[0];
+  if(!best){pill.hidden=true;return}
+  pill.textContent=`${best.queue} ${best.players.length}/${best.size}`;pill.hidden=false;
+  pill.style.cssText=mine?'border-color:#285a40;color:#8fe0b2':'border-color:#6e5424;color:var(--gold)';}
 function ccMemberVoice(channel){const el=document.getElementById('sideVoice');if(el&&channel){el.textContent='● In voice · '+channel;el.classList.add('live')}}
 
 /* ---- charts (inline SVG, no libraries) ----

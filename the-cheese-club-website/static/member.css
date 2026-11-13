@@ -78,3 +78,21 @@
 
 /* Charts shrink on phones, so their labels get bigger to stay readable */
 @media(max-width:600px){.chart text{font-size:17px}.chart.chart-wide text{font-size:26px}}
+
+/* Hover / tap tooltips on charts */
+.cc-tip{position:fixed;z-index:300;pointer-events:none;max-width:260px;padding:9px 11px;border-radius:9px;border:1px solid #6e5424;background:#0f0f12f2;box-shadow:0 10px 30px #000a;color:#f6f3eb;font:500 12px/1.5 Inter,sans-serif}
+.cc-tip[hidden]{display:none}
+.cc-tip b{display:block;font-weight:800;margin-bottom:2px}
+.cc-tip span{display:block;color:#cfcac0}
+.cc-tip span b{display:inline;margin:0}
+.cc-tip i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
+.cc-tip em{color:#8f8b82;font-style:normal}
+.hover-col{fill:transparent;cursor:crosshair}
+.hover-col.tip-on,.hover-col:focus{fill:#ffffff10;outline:none}
+.rating-hover{cursor:crosshair}
+.civbar{border-radius:8px;cursor:default}
+.civbar.tip-on,.civbar:focus{background:#1f1c16;outline:none}
+.seg{cursor:pointer;transition:stroke-width .12s}
+.seg.tip-on,.seg:focus{stroke-width:30;outline:none}
+.heat i{cursor:pointer}
+.heat i.tip-on,.heat i:focus{outline:2px solid var(--gold);outline-offset:1px}

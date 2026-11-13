@@ -15,7 +15,7 @@
 .topbar .discord{flex:0 0 auto;white-space:nowrap}
 .nav a{white-space:nowrap}
 @media(max-width:1440px){.nav{gap:13px}}
-@media(max-width:1200px){
+@media(max-width:1279px){
   .topbar{height:auto;min-height:0;flex-wrap:wrap;padding:14px 0 12px;row-gap:12px}
   .topbar .nav{order:3;flex:1 0 100%;gap:8px 18px;padding-top:12px;border-top:1px solid #ffffff0d}
 }
@@ -53,7 +53,7 @@
 .nav-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:60;min-width:170px;padding:6px;background:#17171b;border:1px solid #3a3327;border-radius:10px;box-shadow:0 14px 40px #000a}
 .nav-menu a{display:block;padding:9px 11px;border-radius:7px;color:#ddd8cf;font-size:12.5px;font-weight:600}
 .nav-menu a:hover,.nav-menu a:focus-visible{background:#26221a;color:var(--gold,#f0b82f);outline:none}
-@media(max-width:1200px){.nav-menu{left:0;right:auto}}
+@media(max-width:1279px){.nav-menu{left:0;right:auto}}
 
 /* Home page "Welcome back" strip for logged-in members */
 .welcome-strip{display:flex;align-items:center;gap:14px;margin:18px 0 0;padding:12px 16px;border:1px solid #6e5424;border-radius:14px;background:linear-gradient(135deg,#231d10,#141417)}
@@ -65,3 +65,33 @@
 .welcome-strip .ws-actions{display:flex;gap:8px;flex-wrap:wrap}
 .welcome-strip .btn{padding:10px 16px;font-size:11px}
 @media(max-width:600px){.welcome-strip{flex-wrap:wrap}.welcome-strip .ws-actions{width:100%}}
+
+/* Notification bell */
+.nav-bell{position:relative;display:inline-flex}
+.bell-btn{position:relative;width:34px;height:34px;display:grid;place-items:center;border-radius:50%;border:1px solid #3a3327;background:#17171b;cursor:pointer;font-size:15px;padding:0}
+.bell-btn:hover,.bell-btn[aria-expanded="true"]{border-color:var(--gold,#f0b82f)}
+.bell-btn:focus-visible{outline:1px solid var(--gold,#f0b82f);outline-offset:2px}
+.bell-badge{position:absolute;top:-5px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:10px;background:#e2735f;color:#fff;font:800 10px/18px Inter,sans-serif;text-align:center;border:2px solid #0c0c0e}
+.bell-badge[hidden]{display:none}
+.bell-panel{position:absolute;top:calc(100% + 10px);right:-60px;z-index:70;width:340px;max-width:calc(100vw - 24px);background:#141417;border:1px solid #3a3327;border-radius:14px;box-shadow:0 18px 50px #000c;overflow:hidden}
+.bell-panel[hidden]{display:none}
+.bell-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #ffffff12}
+.bell-head b{font:700 17px 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.6px}
+.bell-readall{background:none;border:0;color:var(--gold,#f0b82f);font:700 11px Inter,sans-serif;cursor:pointer}
+.bell-list{max-height:min(420px,60vh);overflow-y:auto}
+.bell-item{display:grid;grid-template-columns:10px 1fr;gap:10px;padding:12px 14px;border-bottom:1px solid #ffffff0a;color:#cfcac0}
+.bell-item:hover,.bell-item:focus-visible{background:#1d1b17;outline:none}
+.bell-dot{width:8px;height:8px;border-radius:50%;margin-top:5px}
+.bell-item.unread .bell-dot{background:var(--gold,#f0b82f)}
+.bell-item.unread b{color:var(--white,#f6f3eb)}
+.bell-text b{display:block;font-size:12.5px;font-weight:700;line-height:1.4}
+.bell-text span{display:block;color:#9d998f;font-size:11.5px;line-height:1.45;margin-top:2px}
+.bell-text small{display:block;color:#6f6c66;font-size:10.5px;margin-top:4px}
+.bell-empty{padding:26px 16px;text-align:center;color:#9d998f;font-size:12.5px;line-height:1.6}
+.bell-empty small{color:#6f6c66}
+.bell-foot{display:block;padding:11px 14px;text-align:center;color:var(--gold,#f0b82f);font-size:12px;font-weight:700;background:#17171b}
+.bell-foot:hover{text-decoration:underline}
+@media(max-width:1279px){.bell-panel{right:auto;left:0}}
+@media(max-width:520px){.bell-panel{position:fixed;left:12px;right:12px;top:auto;width:auto}}
+/* Logged in on mid-size screens: avatar-only account button so the nav stays on one line */
+@media(max-width:1366px) and (min-width:1280px){.nav-user-btn span{display:none}.nav-user-btn{padding:4px 7px 4px 4px}}

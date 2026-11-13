@@ -109,6 +109,20 @@ Needs the bot version with website queueing (it creates `aoe_queue_live` and `ao
   must also be in a public voice channel. To drop that rule, set `WEB_QUEUE_REQUIRE_VOICE=false` on
   the **bot** service in Railway; the website then shows a reminder instead.
 
+## Queue alerts and notifications
+- Members choose their alerts in **Settings → Queue alerts**: which queues, when (1 or 2 players away,
+  or when someone joins an empty queue), quiet hours in their own time zone, and how (Discord DM,
+  the website's notification bell, and/or browser pop-ups while the site is open).
+- The **bot** sends queue alerts (at most one per member every 15 minutes, never while they're
+  already queued or playing, never during quiet hours or after "Mute for today"), test alerts, and
+  the "removed after 30 minutes" notice. Set `WEBSITE_URL` on the **bot** service to your website's
+  address so links in DMs point to the right place (default `https://thecheeseclub.up.railway.app`).
+- The **website** adds "your match is starting", match result and new achievement notices for
+  members who have logged in (a background job every 30 seconds). A member's first check only records
+  the achievements they already have, so nobody gets a flood of old ones.
+- Tables: `member_alert_settings`, `member_notifications` (created by both bot and website),
+  `website_users` and `member_achievements_seen` (website).
+
 ## Voice time
 A member's voice time is their `vc_stats` total. Members with no `vc_stats` rows fall back to the
 sum of their `vc_logs` sessions. Every page and endpoint uses this same rule.

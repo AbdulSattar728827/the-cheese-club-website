@@ -241,11 +241,63 @@ async def lifespan(app: FastAPI):
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 )
             """)
+            # Queue alerts and the notification bell (the bot creates the same tables)
+            await conn.execute("""CREATE TABLE IF NOT EXISTS member_alert_settings (
+    user_id           TEXT PRIMARY KEY,
+    enabled           BOOLEAN NOT NULL DEFAULT FALSE,
+    queues            TEXT[] NOT NULL DEFAULT '{}',
+    alert_when        TEXT NOT NULL DEFAULT 'one_away',
+    quiet_enabled     BOOLEAN NOT NULL DEFAULT FALSE,
+    quiet_start       SMALLINT NOT NULL DEFAULT 0,
+    quiet_end         SMALLINT NOT NULL DEFAULT 540,
+    tz                TEXT NOT NULL DEFAULT 'UTC',
+    via_dm            BOOLEAN NOT NULL DEFAULT TRUE,
+    via_web           BOOLEAN NOT NULL DEFAULT TRUE,
+    via_browser       BOOLEAN NOT NULL DEFAULT FALSE,
+    muted_until       TIMESTAMPTZ,
+    last_alert_at     TIMESTAMPTZ,
+    dm_status         TEXT,
+    dm_status_at      TIMESTAMPTZ,
+    test_requested_at TIMESTAMPTZ,
+    test_done_at      TIMESTAMPTZ,
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+)""")
+            await conn.execute("""CREATE TABLE IF NOT EXISTS member_notifications (
+    id         BIGSERIAL PRIMARY KEY,
+    user_id    TEXT NOT NULL,
+    kind       TEXT NOT NULL,
+    ref        TEXT,
+    title      TEXT NOT NULL,
+    body       TEXT,
+    link       TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    read_at    TIMESTAMPTZ
+)""")
+            await conn.execute("""CREATE UNIQUE INDEX IF NOT EXISTS member_notifications_once ON member_notifications (user_id, kind, ref)""")
+            await conn.execute("""CREATE INDEX IF NOT EXISTS member_notifications_recent ON member_notifications (user_id, created_at DESC)""")
+            # Members who have logged in to the website (notices are only made for them)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS website_users (
+                    user_id     TEXT PRIMARY KEY,
+                    first_login TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    last_seen   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS member_achievements_seen (
+                    user_id        TEXT NOT NULL,
+                    achievement_id TEXT NOT NULL,
+                    seen_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    PRIMARY KEY (user_id, achievement_id)
+                )
+            """)
         await refresh_hidden()
         refresher = asyncio.create_task(_hidden_refresh_loop())
+        notifier = asyncio.create_task(_notification_loop())
     yield
     if pool:
         refresher.cancel()
+        notifier.cancel()
         await pool.close()
     await http_client.aclose()
 
@@ -1345,6 +1397,10 @@ async def auth_callback(request: Request, code: str = "", state: str = "", error
         return RedirectResponse("/login?error=discord", status_code=302)
     session = {"uid": str(user["id"]), "name": user.get("global_name") or user.get("username") or "Member",
                "avatar": _avatar_url(user), "g": in_guild, "exp": time.time() + SESSION_SECONDS}
+    try:
+        await mark_website_user(str(user["id"]), force=True)
+    except Exception:
+        log.exception("Could not record website user")
     response = RedirectResponse(saved.get("n") or "/dashboard", status_code=302)
     response.set_cookie(SESSION_COOKIE, _sign(session), **_cookie_args(request, SESSION_SECONDS))
     response.delete_cookie(STATE_COOKIE, path="/")
@@ -1373,6 +1429,7 @@ async def api_me(request: Request):
     if not user:
         return {"logged_in": False, "login_enabled": login_enabled()}
     uid = user["uid"]
+    await mark_website_user(uid)
     guild = await club_guild_id()
     present = await fetchval("""
         SELECT COUNT(*) FROM discord_member_profiles
@@ -1758,6 +1815,190 @@ async def api_queue_request_status(request: Request, request_id: int):
     if not rows:
         raise HTTPException(status_code=404, detail="Request not found")
     return {"status": rows[0]["status"], "message": rows[0]["message"]}
+
+
+# ---------------------------------------------------------------------------
+# Queue alerts (sent by the bot) and the notification bell
+# ---------------------------------------------------------------------------
+_user_seen_marks: dict = {}
+ALERT_WHEN = ("one_away", "two_away", "first_join")
+ALERT_DEFAULTS = {"enabled": False, "queues": [], "alert_when": "one_away", "quiet_enabled": False,
+                  "quiet_start": 0, "quiet_end": 540, "tz": "UTC", "via_dm": True, "via_web": True,
+                  "via_browser": False}
+
+
+async def mark_website_user(user_id: str, force: bool = False):
+    now = time.monotonic()
+    last = _user_seen_marks.get(user_id)
+    if not force and last is not None and now - last < 300:
+        return
+    _user_seen_marks[user_id] = now
+    await fetch("""
+        INSERT INTO website_users (user_id) VALUES ($1)
+        ON CONFLICT (user_id) DO UPDATE SET last_seen=NOW()
+    """, user_id)
+
+
+async def notify(user_id: str, kind: str, title: str, body: str = None, link: str = None, ref: str = None):
+    await fetch("""
+        INSERT INTO member_notifications (user_id, kind, ref, title, body, link)
+        VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING
+    """, user_id, kind, ref, title, body, link)
+
+
+@app.get("/api/me/alerts")
+async def api_get_alerts(request: Request):
+    user = require_login(request)
+    rows = await fetch("SELECT * FROM member_alert_settings WHERE user_id=$1", user["uid"])
+    s = dict(ALERT_DEFAULTS)
+    extra = {"saved": False, "muted_until": None, "last_alert_at": None, "dm_status": None,
+             "test_requested_at": None, "test_done_at": None}
+    if rows:
+        r = dict(rows[0])
+        s.update({k: r[k] for k in ALERT_DEFAULTS})
+        extra.update({k: r[k] for k in ("muted_until", "last_alert_at", "dm_status", "test_requested_at", "test_done_at")})
+        extra["saved"] = True
+    return {**s, **extra, "queue_options": QUEUE_ORDER}
+
+
+@app.post("/api/me/alerts")
+async def api_save_alerts(request: Request):
+    user = require_login(request)
+    require_same_site(request)
+    b = await request.json()
+    queues = [q for q in QUEUE_ORDER if q in (b.get("queues") or [])]
+    alert_when = b.get("alert_when") if b.get("alert_when") in ALERT_WHEN else "one_away"
+    try:
+        quiet_start = max(0, min(1439, int(b.get("quiet_start", 0))))
+        quiet_end = max(0, min(1439, int(b.get("quiet_end", 540))))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Quiet hours need a start and an end time.")
+    tz = str(b.get("tz") or "UTC")[:64]
+    try:
+        from zoneinfo import ZoneInfo
+        ZoneInfo(tz)
+    except Exception:
+        tz = "UTC"
+    enabled = bool(b.get("enabled"))
+    if enabled and not queues:
+        raise HTTPException(status_code=400, detail="Pick at least one queue, or switch alerts off.")
+    via = {k: bool(b.get(k)) for k in ("via_dm", "via_web", "via_browser")}
+    if enabled and not any(via.values()):
+        raise HTTPException(status_code=400, detail="Choose at least one way to get alerts.")
+    await fetch("""
+        INSERT INTO member_alert_settings (user_id, enabled, queues, alert_when, quiet_enabled, quiet_start,
+                                           quiet_end, tz, via_dm, via_web, via_browser, updated_at)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW())
+        ON CONFLICT (user_id) DO UPDATE SET enabled=$2, queues=$3, alert_when=$4, quiet_enabled=$5,
+            quiet_start=$6, quiet_end=$7, tz=$8, via_dm=$9, via_web=$10, via_browser=$11, updated_at=NOW()
+    """, user["uid"], enabled, queues, alert_when, bool(b.get("quiet_enabled")), quiet_start, quiet_end,
+        tz, via["via_dm"], via["via_web"], via["via_browser"])
+    return {"ok": True}
+
+
+@app.post("/api/me/alerts/test")
+async def api_test_alert(request: Request):
+    user = require_login(request)
+    require_same_site(request)
+    rows = await fetch("""
+        UPDATE member_alert_settings SET test_requested_at=NOW() WHERE user_id=$1 RETURNING test_requested_at
+    """, user["uid"])
+    if not rows:
+        raise HTTPException(status_code=400, detail="Save your alert settings first.")
+    return {"ok": True, "requested_at": rows[0]["test_requested_at"]}
+
+
+@app.post("/api/me/alerts/unmute")
+async def api_unmute_alerts(request: Request):
+    user = require_login(request)
+    require_same_site(request)
+    await fetch("UPDATE member_alert_settings SET muted_until=NULL WHERE user_id=$1", user["uid"])
+    return {"ok": True}
+
+
+@app.get("/api/me/notifications")
+async def api_notifications(request: Request, limit: int = 20):
+    user = require_login(request)
+    limit = max(1, min(limit, 50))
+    rows = await fetch("""
+        SELECT id, kind, title, body, link, created_at, read_at FROM member_notifications
+        WHERE user_id=$1 ORDER BY created_at DESC, id DESC LIMIT $2
+    """, user["uid"], limit)
+    unread = await fetchval("SELECT COUNT(*) FROM member_notifications WHERE user_id=$1 AND read_at IS NULL",
+                            user["uid"], default=0)
+    browser = await fetchval("""
+        SELECT enabled AND via_browser FROM member_alert_settings WHERE user_id=$1
+    """, user["uid"], default=False)
+    return {"items": [dict(r) for r in rows], "unread": unread, "browser_popups": bool(browser)}
+
+
+@app.post("/api/me/notifications/read")
+async def api_notifications_read(request: Request):
+    user = require_login(request)
+    require_same_site(request)
+    body = await request.json()
+    ids = [int(i) for i in (body.get("ids") or []) if str(i).isdigit()]
+    if body.get("all"):
+        await fetch("UPDATE member_notifications SET read_at=NOW() WHERE user_id=$1 AND read_at IS NULL", user["uid"])
+    elif ids:
+        await fetch("""
+            UPDATE member_notifications SET read_at=NOW() WHERE user_id=$1 AND id = ANY($2::bigint[]) AND read_at IS NULL
+        """, user["uid"], ids)
+    return {"ok": True}
+
+
+async def _notification_loop():
+    """Every 30 seconds: match-starting, match-result and achievement notices
+    for members who use the website. Safe to repeat (each notice is made once)."""
+    while True:
+        await asyncio.sleep(30)
+        try:
+            await make_match_notifications()
+        except Exception:
+            log.exception("Notification job failed")
+
+
+async def make_match_notifications():
+    users = {str(r["user_id"]): r["first_login"] for r in await fetch("SELECT user_id, first_login FROM website_users")}
+    if not users:
+        return
+    matches = await load_matches()
+    now = datetime.now(timezone.utc)
+    aware = lambda d: d if d is None or d.tzinfo else d.replace(tzinfo=timezone.utc)
+    played_recently = set()
+    for m in matches:
+        created, finished = aware(m["created_at"]), aware(m["finished_at"])
+        if m["result"] == "pending" and created and created >= now - timedelta(hours=6):
+            for uid in set(m["players"]) & users.keys():
+                if created >= users[uid]:
+                    await notify(uid, "match_started", f"🎮 Your {m['queue_type']} match #{m['id']} is starting",
+                                 "Head to Discord for the draft, map veto and civ picks.", "/queue", ref=str(m["id"]))
+        if decided(m) and finished and finished >= now - timedelta(hours=24):
+            for uid in set(m["team1"] + m["team2"]) & users.keys():
+                played_recently.add(uid)
+                if finished < users[uid]:
+                    continue
+                won = player_outcome(m, uid) == "win"
+                civ = m["civs"].get(uid)
+                await notify(uid, "match_result",
+                             f"🏆 You won match #{m['id']} ({m['queue_type']})!" if won else f"Match #{m['id']} ({m['queue_type']}): a loss this time",
+                             (f"Played as {civ}. " if civ else "") + ("GG! See how your week is going." if won else "Shake it off. See your stats and go again."),
+                             "/dashboard", ref=str(m["id"]))
+    # New achievements, for members who played in the last day
+    for uid in played_recently:
+        ins = await build_player_insights(uid)
+        earned = {a["id"]: a for a in ins["achievements"] if a["earned"]}
+        seen = {r["achievement_id"] for r in await fetch("SELECT achievement_id FROM member_achievements_seen WHERE user_id=$1", uid)}
+        first_time = not seen
+        for aid, a in earned.items():
+            if aid in seen:
+                continue
+            await fetch("INSERT INTO member_achievements_seen (user_id, achievement_id) VALUES ($1,$2) ON CONFLICT DO NOTHING", uid, aid)
+            if not first_time:      # the first check only records what they already had
+                await notify(uid, "achievement", f"{a['icon']} Achievement unlocked: {a['name']}", a["description"],
+                             "/dashboard", ref=aid)
+        if first_time and not earned:
+            await fetch("INSERT INTO member_achievements_seen (user_id, achievement_id) VALUES ($1,'_baseline') ON CONFLICT DO NOTHING", uid)
 
 
 @app.post("/api/me/privacy")

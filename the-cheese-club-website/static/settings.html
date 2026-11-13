@@ -56,6 +56,66 @@ label.field{display:block;color:#cfcac0;font-size:12px;font-weight:600}
 .switch[aria-checked="true"]{background:#a77b1f;border-color:var(--gold)}.switch[aria-checked="true"]::after{left:23px;background:#fff}
 .switch:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 @media(max-width:520px){.search-row{flex-direction:column}}
+
+.al-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:16px;align-items:start}
+.al-body{padding:18px 22px 22px}
+.al-row{padding:16px 0;border-top:1px solid #ffffff0c}.al-row:first-child{border-top:0;padding-top:4px}
+.al-row h4{margin:0 0 4px;font-size:13.5px}.al-row p{margin:0 0 12px;color:#8f8b82;font-size:12px;line-height:1.55}
+.master{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border:1px solid #6e5424;border-radius:12px;background:linear-gradient(135deg,#231d10,#141417)}
+.master b{display:block;font-size:14px}.master small{color:#a29e95;font-size:12px}
+.chipset{display:flex;flex-wrap:wrap;gap:8px}
+.qchip{padding:9px 14px;border-radius:10px;border:1px solid #3a3327;background:#141417;font:800 15px 'Barlow Condensed';letter-spacing:.5px;color:#a29e95}
+.qchip.on{border-color:var(--gold);background:#2a2213;color:var(--gold)}
+.qchip.on::before{content:"✓ ";font-family:Inter;font-size:11px}
+.opts{display:grid;gap:8px}
+.opt{display:grid;grid-template-columns:20px 1fr;gap:12px;align-items:start;padding:12px 14px;border-radius:11px;border:1px solid #2c2a26;background:#141417}
+.opt.on{border-color:var(--gold);background:#1f1a10}
+.opt i{width:18px;height:18px;border-radius:50%;border:2px solid #5a5650;margin-top:1px}
+.opt.on i{border-color:var(--gold);box-shadow:inset 0 0 0 4px #1f1a10;background:var(--gold)}
+.opt b{display:block;font-size:13px}.opt small{color:#8f8b82;font-size:11.5px}
+.quiet{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sel{padding:9px 12px;border-radius:9px;border:1px solid #3a3327;background:#111114;font-size:13px;color:var(--white)}
+.tz{color:#8f8b82;font-size:11.5px;margin-top:8px}
+.dm-ok{display:flex;gap:10px;align-items:center;padding:11px 14px;border-radius:10px;border:1px solid #285a40;background:#13241b;color:#cfe9d9;font-size:12.5px}
+.dm-bad{padding:14px 16px;border-radius:11px;border:1px solid #6a3329;background:#2a1714;color:#f3c4b8;font-size:12.5px;line-height:1.6}
+.dm-bad b{display:block;color:#ffb3a3;font-size:13.5px;margin-bottom:4px}
+.dm-bad ol{margin:6px 0 0;padding-left:18px;color:#d9b0a6}
+.al-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+.al-actions .btn{font-family:inherit}
+.al-actions .btn.secondary{background:transparent;color:var(--white)}
+/* Discord-style DM preview (generic chat look, no Discord branding) */
+.dm{background:#313338;border-radius:12px;padding:16px;border:1px solid #1e1f22;font-family:Inter,sans-serif}
+.dm-head{display:flex;gap:12px;align-items:flex-start}
+.dm-av{width:40px;height:40px;border-radius:50%;object-fit:cover;flex:0 0 40px}
+.dm-name{font-weight:700;font-size:14px;color:#f2f3f5}.dm-name small{margin-left:6px;padding:1px 5px;border-radius:4px;background:#5865f2;color:#fff;font-size:9.5px;font-weight:800;vertical-align:2px}
+.dm-time{color:#949ba4;font-size:11px;margin-left:6px;font-weight:500}
+.dm-embed{margin-top:6px;border-left:4px solid #f0b82f;background:#2b2d31;border-radius:4px;padding:12px 14px}
+.dm-embed .t{font-weight:800;color:#f2f3f5;font-size:15px;margin-bottom:6px}
+.dm-embed p{margin:0 0 8px;color:#dbdee1;font-size:13px;line-height:1.5}
+.dm-embed .who{color:#b5bac1;font-size:12.5px}
+.dm-embed a{color:#00a8fc}
+.dm-foot{color:#949ba4;font-size:11px;margin-top:8px}
+.dm-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.dm-btns span{white-space:nowrap;padding:8px 14px;border-radius:4px;background:#4e5058;color:#fff;font-size:13px;font-weight:600}
+.dm-btns span.go{background:#248046}
+.preview-label{color:#8f8b82;font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 10px}
+.bell{display:flex;align-items:center;gap:12px;padding:12px 16px;margin-bottom:16px;border-radius:12px;border:1px solid #3a3327;background:#17171b;font-size:12.5px;color:#cfcac0}
+.bell b{color:var(--gold)}.bell a{margin-left:auto;color:var(--gold);font-weight:700}
+@media(max-width:1000px){.al-grid{grid-template-columns:1fr}}
+
+.qchip,.opt{cursor:pointer;font-family:inherit;text-align:left}
+.qchip:focus-visible,.opt:focus-visible,.switch:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.opt{width:100%;color:var(--white)}
+.sel{font-family:inherit;cursor:pointer}
+.via{display:grid;gap:8px}
+.via label{display:flex;align-items:center;gap:10px;padding:11px 14px;border:1px solid #2c2a26;border-radius:10px;background:#141417;font-size:13px;cursor:pointer}
+.via input{width:16px;height:16px;accent-color:#f0b82f}
+.via small{color:#8f8b82;font-size:11.5px;margin-left:auto;text-align:right}
+.al-msg{margin-top:12px}
+.muted{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:10px;border:1px solid #3a3327;background:#17171b;font-size:12.5px;color:#cfcac0;margin-bottom:14px}
+.muted button{margin-left:auto;background:none;border:0;color:var(--gold);font:700 12px Inter;cursor:pointer}
+.al-off .al-row:not(:first-child){opacity:.45;pointer-events:none}
+#alerts{scroll-margin-top:20px}
 </style>
 <link rel="stylesheet" href="/static/common.css">
 <link rel="stylesheet" href="/static/member.css">
@@ -84,10 +144,38 @@ async function call(method,url,body){
  if(!r.ok)throw new Error(data.detail||'Something went wrong. Please try again.');
  return data;
 }
-let me=null;
+let me=null,al=null,alMsg=null;
+const TZ=Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';
+const hm=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+const timeOptions=sel=>Array.from({length:48},(_,i)=>i*30).map(m=>`<option value="${m}" ${m===sel?'selected':''}>${hm(m)}</option>`).join('');
+const WHEN=[['one_away','When it\'s 1 player away from starting','Fewest messages. Perfect if you just want to complete a match.'],['two_away','When it\'s 2 players away','A little more notice to get to your PC.'],['first_join','When someone joins an empty queue','For when you\'re always up for a game.']];
+function deliveryHtml(){
+ if(al.dm_status==='blocked')return `<div class="dm-bad"><b>⚠️ We couldn't send you a direct message</b>Discord blocked our last alert because your DMs from server members are turned off. To fix it:<ol><li>In Discord, right-click The Cheese Club server and open <b style="display:inline">Privacy Settings</b></li><li>Turn on <b style="display:inline">Direct Messages</b></li><li>Come back and press "Send me a test alert"</li></ol></div>`;
+ if(al.dm_status==='failed')return '<div class="dm-bad"><b>⚠️ Our last direct message didn\'t go through</b>Discord had a problem delivering it. Press "Send me a test alert" to try again.</div>';
+ if(al.dm_status==='ok')return `<div class="dm-ok">✅ Direct messages are working.${al.last_alert_at?' Last alert sent '+ccAgo(al.last_alert_at)+'.':''}</div>`;
+ return '<p class="acct-note" style="margin:0">Press "Send me a test alert" after saving to check everything works.</p>';
+}
+function alertsHtml(){
+ const muted=al.muted_until&&new Date(al.muted_until)>new Date();
+ return `<section class="panel m-panel" id="alerts"><div class="panel-head"><h3>🔔 Queue alerts</h3>${al.enabled?'<small style="color:var(--green)">On</small>':'<small>Off</small>'}</div><div class="al-body ${al.enabled?'':'al-off'}">
+  ${muted?`<div class="muted">🔕 Muted until ${new Date(al.muted_until).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}<button type="button" id="unmute">Unmute</button></div>`:''}
+  <div class="al-row"><div class="master"><div><b>Send me queue alerts</b><small>A message when a queue you like is close to starting, so you never miss a match.</small></div><button type="button" class="switch" role="switch" id="alOn" aria-checked="${al.enabled}" aria-label="Send me queue alerts"></button></div></div>
+  <div class="al-row"><h4>Which queues?</h4><p>Pick the ones you'd jump into.</p><div class="chipset" role="group" aria-label="Queues">${al.queue_options.map(q=>`<button type="button" class="qchip ${al.queues.includes(q)?'on':''}" data-q="${q}" aria-pressed="${al.queues.includes(q)}">${q.toUpperCase()}</button>`).join('')}</div></div>
+  <div class="al-row"><h4>When should we tell you?</h4><p>One message per queue each time it fills up, never a stream of them, and at most one every 15 minutes.</p><div class="opts" role="radiogroup" aria-label="When to alert">${WHEN.map(([k,t,d])=>`<button type="button" class="opt ${al.alert_when===k?'on':''}" role="radio" aria-checked="${al.alert_when===k}" data-when="${k}"><i></i><div><b>${t}</b><small>${d}</small></div></button>`).join('')}</div></div>
+  <div class="al-row"><h4>Quiet hours</h4><p>No alerts while you're asleep or busy.</p><div class="quiet"><button type="button" class="switch" role="switch" id="quietOn" aria-checked="${al.quiet_enabled}" aria-label="Quiet hours"></button><span>From</span><select class="sel" id="qStart" aria-label="Quiet hours start">${timeOptions(al.quiet_start)}</select><span>to</span><select class="sel" id="qEnd" aria-label="Quiet hours end">${timeOptions(al.quiet_end)}</select></div><div class="tz">Times are in your time zone: ${esc(TZ)} (detected automatically)</div></div>
+  <div class="al-row"><h4>How should we tell you?</h4><p>Pick one or more.</p><div class="via">
+   <label><input type="checkbox" id="viaDm" ${al.via_dm?'checked':''}>💬 Discord direct message<small>Reaches your phone, even with the website closed</small></label>
+   <label><input type="checkbox" id="viaWeb" ${al.via_web?'checked':''}>🔔 Website bell<small>Shows in the bell at the top of the site</small></label>
+   <label><input type="checkbox" id="viaBrowser" ${al.via_browser?'checked':''}>🖥️ Browser pop-up<small>While the website is open in a tab</small></label></div></div>
+  <div class="al-row"><h4>Delivery</h4>${deliveryHtml()}
+   <div class="al-actions"><button class="btn primary" type="button" id="alSave">Save alerts</button><button class="btn secondary" type="button" id="alTest" ${al.saved?'':'disabled title="Save your alerts first"'}>Send me a test alert</button></div>
+   <div class="al-msg" id="alMsg">${alMsg?`<div class="msg ${alMsg.ok?'ok':'err'}">${esc(alMsg.text)}</div>`:''}</div></div>
+ </div></section>`;
+}
 function render(){
  $('memberMain').innerHTML=`
- <div class="m-head"><div><h1>Settings</h1><p>Choose what others see, and manage your login.</p></div></div>
+ <div class="m-head"><div><h1>Settings</h1><p>Choose how we let you know about matches, and what others see.</p></div></div>
+ ${alertsHtml()}
  <section class="panel m-panel"><div class="panel-head"><h3>Privacy</h3></div><div class="m-body">
   <div class="switch-row"><div><b>Hide my profile from the website</b></div><button class="switch" id="hideSwitch" type="button" role="switch" aria-checked="${me.hidden}" aria-label="Hide my profile from the website"></button></div>
   <p class="acct-note" id="hideNote">${me.hidden?"Your profile is hidden. You don't appear on leaderboards, member lists, player pages or highlights. Matches you played still count, shown as \"Hidden player\". Your Dashboard and Stats still work for you.":"When hidden, you won't appear on leaderboards, member lists, player pages or highlights. Matches you played still count, shown as \"Hidden player\". Your Dashboard and Stats keep working for you."}</p>
@@ -97,10 +185,37 @@ function render(){
   <p>You're logged in with Discord as <b>${esc(me.username)}</b> (Discord ID ${esc(me.id_hint)}). There's no password to manage: Discord handles your login.</p>
   <a class="btn secondary" href="/auth/logout?next=/">Log out</a>
  </div></section>`;
+ wire();
+ if(location.hash==='#alerts')$('alerts').scrollIntoView();
+}
+function readForm(){return{enabled:$('alOn').getAttribute('aria-checked')==='true',queues:[...document.querySelectorAll('.qchip.on')].map(b=>b.dataset.q),
+  alert_when:(document.querySelector('.opt.on')||{}).dataset?.when||'one_away',quiet_enabled:$('quietOn').getAttribute('aria-checked')==='true',
+  quiet_start:Number($('qStart').value),quiet_end:Number($('qEnd').value),tz:TZ,via_dm:$('viaDm').checked,via_web:$('viaWeb').checked,via_browser:$('viaBrowser').checked}}
+function wire(){
+ const flip=b=>b.setAttribute('aria-checked',String(b.getAttribute('aria-checked')!=='true'));
+ $('alOn').addEventListener('click',e=>{flip(e.currentTarget);document.querySelector('.al-body').classList.toggle('al-off',e.currentTarget.getAttribute('aria-checked')!=='true')});
+ $('quietOn').addEventListener('click',e=>flip(e.currentTarget));
+ document.querySelectorAll('.qchip').forEach(b=>b.addEventListener('click',()=>{b.classList.toggle('on');b.setAttribute('aria-pressed',String(b.classList.contains('on')))}));
+ document.querySelectorAll('.opt').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.opt').forEach(o=>{o.classList.toggle('on',o===b);o.setAttribute('aria-checked',String(o===b))})}));
+ $('viaBrowser').addEventListener('change',async e=>{if(!e.target.checked)return;
+  if(!('Notification' in window)){e.target.checked=false;alMsg={ok:false,text:"This browser doesn't support pop-up notifications."};$('alMsg').innerHTML=`<div class="msg err">${esc(alMsg.text)}</div>`;return}
+  const perm=Notification.permission==='default'?await Notification.requestPermission():Notification.permission;
+  if(perm!=='granted'){e.target.checked=false;$('alMsg').innerHTML='<div class="msg err">Your browser is blocking pop-ups from this site. Allow notifications for this site in your browser settings, then try again.</div>'}});
+ $('alSave').addEventListener('click',async e=>{e.currentTarget.disabled=true;
+  try{await call('POST','/api/me/alerts',readForm());al=await call('GET','/api/me/alerts');alMsg={ok:true,text:al.enabled?'Saved. Your queue alerts are on.':'Saved. Queue alerts are off.'}}catch(err){alMsg={ok:false,text:err.message}}
+  render()});
+ $('alTest').addEventListener('click',async e=>{e.currentTarget.disabled=true;$('alMsg').innerHTML='<div class="msg ok"><span class="spin"></span>Sending a test alert…</div>';
+  try{const {requested_at}=await call('POST','/api/me/alerts/test');let done=false;
+   for(let i=0;i<12&&!done;i++){await new Promise(r=>setTimeout(r,1500));al=await call('GET','/api/me/alerts');done=al.test_done_at&&new Date(al.test_done_at)>=new Date(requested_at)}
+   alMsg=!done?{ok:false,text:"The bot didn't answer yet. Make sure it's online and try again."}:al.dm_status==='blocked'&&al.via_dm?{ok:false,text:"We couldn't DM you. See the steps above to allow direct messages."}:{ok:true,text:'Test sent! '+[al.via_dm?'Check your Discord DMs':'',al.via_web?'look at the bell at the top':''].filter(Boolean).join(' and ')+'.'}}
+  catch(err){alMsg={ok:false,text:err.message}}
+  render()});
+ $('unmute')?.addEventListener('click',async()=>{await call('POST','/api/me/alerts/unmute');al=await call('GET','/api/me/alerts');render()});
  $('hideSwitch').addEventListener('click',async e=>{const sw=e.currentTarget,want=sw.getAttribute('aria-checked')!=='true';sw.disabled=true;
   try{await call('POST','/api/me/privacy',{hidden:want});me.hidden=want;await ccMemberInit('settings');render()}catch(err){sw.disabled=false;$('hideNote').textContent=err.message}});
 }
-(async()=>{me=await ccMemberInit('settings');if(me)render()})();
+(async()=>{me=await ccMemberInit('settings');if(!me)return;try{al=await call('GET','/api/me/alerts')}catch(e){al=null}
+ if(!al){$('memberMain').innerHTML='<div class="m-empty">Settings could not be loaded. Refresh to try again.</div>';return}render()})();
 
 </script>
 <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "2b0d231e55714801ba9356211021134c"}'></script><!-- End Cloudflare Web Analytics -->

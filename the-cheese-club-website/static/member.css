@@ -96,3 +96,8 @@
 .seg.tip-on,.seg:focus{stroke-width:30;outline:none}
 .heat i{cursor:pointer}
 .heat i.tip-on,.heat i:focus{outline:2px solid var(--gold);outline-offset:1px}
+
+/* Small loading spinner used on buttons */
+.spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:ccspin .7s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes ccspin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.spin{animation:none}}

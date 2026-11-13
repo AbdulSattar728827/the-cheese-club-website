@@ -74,6 +74,11 @@
 @media(max-width:900px){.q-grid{grid-template-columns:1fr}.how{grid-template-columns:1fr 1fr}.you,.need{flex-wrap:wrap}.you .btn,.need .btn{margin-left:0;width:100%;text-align:center}}
 
 .q-card.loading{opacity:.6}
+.bell-strip{display:flex;align-items:center;gap:12px;padding:12px 16px;margin-bottom:16px;border-radius:12px;border:1px solid #3a3327;background:#17171b;font-size:12.5px;color:#cfcac0}
+.bell-strip.off{border-style:dashed}
+.bell-strip b{color:var(--gold)}
+.bell-strip a{margin-left:auto;color:var(--gold);font-weight:700;white-space:nowrap}
+@media(max-width:600px){.bell-strip{flex-wrap:wrap}.bell-strip a{margin-left:0}}
 .q-uneven{margin-top:4px;color:#8f8b82;font-size:11px}
 .q-actions .btn{font-family:inherit;cursor:pointer}
 .q-actions .btn.secondary{background:transparent;color:var(--white)}
@@ -116,9 +121,16 @@ async function call(method,url,body){
  if(!r.ok)throw new Error(data.detail||'Something went wrong. Please try again.');
  return data;
 }
-let me=null,busy=null,flash=null,timer=null;
+let me=null,busy=null,flash=null,timer=null,alerts=null;
 const UNEVEN={'4v3':'Uneven teams: captains decide who plays 4 and who plays 3','3v2':'Uneven teams: captains decide who plays 3 and who plays 2'};
 const mins=iso=>{const m=Math.max(0,Math.round((Date.now()-new Date(iso))/60000));return m<1?'just now':m<60?`${m} min`:`${Math.floor(m/60)}h ${m%60}m`};
+function alertStrip(){
+ if(!alerts)return '';
+ const when={one_away:'one is 1 player away',two_away:'one is 2 players away',first_join:'someone starts one'}[alerts.alert_when]||'one is about to start';
+ const qs=alerts.queues.map(q=>`<b>${esc(q)}</b>`);const list=qs.length>1?qs.slice(0,-1).join(', ')+' and '+qs[qs.length-1]:qs[0];
+ return alerts.enabled&&alerts.queues.length
+  ?`<div class="bell-strip">🔔 <span>Alerts are <b>on</b> for ${list}: we'll let you know when ${when}.</span><a href="/settings#alerts">Edit alerts →</a></div>`
+  :`<div class="bell-strip off">🔕 <span>Want a heads-up when a queue is about to start? <b>Turn on queue alerts</b> and we'll let you know.</span><a href="/settings#alerts">Set up alerts →</a></div>`}
 function blockReason(st){
  if(!st.available)return 'Queueing from the website isn\'t switched on yet';
  if(!st.online)return 'Queue bot offline';
@@ -162,6 +174,7 @@ async function load(){
  $('memberMain').innerHTML=`
   <div class="m-head"><div><h1>Queue</h1><p>Join a club match. When a queue fills up, the match starts in Discord.</p></div></div>
   <div class="m-status">${chips}</div>
+  ${alertStrip()}
   ${flash?`<div class="q-msg ${flash.ok?'ok':'err'}" role="status">${esc(flash.text)}</div>`:''}
   ${banner}
   <div class="q-grid">${queues.map(q=>card(q,st)).join('')}</div>
@@ -183,7 +196,7 @@ async function act(action,queue){
  busy=null;await load();
 }
 document.addEventListener('click',e=>{const j=e.target.closest('[data-join]'),l=e.target.closest('[data-leave]');if(j)act('join',j.dataset.join);else if(l)act('leave',null)});
-(async()=>{me=await ccMemberInit('queue');if(!me)return;await load();timer=setInterval(()=>{if(!busy&&!document.hidden)load()},4000)})();
+(async()=>{me=await ccMemberInit('queue');if(!me)return;try{alerts=await call('GET','/api/me/alerts')}catch(e){alerts=null}await load();timer=setInterval(()=>{if(!busy&&!document.hidden)load()},4000)})();
 
 </script>
 <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "2b0d231e55714801ba9356211021134c"}'></script><!-- End Cloudflare Web Analytics -->

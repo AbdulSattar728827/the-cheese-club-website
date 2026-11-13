@@ -177,6 +177,7 @@ async function ccSetupAccountNav(){
   </div>`;
   if(['/account','/dashboard','/stats','/settings','/queue'].includes(location.pathname))wrap.classList.add('active');
   link.replaceWith(wrap);
+  ccSetupBell(wrap);
   ccWelcomeStrip(me);
   const btn=wrap.querySelector('button'),menu=wrap.querySelector('.nav-menu');
   const set=open=>{menu.hidden=!open;btn.setAttribute('aria-expanded',String(open))};
@@ -197,4 +198,45 @@ async function ccWelcomeStrip(me){
     if(d.in_voice)bits.push(`🎙️ ${ccEsc(d.in_voice)}`);}
   box.innerHTML=`<img src="${ccEsc(me.avatar_url||CC_DEFAULT_AVATAR)}" alt=""><div class="ws-text"><b>Welcome back, ${ccEsc(me.username)}</b>${bits.length?`<span>${bits.join(' · ')}</span>`:''}</div><div class="ws-actions">${me.aoe4?'':'<a class="btn secondary" href="/account">Link AoE4 account</a>'}<a class="btn primary" href="/dashboard">Dashboard</a></div>`;
   box.hidden=false;
+}
+
+/* Notification bell (logged-in members): queue alerts, matches, results and
+   achievements. Refreshes every 20 seconds; optional browser pop-ups. */
+let ccBellItems=[],ccBellTimer=null;
+function ccAgo(d){const s=Math.max(0,(Date.now()-new Date(d))/1000);return s<60?'just now':s<3600?Math.floor(s/60)+' min ago':s<86400?Math.floor(s/3600)+'h ago':new Date(d).toLocaleDateString(undefined,{month:'short',day:'numeric'})}
+function ccSetupBell(anchor){
+  const bell=document.createElement('div');bell.className='nav-bell';
+  bell.innerHTML=`<button type="button" class="bell-btn" aria-label="Notifications" aria-haspopup="true" aria-expanded="false"><span aria-hidden="true">🔔</span><b class="bell-badge" hidden></b></button>
+  <div class="bell-panel" role="dialog" aria-label="Notifications" hidden><div class="bell-head"><b>Notifications</b><button type="button" class="bell-readall">Mark all as read</button></div><div class="bell-list"><div class="bell-empty">Loading…</div></div><a class="bell-foot" href="/settings#alerts">🔔 Queue alert settings</a></div>`;
+  anchor.before(bell);
+  const btn=bell.querySelector('.bell-btn'),panel=bell.querySelector('.bell-panel');
+  const set=open=>{panel.hidden=!open;btn.setAttribute('aria-expanded',String(open));if(open)ccRenderBell(bell)};
+  btn.addEventListener('click',e=>{e.stopPropagation();set(panel.hidden)});
+  document.addEventListener('click',e=>{if(!bell.contains(e.target))set(false)});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')set(false)});
+  bell.querySelector('.bell-readall').addEventListener('click',async()=>{await ccMarkRead({all:true});ccBellItems.forEach(i=>i.read_at=i.read_at||new Date().toISOString());ccSetBadge(bell,0);ccRenderBell(bell)});
+  bell.querySelector('.bell-list').addEventListener('click',async e=>{const a=e.target.closest('[data-nid]');if(!a)return;const it=ccBellItems.find(i=>String(i.id)===a.dataset.nid);
+    if(it&&!it.read_at){e.preventDefault();await ccMarkRead({ids:[it.id]});location.href=a.getAttribute('href')}});
+  ccPollBell(bell);ccBellTimer=setInterval(()=>{if(!document.hidden)ccPollBell(bell)},20000);
+}
+async function ccMarkRead(body){try{await fetch('/api/me/notifications/read',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),credentials:'same-origin'})}catch(e){}}
+function ccSetBadge(bell,n){const badge=bell.querySelector('.bell-badge');badge.textContent=n>9?'9+':String(n);badge.hidden=!n;
+  bell.querySelector('.bell-btn').setAttribute('aria-label',n?`Notifications, ${n} unread`:'Notifications')}
+async function ccPollBell(bell){
+  let d;try{const r=await fetch('/api/me/notifications',{credentials:'same-origin'});if(!r.ok)return;d=await r.json()}catch(e){return}
+  ccBellItems=d.items||[];
+  ccSetBadge(bell,d.unread);
+  if(!bell.querySelector('.bell-panel').hidden)ccRenderBell(bell);
+  /* Browser pop-ups for new notices (only after the first check, so old ones don't pop up) */
+  try{
+    const stored=localStorage.getItem('cc_last_notice'),last=Number(stored||0);
+    const newest=ccBellItems.reduce((m,i)=>Math.max(m,Number(i.id)),last);
+    if(stored!==null&&d.browser_popups&&'Notification' in window&&Notification.permission==='granted')
+      ccBellItems.filter(i=>Number(i.id)>last&&!i.read_at).slice(0,3).forEach(i=>{const n=new Notification(i.title,{body:i.body||'',tag:'cc-'+i.id,icon:'/static/cheese-club-logo.png'});n.onclick=()=>{window.focus();location.href=i.link||'/dashboard'}});
+    if(stored===null||newest>last)localStorage.setItem('cc_last_notice',String(newest));
+  }catch(e){}
+}
+function ccRenderBell(bell){
+  const list=bell.querySelector('.bell-list');
+  list.innerHTML=ccBellItems.length?ccBellItems.map(i=>`<a class="bell-item ${i.read_at?'':'unread'}" href="${ccEsc(i.link||'/dashboard')}" data-nid="${i.id}"><span class="bell-dot" aria-hidden="true"></span><span class="bell-text"><b>${ccEsc(i.title)}</b>${i.body?`<span>${ccEsc(i.body)}</span>`:''}<small>${ccAgo(i.created_at)}</small></span></a>`).join(''):'<div class="bell-empty">You\'re all caught up. 🧀<br><small>Queue alerts, match results and new achievements show up here.</small></div>';
 }

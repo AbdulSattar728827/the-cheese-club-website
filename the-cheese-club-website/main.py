@@ -985,6 +985,11 @@ async def player_insights(player_id: str):
     user_id = from_public_id(player_id)
     if user_id is None or user_id in HIDDEN_IDS:
         raise HTTPException(status_code=404, detail="Player not found")
+    return await build_player_insights(user_id)
+
+
+async def build_player_insights(user_id: str) -> dict:
+    """Insights for one player (used by public player pages and the member dashboard)."""
     matches = await load_matches()
     ins = compute_insights(user_id, matches)
 
@@ -1249,7 +1254,7 @@ def current_user(request: Request) -> Optional[dict]:
     return _unsign(request.cookies.get(SESSION_COOKIE))
 
 
-def _safe_next(value: Optional[str], default: str = "/account") -> str:
+def _safe_next(value: Optional[str], default: str = "/dashboard") -> str:
     value = (value or "").strip()
     return value if value.startswith("/") and not value.startswith("//") and "\\" not in value else default
 
@@ -1295,7 +1300,7 @@ def require_same_site(request: Request):
 
 
 @app.get("/auth/login", include_in_schema=False)
-async def auth_login(request: Request, next: str = "/account"):
+async def auth_login(request: Request, next: str = "/dashboard"):
     if not login_enabled():
         return RedirectResponse("/login?error=unavailable", status_code=302)
     state = secrets.token_urlsafe(24)
@@ -1335,7 +1340,7 @@ async def auth_callback(request: Request, code: str = "", state: str = "", error
         return RedirectResponse("/login?error=discord", status_code=302)
     session = {"uid": str(user["id"]), "name": user.get("global_name") or user.get("username") or "Member",
                "avatar": _avatar_url(user), "g": in_guild, "exp": time.time() + SESSION_SECONDS}
-    response = RedirectResponse(saved.get("n") or "/account", status_code=302)
+    response = RedirectResponse(saved.get("n") or "/dashboard", status_code=302)
     response.set_cookie(SESSION_COOKIE, _sign(session), **_cookie_args(request, SESSION_SECONDS))
     response.delete_cookie(STATE_COOKIE, path="/")
     return response
@@ -1468,6 +1473,147 @@ async def api_aoe4_unlink(request: Request):
     return {"ok": True}
 
 
+def _week_start(dt: datetime) -> datetime:
+    dt = dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    day = dt.astimezone(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    return day - timedelta(days=day.weekday())
+
+
+@app.get("/api/me/dashboard")
+async def api_dashboard(request: Request):
+    """Everything on a member's Dashboard. Works even if they hid their public profile."""
+    user = require_login(request)
+    uid = user["uid"]
+    ins = await build_player_insights(uid)
+    totals = await fetch("""
+        SELECT COALESCE(SUM(wins),0)::int AS wins, COALESCE(SUM(losses),0)::int AS losses
+        FROM aoe_queue_stats WHERE user_id=$1
+    """, uid)
+    wins, losses = (totals[0]["wins"], totals[0]["losses"]) if totals else (0, 0)
+
+    # Club rank: same order as the leaderboard's "All queues" view (wins, then games)
+    ranking = await fetch("""
+        SELECT user_id FROM aoe_queue_stats GROUP BY user_id
+        HAVING SUM(wins + losses) >= 1
+        ORDER BY SUM(wins) DESC, SUM(wins + losses) DESC
+    """)
+    ranked = [str(r["user_id"]) for r in ranking if str(r["user_id"]) not in HIDDEN_IDS or str(r["user_id"]) == uid]
+    rank = ranked.index(uid) + 1 if uid in ranked else None
+
+    # Last 10 weeks: wins and losses, and voice hours
+    this_week = _week_start(datetime.now(timezone.utc))
+    weeks = [this_week - timedelta(weeks=i) for i in range(9, -1, -1)]
+    wl = {w: [0, 0] for w in weeks}
+    for m in await load_matches():
+        outcome = player_outcome(m, uid)
+        when = _when(m)
+        if outcome is None or not when:
+            continue
+        wk = _week_start(when)
+        if wk in wl:
+            wl[wk][0 if outcome == "win" else 1] += 1
+    voice_rows = await fetch("""
+        SELECT date_trunc('week', left_at AT TIME ZONE 'UTC') AS wk, SUM(duration_s)::float AS secs
+        FROM vc_logs WHERE user_id=$1 AND left_at >= $2 GROUP BY wk
+    """, uid, weeks[0])
+    voice = {(r["wk"].replace(tzinfo=timezone.utc) if r["wk"].tzinfo is None else r["wk"]): r["secs"] for r in voice_rows}
+
+    in_voice = None
+    if await fetchval("SELECT to_regclass('vc_live') IS NOT NULL", default=False):
+        in_voice = await fetchval("""
+            SELECT channel_name FROM vc_live
+            WHERE user_id=$1 AND updated_at >= NOW() - INTERVAL '10 minutes' LIMIT 1
+        """, uid, default=None)
+
+    last = next((m for m in ins["recent_matches"] if m["outcome"] in ("win", "loss")), None)
+    in_progress = [a for a in ins["achievements"] if not a["earned"]]
+    in_progress.sort(key=lambda a: a["progress"] / a["target"], reverse=True)
+    return {
+        "record": {"wins": wins, "losses": losses, "games": wins + losses},
+        "current_streak": ins["current_streak"], "best_streak": ins["best_streak"],
+        "rank": rank, "ranked_players": len(ranked),
+        "weeks": [{"week": w.date().isoformat(), "wins": wl[w][0], "losses": wl[w][1],
+                   "voice_hours": round((voice.get(w) or 0) / 3600, 1)} for w in weeks],
+        "civs": ins["civs"],
+        "last_match": last,
+        "achievements_earned": sum(1 for a in ins["achievements"] if a["earned"]),
+        "achievements_total": len(ins["achievements"]),
+        "achievements_next": in_progress[:3],
+        "in_voice": in_voice,
+    }
+
+
+_history_cache: dict = {}
+
+
+async def aoe4world_history(profile_id) -> dict:
+    """Solo and Team rating history from AoE4World (cached 30 minutes)."""
+    key = str(profile_id)
+    cached = _history_cache.get(key)
+    if cached and time.monotonic() < cached[0]:
+        return cached[1]
+    result = {"solo": [], "team": []}
+    try:
+        r = await http_client.get(f"{AOE4WORLD_API}/players/{key}")
+        if r.status_code == 200:
+            modes = r.json().get("modes") or {}
+            for name, mode in (("solo", "rm_solo"), ("team", "rm_team")):
+                history = (modes.get(mode) or {}).get("rating_history") or {}
+                points = []
+                for k, entry in history.items():
+                    if not isinstance(entry, dict) or entry.get("rating") is None:
+                        continue
+                    when = None
+                    try:
+                        when = datetime.fromisoformat(str(k).replace("Z", "+00:00"))
+                    except ValueError:
+                        if str(k).isdigit() and len(str(k)) == 10:
+                            when = datetime.fromtimestamp(int(k), timezone.utc)
+                    points.append({"t": when.isoformat() if when else None, "key": str(k), "rating": entry["rating"]})
+                # Order by time when the keys are dates, otherwise by game ID
+                points.sort(key=lambda p: p["t"] or "") if all(p["t"] for p in points) else \
+                    points.sort(key=lambda p: int(p["key"]) if p["key"].isdigit() else 0)
+                result[name] = [{"t": p["t"], "rating": p["rating"]} for p in points]
+    except Exception:
+        log.exception("Could not load AoE4World rating history")
+    _history_cache[key] = (time.monotonic() + RATING_CACHE_SECONDS, result)
+    return result
+
+
+@app.get("/api/me/stats")
+async def api_my_stats(request: Request, days: int = 90):
+    user = require_login(request)
+    uid = user["uid"]
+    since = datetime.now(timezone.utc) - timedelta(days=days) if days and days > 0 else None
+    queues, times = {}, []
+    for m in await load_matches():
+        outcome = player_outcome(m, uid)
+        when = _when(m)
+        if outcome is None or not when:
+            continue
+        when = when if when.tzinfo else when.replace(tzinfo=timezone.utc)
+        if since and when < since:
+            continue
+        q = queues.setdefault(m["queue"] or "other", {"queue": m["queue_type"], "games": 0, "wins": 0})
+        q["games"] += 1
+        q["wins"] += outcome == "win"
+        times.append(when.isoformat())
+    link = await _link_row(uid)
+    history = {"solo": [], "team": []}
+    if link and link["profile_id"]:
+        history = await aoe4world_history(link["profile_id"])
+        if since:
+            history = {k: [p for p in v if not p["t"] or datetime.fromisoformat(p["t"]) >= since] for k, v in history.items()}
+    order = {"1v1": 1, "2v2": 2, "3v3": 3, "4v4": 4}
+    return {
+        "days": days,
+        "linked": bool(link and link["profile_id"]),
+        "rating_history": history,
+        "queues": sorted(queues.values(), key=lambda q: order.get(str(q["queue"]).lower(), 9)),
+        "match_times": times[-1000:],
+    }
+
+
 @app.post("/api/me/privacy")
 async def api_privacy(request: Request):
     user = require_login(request)
@@ -1505,6 +1651,9 @@ PAGES = {
     "/contact": "contact.html",
     "/login": "login.html",
     "/account": "account.html",
+    "/dashboard": "dashboard.html",
+    "/stats": "stats.html",
+    "/settings": "settings.html",
 }
 
 

@@ -17,8 +17,13 @@ Discord bot's existing Railway PostgreSQL database.
 - 12 achievements calculated from match history and voice time
 - About page (`/about`) and privacy page (`/privacy`)
 - Link previews (Open Graph) on every page, with player-specific previews on player pages
-- "Log in with Discord" accounts (`/login`, `/account`): members link their AoE4 account (shared with the
-  bot's `/aoe4link`) and can hide their own profile
+- "Log in with Discord" accounts with a member area (side menu):
+  - `/dashboard`: record, streak, club rank, wins and losses per week, voice time per week, civs,
+    last match and achievements in progress
+  - `/stats`: official AoE4World rating over time, games per queue, and when you usually play
+  - `/account`: link your AoE4 account (shared with the bot's `/aoe4link`) and Discord server status
+  - `/settings`: hide your profile, log out
+  - Logged-in members also get a "Welcome back" strip on the homepage
 - Placeholder pages for Tournament and Contact (greyed out in the navigation)
 
 ## Deploy as a NEW Railway service

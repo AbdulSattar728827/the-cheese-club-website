@@ -167,15 +167,33 @@ async function ccSetupAccountNav(){
   const wrap=document.createElement('div');wrap.className='nav-user';
   wrap.innerHTML=`<button type="button" class="nav-user-btn" aria-haspopup="true" aria-expanded="false"><img src="${ccEsc(me.avatar_url||CC_DEFAULT_AVATAR)}" alt=""><span>${ccEsc(me.username||'Account')}</span><i aria-hidden="true">▾</i></button>
   <div class="nav-menu" role="menu" hidden>
-    ${me.hidden?'':`<a role="menuitem" href="${ccPlayerHref(me.user_id)}">My profile</a>`}
-    <a role="menuitem" href="/account">Account</a>
-    <a role="menuitem" href="/auth/logout?next=${encodeURIComponent(here.startsWith('/account')?'/':here)}">Log out</a>
+    <a role="menuitem" href="/dashboard">🏠 Dashboard</a>
+    <a role="menuitem" href="/stats">📊 Stats</a>
+    ${me.hidden?'':`<a role="menuitem" href="${ccPlayerHref(me.user_id)}">👤 My profile</a>`}
+    <a role="menuitem" href="/account">🔗 AoE4 account</a>
+    <a role="menuitem" href="/settings">⚙️ Settings</a>
+    <a role="menuitem" href="/auth/logout?next=${encodeURIComponent(['/account','/dashboard','/stats','/settings'].some(x=>here.startsWith(x))?'/':here)}">🚪 Log out</a>
   </div>`;
-  if(location.pathname==='/account')wrap.classList.add('active');
+  if(['/account','/dashboard','/stats','/settings'].includes(location.pathname))wrap.classList.add('active');
   link.replaceWith(wrap);
+  ccWelcomeStrip(me);
   const btn=wrap.querySelector('button'),menu=wrap.querySelector('.nav-menu');
   const set=open=>{menu.hidden=!open;btn.setAttribute('aria-expanded',String(open))};
   btn.addEventListener('click',e=>{e.stopPropagation();set(menu.hidden)});
   document.addEventListener('click',e=>{if(!wrap.contains(e.target))set(false)});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')set(false)});
+}
+
+/* Home page: a small "Welcome back" strip for logged-in members. */
+async function ccWelcomeStrip(me){
+  const box=document.getElementById('welcomeStrip');
+  if(!box)return;
+  let d=null;try{const r=await fetch('/api/me/dashboard',{credentials:'same-origin'});if(r.ok)d=await r.json()}catch(e){}
+  const bits=[];
+  if(d){bits.push(`${ccFmt(d.record.wins)}–${ccFmt(d.record.losses)}`);
+    const s=d.current_streak;if(s&&s.count&&s.type==='win')bits.push(`🔥 ${s.count} win streak`);
+    if(d.rank)bits.push(`#${ccFmt(d.rank)} in the club`);
+    if(d.in_voice)bits.push(`🎙️ ${ccEsc(d.in_voice)}`);}
+  box.innerHTML=`<img src="${ccEsc(me.avatar_url||CC_DEFAULT_AVATAR)}" alt=""><div class="ws-text"><b>Welcome back, ${ccEsc(me.username)}</b>${bits.length?`<span>${bits.join(' · ')}</span>`:''}</div><div class="ws-actions">${me.aoe4?'':'<a class="btn secondary" href="/account">Link AoE4 account</a>'}<a class="btn primary" href="/dashboard">Dashboard</a></div>`;
+  box.hidden=false;
 }

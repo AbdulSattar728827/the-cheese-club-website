@@ -6,14 +6,14 @@
 <link rel="apple-touch-icon" href="/static/favicon.png?v=3">
 
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Your account — The Cheese Club</title>
+<title>AoE4 account — The Cheese Club</title>
 <meta name="robots" content="noindex">
-<meta name="description" content="Manage your Cheese Club account: link your AoE4 account and choose whether your profile is shown.">
+<meta name="description" content="Link your AoE4 account to The Cheese Club.">
 <meta name="theme-color" content="#f0b82f">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="The Cheese Club">
-<meta property="og:title" content="Your account — The Cheese Club">
-<meta property="og:description" content="Manage your Cheese Club account: link your AoE4 account and choose whether your profile is shown.">
+<meta property="og:title" content="AoE4 account — The Cheese Club">
+<meta property="og:description" content="Link your AoE4 account to The Cheese Club.">
 <meta property="og:url" content="%%SITE_URL%%/account">
 <meta property="og:image" content="%%SITE_URL%%/static/og-image.jpg">
 <meta property="og:image:width" content="1200">
@@ -32,54 +32,35 @@
 
 </style>
 <style>
-.acct-hero{display:grid;grid-template-columns:auto 1fr auto;gap:22px;align-items:center;margin:30px 0 16px;padding:24px 28px;background:linear-gradient(145deg,#1b1b20,#121214);border:1px solid #6e5424;border-radius:16px}
-.acct-hero img{width:84px;height:84px;border-radius:50%;object-fit:cover;border:2px solid #b88927}
-.acct-hero h1{font:800 clamp(30px,4vw,44px)/1 'Barlow Condensed',sans-serif;text-transform:uppercase;margin:0 0 6px;overflow-wrap:anywhere}
-.acct-hero p{margin:0;color:#a29e95;font-size:12px}
-.acct-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-.acct-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:40px}
-.acct-grid .wide{grid-column:1/-1}
-.acct-body{padding:18px 22px 22px}
-.acct-body p{color:#b3afa7;font-size:13px;line-height:1.7;margin:0 0 12px}
-.acct-note{color:#8f8b82!important;font-size:12px!important}
-.btn-plain{cursor:pointer;font-family:inherit;background:transparent}
-.btn-danger{cursor:pointer;font-family:inherit;background:transparent;border-color:#6a3329!important;color:#f0a090!important}
-.btn-danger:hover{background:#3a201c!important}
 .linked{display:flex;align-items:center;gap:16px;padding:16px;margin:0 0 14px;border:1px solid #2f6146;border-radius:12px;background:#13241b}
-.linked .tick{font-size:24px}
-.linked b{display:block;font:700 24px/1.1 'Barlow Condensed',sans-serif;text-transform:uppercase}
-.linked small{display:block;color:#9fc2ad;font-size:11.5px;margin-top:4px}
-.linked a{color:#8fe0b2;font-weight:700;font-size:12px}
+.linked .tick{font-size:24px}.linked b{display:block;font:700 24px/1.1 'Barlow Condensed',sans-serif;text-transform:uppercase}
+.linked small{display:block;color:#9fc2ad;font-size:11.5px;margin-top:4px}.linked a{color:#8fe0b2;font-weight:700;font-size:12px}
+.m-body p{color:#b3afa7;font-size:13px;line-height:1.7;margin:0 0 12px}.acct-note{color:#8f8b82!important;font-size:12px!important}
+.btn-plain{cursor:pointer;font-family:inherit;background:transparent}
+.btn-danger{cursor:pointer;font-family:inherit;background:transparent;border-color:#6a3329!important;color:#f0a090!important}.btn-danger:hover{background:#3a201c!important}
+#searchForm{margin-top:18px}#searchForm:first-child{margin-top:0}
 .search-row{display:flex;gap:8px;margin:6px 0 10px}
 .search-row input{flex:1;min-width:0;padding:12px 14px;border-radius:9px;border:1px solid #3a3327;background:#111114;color:var(--white);font:inherit;font-size:13.5px}
-.search-row input:focus{outline:none;border-color:var(--gold)}
-.search-row button{cursor:pointer;font-family:inherit}
+.search-row input:focus{outline:none;border-color:var(--gold)}.search-row button{cursor:pointer;font-family:inherit}
 label.field{display:block;color:#cfcac0;font-size:12px;font-weight:600}
 .results{display:grid;gap:8px;margin-top:6px}
-#searchForm{margin-top:18px}
-#searchForm:first-child{margin-top:0}
 .aoe-result{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 14px;border:1px solid #2c2a26;border-radius:10px;background:#141417}
-.aoe-result b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.aoe-result small{display:block;color:#8f8b82;font-size:11px;margin-top:3px}
-.aoe-result button{cursor:pointer;font-family:inherit}
-.msg{padding:10px 13px;border-radius:9px;font-size:12.5px;margin:8px 0}
-.msg.ok{border:1px solid #285a40;background:#13241b;color:#cfe9d9}
-.msg.err{border:1px solid #6a3329;background:#3a201c;color:#f3b4a6}
+.aoe-result b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.aoe-result small{display:block;color:#8f8b82;font-size:11px;margin-top:3px}.aoe-result button{cursor:pointer;font-family:inherit}
+.msg{padding:10px 13px;border-radius:9px;font-size:12.5px;margin:8px 0}.msg.ok{border:1px solid #285a40;background:#13241b;color:#cfe9d9}.msg.err{border:1px solid #6a3329;background:#3a201c;color:#f3b4a6}
+.server-ok{display:flex;gap:12px;align-items:center;padding:14px 16px;border:1px solid #2f6146;border-radius:11px;background:#13241b;color:#cfe9d9;font-size:13px}
+.join-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 18px;border-radius:10px;background:#5865f2;color:#fff;font-weight:800;font-size:13px}.join-btn:hover{background:#4752c4}
 .switch-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border:1px solid #2c2a26;border-radius:11px;background:#141417;margin-bottom:12px}
 .switch-row b{font-size:13.5px}
 .switch{position:relative;flex:0 0 46px;height:26px;border-radius:20px;border:1px solid #4a4a52;background:#2a2a30;cursor:pointer}
 .switch::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#bbb;transition:left .15s}
-.switch[aria-checked="true"]{background:#a77b1f;border-color:var(--gold)}
-.switch[aria-checked="true"]::after{left:23px;background:#fff}
+.switch[aria-checked="true"]{background:#a77b1f;border-color:var(--gold)}.switch[aria-checked="true"]::after{left:23px;background:#fff}
 .switch:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
-.server-ok{display:flex;gap:12px;align-items:center;padding:14px 16px;border:1px solid #2f6146;border-radius:11px;background:#13241b;color:#cfe9d9;font-size:13px;margin-bottom:12px}
-.join-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 18px;border-radius:10px;background:#5865f2;color:#fff;font-weight:800;font-size:13px}
-.join-btn:hover{background:#4752c4}
-@media(max-width:850px){.acct-grid{grid-template-columns:1fr}.acct-hero{grid-template-columns:auto 1fr}.acct-actions{grid-column:1/-1;justify-content:flex-start}}
-@media(max-width:520px){.acct-hero{grid-template-columns:1fr;padding:20px}.search-row{flex-direction:column}}
+@media(max-width:520px){.search-row{flex-direction:column}}
 </style>
 <link rel="stylesheet" href="/static/common.css">
+<link rel="stylesheet" href="/static/member.css">
 <script src="/static/common.js"></script>
+<script src="/static/member.js"></script>
 </head>
 <body>
 <div class="shell">
@@ -88,7 +69,7 @@ label.field{display:block;color:#cfcac0;font-size:12px;font-weight:600}
  <nav class="nav"><a href="/">Home</a><a href="/leaderboard">Leaderboard</a><a href="/matches">Matches</a><a href="/civs">Civ Stats</a><a href="/community">Community</a><a href="/voice-activity">Voice Activity</a><a href="/tournament">Tournament</a><a href="/about">About</a><a href="/contact">Contact Us</a><a href="/login">Log in</a></nav>
  <a class="discord" id="discordLink" href="https://discord.gg/thecheeseclub" target="_blank" rel="noreferrer">JOIN DISCORD ↗</a>
 </header>
-<main id="acctRoot"><div class="empty" style="padding:80px 20px">Loading your account…</div></main>
+<div class="member-layout"><aside class="side" id="memberSide" aria-label="Member menu"></aside><main id="memberMain"><div class="m-empty" style="padding:80px 10px">Loading…</div></main></div>
 <footer class="footer"><span>© <span id="year"></span> THE CHEESE CLUB</span><span>Play Together. Laugh Together. Win Together.</span></footer>
 </div>
 
@@ -97,80 +78,51 @@ const $=id=>document.getElementById(id);
 const esc=ccEsc,fmt=ccFmt;
 $('year').textContent=new Date().getFullYear();
 
-let me=null,searchOpen=false;
-const longDate=d=>d?new Date(d).toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}):'';
 async function call(method,url,body){
  const r=await fetch(url,{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,credentials:'same-origin'});
  const data=await r.json().catch(()=>({}));
  if(!r.ok)throw new Error(data.detail||'Something went wrong. Please try again.');
  return data;
 }
-async function load(){
- try{me=await call('GET','/api/me')}catch(e){$('acctRoot').innerHTML=`<div class="empty" style="padding:80px 20px">${esc(e.message)}</div>`;return}
- if(!me.logged_in){
-  if(me.login_enabled){location.href='/auth/login?next=/account';return}
-  $('acctRoot').innerHTML='<div class="empty" style="padding:80px 20px">Logging in isn\'t switched on yet. Please check back soon.</div>';return}
- render();
-}
-function aoePanel(){
+let me=null,searchOpen=false,flash='';
+const longDate=d=>d?new Date(d).toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}):'';
+async function refresh(){me=await call('GET','/api/me');render()}
+function render(){
  const a=me.aoe4;
- const linked=a?`<div class="linked"><span class="tick" aria-hidden="true">✅</span><div style="min-width:0"><b>${esc(a.name)}</b><small>AoE4World profile #${esc(a.profile_id)}${a.linked_at?' · linked '+esc(longDate(a.linked_at)):''}</small><a href="https://aoe4world.com/players/${encodeURIComponent(a.profile_id)}" target="_blank" rel="noopener noreferrer">View on AoE4World ↗</a></div></div>
+ $('memberMain').innerHTML=`
+ <div class="m-head"><div><h1>AoE4 account</h1><p>Link your Age of Empires IV account once; the website and the Discord bot both use it.</p></div></div>
+ <section class="panel m-panel"><div class="panel-head"><h3>Your AoE4World profile</h3>${a?'<small style="color:var(--green)">Linked</small>':'<small>Not linked yet</small>'}</div><div class="m-body">
+  ${flash?`<div class="msg ok">${esc(flash)}</div>`:''}
+  ${a?`<div class="linked"><span class="tick" aria-hidden="true">✅</span><div style="min-width:0"><b>${esc(a.name)}</b><small>AoE4World profile #${esc(a.profile_id)}${a.linked_at?' · linked '+esc(longDate(a.linked_at)):''}</small><a href="https://aoe4world.com/players/${encodeURIComponent(a.profile_id)}" target="_blank" rel="noopener noreferrer">View on AoE4World ↗</a></div></div>
   <p class="acct-note">The Discord bot uses this same link, so you won't be asked to link again when you join a queue.</p>
-  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn secondary btn-plain" id="changeLink" type="button">Change account</button><button class="btn btn-danger" id="unlinkBtn" type="button">Unlink</button></div>`:'';
- const search=`<form id="searchForm" ${a&&!searchOpen?'hidden':''}>
-   ${a?'':'<p>Link your Age of Empires IV account so your official Solo and Team ratings show on the website, next to your name in Discord, and in the queue.</p>'}
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn secondary btn-plain" id="changeLink" type="button">Change account</button><button class="btn btn-danger" id="unlinkBtn" type="button">Unlink</button></div>`:''}
+  <form id="searchForm" ${a&&!searchOpen?'hidden':''}>
+   ${a?'':'<p>Link your account so your official Solo and Team ratings show on the website, in your stats, and in the Discord queue.</p>'}
    <label class="field" for="aoeName">Your in-game name, or your AoE4World profile link</label>
    <div class="search-row"><input id="aoeName" autocomplete="off" maxlength="60" placeholder="e.g. MicroMan or aoe4world.com/players/123456" required><button class="btn primary" type="submit">Search</button></div>
-  </form><div id="searchMsg"></div><div class="results" id="results"></div>`;
- return `<section class="panel wide"><div class="panel-head"><h3>AoE4 account</h3>${a?'<small style="color:var(--green);font-size:11px">Linked</small>':'<small style="color:var(--muted);font-size:11px">Not linked yet</small>'}</div><div class="acct-body">${linked}${search}</div></section>`;
-}
-function render(){
- $('acctRoot').innerHTML=`
- <section class="acct-hero">
-  <img src="${esc(me.avatar_url||CC_DEFAULT_AVATAR)}" alt="">
-  <div style="min-width:0"><h1>${esc(me.username)}</h1><p>Logged in with Discord · Discord ID ${esc(me.id_hint)}</p></div>
-  <div class="acct-actions">${me.hidden?'':`<a class="btn primary" href="${ccPlayerHref(me.user_id)}">View my profile</a>`}<a class="btn secondary" href="/auth/logout?next=/">Log out</a></div>
- </section>
- <div class="acct-grid">
-  ${aoePanel()}
-  <section class="panel"><div class="panel-head"><h3>Discord server</h3></div><div class="acct-body">
-   ${me.in_server?`<div class="server-ok"><span aria-hidden="true">✅</span><span>You're a member of <b>The Cheese Club</b>. Jump into a queue or a voice channel any time.</span></div>`
-   :`<p>You're not in The Cheese Club Discord yet. That's where the queues, voice channels and community live.</p><a class="join-btn" href="${esc(me.invite_url)}" target="_blank" rel="noopener noreferrer">Join The Cheese Club ↗</a><p class="acct-note" style="margin-top:12px">Already joined? It can take a minute to show here. <a href="/account" style="color:var(--gold);font-weight:700">Refresh</a></p>`}
-  </div></section>
-  <section class="panel"><div class="panel-head"><h3>Privacy</h3></div><div class="acct-body">
-   <div class="switch-row"><div><b>Hide my profile from the website</b></div><button class="switch" id="hideSwitch" type="button" role="switch" aria-checked="${me.hidden}" aria-label="Hide my profile from the website"></button></div>
-   <p class="acct-note" id="hideNote">${me.hidden?"Your profile is hidden. You don't appear on leaderboards, member lists, player pages or highlights. Matches you played still count, shown as \"Hidden player\".":"When hidden, you won't appear on leaderboards, member lists, player pages or highlights. Matches you played still count, shown as \"Hidden player\"."}</p>
-   <p class="acct-note"><a href="/privacy" style="color:var(--gold);font-weight:700">Read how we handle your information</a></p>
-  </div></section>
- </div>`;
- wire();
+  </form><div id="searchMsg"></div><div class="results" id="results"></div>
+ </div></section>
+ <section class="panel m-panel"><div class="panel-head"><h3>Discord server</h3></div><div class="m-body">
+  ${me.in_server?`<div class="server-ok"><span aria-hidden="true">✅</span><span>You're a member of <b>The Cheese Club</b>. Jump into a queue or a voice channel any time.</span></div>`
+  :`<p>You're not in The Cheese Club Discord yet. That's where the queues, voice channels and community live.</p><a class="join-btn" href="${esc(me.invite_url)}" target="_blank" rel="noopener noreferrer">Join The Cheese Club ↗</a><p class="acct-note" style="margin-top:12px">Already joined? It can take a minute to show here. <a href="/account" style="color:var(--gold);font-weight:700">Refresh</a></p>`}
+ </div></section>`;
+ flash='';wire();
 }
 function wire(){
  const form=$('searchForm');
- form.addEventListener('submit',async e=>{
-  e.preventDefault();const name=$('aoeName').value.trim();if(!name)return;
-  $('searchMsg').innerHTML='';$('results').innerHTML='<div class="empty">Searching AoE4World…</div>';
+ form.addEventListener('submit',async e=>{e.preventDefault();const name=$('aoeName').value.trim();if(!name)return;
+  $('searchMsg').innerHTML='';$('results').innerHTML='<div class="m-empty" style="padding:8px 0">Searching AoE4World…</div>';
   try{const d=await call('GET','/api/me/aoe4/search?name='+encodeURIComponent(name));
-   $('results').innerHTML=d.results.length?d.results.map(p=>`<div class="aoe-result"><div style="min-width:0"><b>${esc(p.name)}</b><small>${[p.country?esc(String(p.country).toUpperCase()):'',p.solo_elo?'Solo '+fmt(p.solo_elo):'',p.team_elo?'Team '+fmt(p.team_elo):'',p.last_game_at?'Last played '+esc(longDate(p.last_game_at)):'' ,'ID '+esc(p.profile_id)].filter(Boolean).join(' · ')}</small></div><button class="btn primary" type="button" data-pick="${Number(p.profile_id)}">This is me</button></div>`).join(''):'<div class="msg err">No AoE4World players found with that name. Check the spelling, or paste your AoE4World profile link.</div>';
-  }catch(err){$('results').innerHTML='';$('searchMsg').innerHTML=`<div class="msg err">${esc(err.message)}</div>`}
- });
- $('results').addEventListener('click',async e=>{
-  const b=e.target.closest('[data-pick]');if(!b)return;b.disabled=true;b.textContent='Linking…';
-  try{const d=await call('POST','/api/me/aoe4',{profile_id:Number(b.dataset.pick)});searchOpen=false;await load();
-   const msg=document.createElement('div');msg.className='msg ok';msg.textContent=`Linked to ${d.name}. The Discord bot will use this link too.`;document.querySelector('.acct-grid .wide .acct-body').prepend(msg);
-  }catch(err){b.disabled=false;b.textContent='This is me';$('searchMsg').innerHTML=`<div class="msg err">${esc(err.message)}</div>`}
- });
+   $('results').innerHTML=d.results.length?d.results.map(p=>`<div class="aoe-result"><div style="min-width:0"><b>${esc(p.name)}</b><small>${[p.country?esc(String(p.country).toUpperCase()):'',p.solo_elo?'Solo '+fmt(p.solo_elo):'',p.team_elo?'Team '+fmt(p.team_elo):'',p.last_game_at?'Last played '+esc(longDate(p.last_game_at)):'','ID '+esc(p.profile_id)].filter(Boolean).join(' · ')}</small></div><button class="btn primary" type="button" data-pick="${Number(p.profile_id)}">This is me</button></div>`).join(''):'<div class="msg err">No AoE4World players found with that name. Check the spelling, or paste your AoE4World profile link.</div>';
+  }catch(err){$('results').innerHTML='';$('searchMsg').innerHTML=`<div class="msg err">${esc(err.message)}</div>`}});
+ $('results').addEventListener('click',async e=>{const b=e.target.closest('[data-pick]');if(!b)return;b.disabled=true;b.textContent='Linking…';
+  try{const d=await call('POST','/api/me/aoe4',{profile_id:Number(b.dataset.pick)});searchOpen=false;flash=`Linked to ${d.name}. The Discord bot will use this link too.`;await refresh()}
+  catch(err){b.disabled=false;b.textContent='This is me';$('searchMsg').innerHTML=`<div class="msg err">${esc(err.message)}</div>`}});
  $('changeLink')?.addEventListener('click',()=>{searchOpen=true;form.hidden=false;$('aoeName').focus()});
- $('unlinkBtn')?.addEventListener('click',async()=>{
-  if(!confirm('Unlink your AoE4 account? Your official ratings will stop showing, and the bot will ask you to link again when you queue.'))return;
-  try{await call('DELETE','/api/me/aoe4');searchOpen=false;await load()}catch(err){$('searchMsg').innerHTML=`<div class="msg err">${esc(err.message)}</div>`}
- });
- $('hideSwitch').addEventListener('click',async e=>{
-  const sw=e.currentTarget,want=sw.getAttribute('aria-checked')!=='true';sw.disabled=true;
-  try{await call('POST','/api/me/privacy',{hidden:want});me.hidden=want;render()}catch(err){sw.disabled=false;$('hideNote').textContent=err.message}
- });
+ $('unlinkBtn')?.addEventListener('click',async()=>{if(!confirm('Unlink your AoE4 account? Your official ratings will stop showing, and the bot will ask you to link again when you queue.'))return;
+  try{await call('DELETE','/api/me/aoe4');searchOpen=false;await refresh()}catch(err){$('searchMsg').innerHTML=`<div class="msg err">${esc(err.message)}</div>`}});
 }
-load();
+(async()=>{me=await ccMemberInit('account');if(me)render()})();
 
 </script>
 <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "2b0d231e55714801ba9356211021134c"}'></script><!-- End Cloudflare Web Analytics -->

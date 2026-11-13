@@ -1,0 +1,80 @@
+/* The Cheese Club — member area (Dashboard, Stats, AoE4 Account, Settings) */
+.member-layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:22px;margin:28px 0 50px;align-items:start}
+.member-layout>*{min-width:0}
+.side{position:sticky;top:18px;background:linear-gradient(160deg,#1b1b20,#121214);border:1px solid #51401f;border-radius:16px;padding:18px 12px 12px;min-height:200px}
+.side-me{display:grid;grid-template-columns:46px minmax(0,1fr);gap:12px;align-items:center;padding:4px 8px 16px;border-bottom:1px solid var(--line);margin-bottom:10px}
+.side-me img{width:46px;height:46px;border-radius:50%;object-fit:cover;border:2px solid #b88927;background:#29251d}
+.side-me b{display:block;font:700 19px/1.1 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side-me small{display:block;color:#8f8b82;font-size:10.5px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side-me small.live{color:#8fe0b2}
+.side nav{display:grid;gap:2px}
+.side nav a,.side nav span.off{display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:8px;padding:11px 12px;border-radius:9px;color:#cfcac0;font-size:13px;font-weight:600;position:relative}
+.side nav a:hover{background:#201e1a;color:var(--white)}
+.side nav a.on{background:#2a2213;color:var(--gold)}
+.side nav a.on::before{content:"";position:absolute;left:-12px;top:9px;bottom:9px;width:3px;border-radius:3px;background:var(--gold)}
+.side nav a:focus-visible{outline:1px solid var(--gold);outline-offset:2px}
+.side nav span.off{color:#6f6c66;cursor:default}
+.side .pill{font:800 9px Inter,sans-serif;letter-spacing:.5px;padding:3px 7px;border-radius:20px;border:1px solid #3a3327;color:#8d8980;text-transform:uppercase}
+.side hr{border:0;border-top:1px solid var(--line);margin:8px 4px}
+.side .logout{color:#9d998f}
+.m-head{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;margin-bottom:16px;flex-wrap:wrap}
+.m-head h1{font:800 clamp(30px,3.6vw,44px)/1 'Barlow Condensed',sans-serif;text-transform:uppercase;margin:0 0 6px;overflow-wrap:anywhere}
+.m-head p{margin:0;color:#a29e95;font-size:13px}
+.m-status{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.m-status a,.m-status span{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:20px;background:#17171b;border:1px solid #2c2a26;font-size:12px;color:#cfcac0}
+.m-status .good{border-color:#285a40;background:#13241b;color:#cfe9d9}
+.m-status a.fix{border-color:#6e5424;background:#2a2213;color:var(--gold);font-weight:700}
+.m-status a.fix:hover{background:#3a2e17}
+.m-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.m-two{display:grid;grid-template-columns:1.1fr .9fr;gap:16px;margin-bottom:16px}
+.m-panel{margin-bottom:16px}
+.m-body{padding:10px 20px 18px}
+.panel-head small{color:var(--muted);font-size:11px}
+.m-empty{padding:26px 6px;color:#8f8b82;font-size:12.5px;line-height:1.7}
+.m-empty a{color:var(--gold);font-weight:700}
+.chart{width:100%;height:auto;display:block}
+.chart text{font-family:Inter,sans-serif}
+.legend{display:flex;gap:14px;font-size:11px;color:#a29e95}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.civbar{display:grid;grid-template-columns:190px minmax(0,1fr) 74px 46px;gap:12px;align-items:center;padding:8px 0}
+.civbar .civ-name{display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:600;min-width:0}
+.civbar .civ-name span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.civbar .civ-flag{margin:0;padding:0;border:0;background:none;width:24px;height:24px;display:grid;place-items:center}
+.civbar .civ-flag-image{width:22px;height:22px;object-fit:contain}
+.track{height:10px;background:#26262b;border-radius:6px;overflow:hidden}
+.track i{display:block;height:100%;border-radius:6px;opacity:.85}
+.civbar .g{color:#8f8b82;font-size:11.5px;text-align:right}
+.civbar .wr{font:800 13px Inter,sans-serif;text-align:right}
+.last{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;padding:4px 0 6px;cursor:pointer}
+.last .res{font:800 12px Inter,sans-serif;letter-spacing:.8px;padding:7px 12px;border-radius:6px;border:1px solid #2f6146;color:#8fe0b2;background:#1e3a2b;text-transform:uppercase}
+.last .res.loss{border-color:#6a3329;color:#f0a090;background:#3a201c}
+.last b{display:block;font-size:14px}.last small{color:#888;font-size:11px}
+.prog{padding:10px 0;border-top:1px solid #ffffff0c}
+.prog:first-child{border-top:0}
+.prog div{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;margin-bottom:7px}
+.prog div span{color:#888}
+.bar{height:6px;background:#26262b;border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:#7c7c86}
+.donut-wrap{display:flex;align-items:center;gap:24px;flex-wrap:wrap;padding:6px 0}
+.leg{display:grid;grid-template-columns:12px 38px 1fr;gap:8px;align-items:center;font-size:12px;padding:5px 0}
+.leg i{width:12px;height:12px;border-radius:3px}.leg span{color:#8f8b82}
+.heat{display:grid;grid-template-columns:34px repeat(8,minmax(0,1fr));gap:4px;font-size:10px;color:#8f8b82}
+.heat i{aspect-ratio:1.6;border-radius:4px}
+.heat .hl{text-align:center}.heat .dl{display:flex;align-items:center}
+.hint{color:#a29e95;font-size:12px;margin:12px 0 0;line-height:1.6}
+.chips{display:flex;gap:6px}
+.chips button{padding:7px 12px;border-radius:20px;border:1px solid #3a3327;background:transparent;font:600 11.5px Inter,sans-serif;color:#cfcac0;cursor:pointer}
+.chips button.on{border-color:var(--gold);color:var(--gold);background:#2a2213}
+.chips button:focus-visible{outline:1px solid var(--gold);outline-offset:2px}
+@media(max-width:900px){
+ .member-layout{grid-template-columns:1fr}
+ .side{position:static;padding:10px;min-height:0}.side-me{display:none}
+ .side nav{display:flex;overflow-x:auto;gap:6px;scrollbar-width:none}
+ .side nav a,.side nav span.off{grid-template-columns:auto auto;white-space:nowrap;padding:9px 12px}
+ .side .pill{display:none}.side nav a.on::before{display:none}.side hr{display:none}
+ .m-tiles{grid-template-columns:1fr 1fr}.m-two{grid-template-columns:1fr}
+ .civbar{grid-template-columns:130px minmax(0,1fr) 44px}.civbar .g{display:none}
+}
+
+/* Charts shrink on phones, so their labels get bigger to stay readable */
+@media(max-width:600px){.chart text{font-size:17px}.chart.chart-wide text{font-size:26px}}

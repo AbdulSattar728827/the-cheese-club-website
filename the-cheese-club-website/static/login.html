@@ -67,7 +67,7 @@
   <p class="lead">Use your Discord account. There's no separate sign-up or password: your first login creates your account.</p>
   <div class="auth-error" id="loginError" role="alert" hidden></div>
   <div class="auth-signed" id="loginSigned" hidden></div>
-  <a class="discord-btn" id="loginBtn" href="/auth/login?next=/account">Log in with Discord</a>
+  <a class="discord-btn" id="loginBtn" href="/auth/login?next=/dashboard">Log in with Discord</a>
   <ul class="auth-perks">
    <li><span aria-hidden="true">👤</span><span><b>Your profile in one click:</b> your matches, stats and achievements, already waiting for you.</span></li>
    <li><span aria-hidden="true">🔗</span><span><b>Link your AoE4 account:</b> it works for the Discord queue too, so you only do it once.</span></li>
@@ -92,7 +92,7 @@ const errors={cancelled:'You cancelled the Discord login. Try again whenever you
 const err=params.get('error');
 if(err){$('loginError').textContent=errors[err]||'Something went wrong. Please try again.';$('loginError').hidden=false}
 fetch('/api/me').then(r=>r.ok?r.json():null).then(me=>{
- if(me&&me.logged_in){$('loginSigned').innerHTML=`You're logged in as <b>${esc(me.username)}</b>. <a href="/account">Go to your account →</a>`;$('loginSigned').hidden=false;$('loginBtn').hidden=true;$('loginError').hidden=true}
+ if(me&&me.logged_in){$('loginSigned').innerHTML=`You're logged in as <b>${esc(me.username)}</b>. <a href="/dashboard">Go to your dashboard →</a>`;$('loginSigned').hidden=false;$('loginBtn').hidden=true;$('loginError').hidden=true}
  else if(me&&!me.login_enabled&&!err){$('loginError').textContent=errors.unavailable;$('loginError').hidden=false}
 }).catch(()=>{});
 

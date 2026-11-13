@@ -176,7 +176,16 @@ async function ccSetupAccountNav(){
     <a role="menuitem" href="/auth/logout?next=${encodeURIComponent(['/account','/dashboard','/stats','/settings','/queue'].some(x=>here.startsWith(x))?'/':here)}">🚪 Log out</a>
   </div>`;
   if(['/account','/dashboard','/stats','/settings','/queue'].includes(location.pathname))wrap.classList.add('active');
-  link.replaceWith(wrap);
+  /* The bell and account button live on the right of the header, next to (or
+     instead of) "Join Discord", not in the row of links, so long names never
+     push them onto a second line. Members already in the server don't need the
+     Join Discord button. */
+  link.remove();
+  const topbar=document.querySelector('.topbar'),discord=topbar&&topbar.querySelector('.discord');
+  const actions=document.createElement('div');actions.className='top-actions';
+  if(discord){discord.before(actions);if(me.in_server)discord.hidden=true;else{actions.appendChild(discord);actions.classList.add('with-discord')}}
+  else if(topbar)topbar.appendChild(actions);
+  actions.prepend(wrap);
   ccSetupBell(wrap);
   ccWelcomeStrip(me);
   const btn=wrap.querySelector('button'),menu=wrap.querySelector('.nav-menu');

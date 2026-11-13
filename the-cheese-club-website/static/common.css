@@ -94,4 +94,14 @@
 @media(max-width:1279px){.bell-panel{right:auto;left:0}}
 @media(max-width:520px){.bell-panel{position:fixed;left:12px;right:12px;top:auto;width:auto}}
 /* Logged in on mid-size screens: avatar-only account button so the nav stays on one line */
-@media(max-width:1366px) and (min-width:1280px){.nav-user-btn span{display:none}.nav-user-btn{padding:4px 7px 4px 4px}}
+
+/* Logged in: bell + account button on the right of the header */
+.top-actions{display:flex;align-items:center;gap:10px;flex:0 0 auto;margin-left:auto}
+.top-actions .discord[hidden]{display:none}
+.topbar .discord[hidden]{display:none}
+.top-actions .nav-menu{right:0;left:auto}
+.top-actions .bell-panel{right:-50px;left:auto}
+@media(max-width:1279px){.top-actions .nav-menu{right:0;left:auto}.top-actions .bell-panel{right:-50px;left:auto}}
+@media(max-width:520px){.top-actions{gap:8px}.top-actions .nav-user-btn span{display:none}.top-actions .discord{padding:9px 11px;font-size:10px}}
+@media(max-width:520px){.top-actions .bell-panel{position:fixed;left:12px;right:12px;width:auto}}
+@media(max-width:1499px){.top-actions.with-discord .nav-user-btn span{display:none}.top-actions.with-discord .nav-user-btn{padding:4px 7px 4px 4px}}

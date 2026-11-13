@@ -819,6 +819,11 @@ def live_view(state: dict) -> Optional[dict]:
 
     pending = state.get("pending_action")
     label = PHASE_LABELS.get(phase, "Setting up")
+    if is_1v1 and phase == "coin_flip":
+        label = "Setting up the match"          # 1v1 has no draft, so no first-pick flip
+    maps_left = len(state.get("map_pool") or [])
+    if phase == "map_veto" and maps_left > 1:
+        label = f"Map veto · {maps_left} maps left"
     if pending == "victory":
         label = "Result being confirmed"
     elif pending == "cancel":

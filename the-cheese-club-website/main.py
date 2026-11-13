@@ -8,6 +8,7 @@ import hashlib
 import logging
 import secrets
 import html
+import base64
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -16,7 +17,7 @@ import asyncpg
 import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, JSONResponse
 
 log = logging.getLogger("cheese_club")
 
@@ -34,7 +35,10 @@ EMPTY_RATINGS = {"solo_elo": None, "team_elo": None}
 
 # Members who asked not to appear on the website (see the privacy page).
 # Comma-separated Discord IDs in the HIDDEN_DISCORD_IDS variable.
-HIDDEN_IDS = {x.strip() for x in os.getenv("HIDDEN_DISCORD_IDS", "").split(",") if x.strip()}
+_ENV_HIDDEN = {x.strip() for x in os.getenv("HIDDEN_DISCORD_IDS", "").split(",") if x.strip()}
+# Kept up to date in place (see refresh_hidden) so every "in HIDDEN_IDS" check sees
+# both the HIDDEN_DISCORD_IDS variable and members' own "Hide my profile" setting.
+HIDDEN_IDS = set(_ENV_HIDDEN)
 
 
 def visible(rows):
@@ -228,13 +232,42 @@ async def lifespan(app: FastAPI):
                     PRIMARY KEY (guild_id, user_id)
                 )
             """)
+        async with pool.acquire() as conn:
+            # Website-only settings chosen by logged-in members (e.g. "Hide my profile").
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS website_member_settings (
+                    user_id    TEXT PRIMARY KEY,
+                    hidden     BOOLEAN NOT NULL DEFAULT FALSE,
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+        await refresh_hidden()
+        refresher = asyncio.create_task(_hidden_refresh_loop())
     yield
     if pool:
+        refresher.cancel()
         await pool.close()
     await http_client.aclose()
 
 
-app = FastAPI(title="The Cheese Club API", version="0.2.0", lifespan=lifespan)
+async def refresh_hidden():
+    try:
+        rows = await fetch("SELECT user_id FROM website_member_settings WHERE hidden")
+    except Exception:
+        log.exception("Could not load hidden members")
+        return
+    HIDDEN_IDS.clear()
+    HIDDEN_IDS.update(_ENV_HIDDEN | {str(r["user_id"]) for r in rows})
+
+
+async def _hidden_refresh_loop():
+    while True:
+        await asyncio.sleep(60)
+        await refresh_hidden()
+
+
+app = FastAPI(title="The Cheese Club API", version="0.2.0", lifespan=lifespan,
+              docs_url=None, redoc_url=None, openapi_url=None)
 
 
 async def fetch(query: str, *args):
@@ -1168,6 +1201,288 @@ async def activity():
 
 
 # ---------------------------------------------------------------------------
+# Accounts: "Log in with Discord"
+# There are no passwords. Discord confirms who the visitor is and gives us their
+# Discord ID, the same ID all bot data uses, so a member's matches, voice time and
+# AoE4 link belong to their account automatically. Logging in for the first time
+# is the sign-up. Requested scopes: identify (ID, name, avatar) and guilds (only to
+# check whether they are in our server; the list is not stored).
+# ---------------------------------------------------------------------------
+DISCORD_API = "https://discord.com/api/v10"
+DISCORD_AUTHORIZE = "https://discord.com/oauth2/authorize"
+DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "").strip()
+DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET", "").strip()
+DISCORD_GUILD_ID = os.getenv("DISCORD_GUILD_ID", "").strip()
+DISCORD_INVITE_URL = os.getenv("DISCORD_INVITE_URL", "https://discord.gg/thecheeseclub").strip()
+SESSION_COOKIE, STATE_COOKIE = "cc_session", "cc_oauth"
+SESSION_SECONDS = 30 * 24 * 3600
+_SESSION_KEY = hashlib.sha256(
+    b"cheese-club-session:" + (os.getenv("SESSION_SECRET") or _ID_KEY.hex()).encode()).digest()
+_search_log: dict = {}           # user id -> recent AoE4 search times (simple rate limit)
+_club_guild_cache = {"id": None}
+
+
+def login_enabled() -> bool:
+    return bool(DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET)
+
+
+def _sign(data: dict) -> str:
+    raw = base64.urlsafe_b64encode(json.dumps(data, separators=(",", ":")).encode()).decode().rstrip("=")
+    mac = hmac.new(_SESSION_KEY, raw.encode(), hashlib.sha256).hexdigest()
+    return f"{raw}.{mac}"
+
+
+def _unsign(token: Optional[str]) -> Optional[dict]:
+    if not token or "." not in token:
+        return None
+    raw, mac = token.rsplit(".", 1)
+    if not hmac.compare_digest(mac, hmac.new(_SESSION_KEY, raw.encode(), hashlib.sha256).hexdigest()):
+        return None
+    try:
+        data = json.loads(base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)))
+    except (ValueError, TypeError):
+        return None
+    return data if isinstance(data, dict) and data.get("exp", 0) > time.time() else None
+
+
+def current_user(request: Request) -> Optional[dict]:
+    return _unsign(request.cookies.get(SESSION_COOKIE))
+
+
+def _safe_next(value: Optional[str], default: str = "/account") -> str:
+    value = (value or "").strip()
+    return value if value.startswith("/") and not value.startswith("//") and "\\" not in value else default
+
+
+def _cookie_args(request: Request, max_age: int) -> dict:
+    return {"max_age": max_age, "httponly": True, "samesite": "lax", "path": "/",
+            "secure": site_url(request).startswith("https://")}
+
+
+def _avatar_url(user: dict) -> str:
+    if user.get("avatar"):
+        return f"https://cdn.discordapp.com/avatars/{user['id']}/{user['avatar']}.png?size=128"
+    return f"https://cdn.discordapp.com/embed/avatars/{(int(user['id']) >> 22) % 6}.png"
+
+
+async def club_guild_id() -> Optional[str]:
+    """The Cheese Club server's ID: DISCORD_GUILD_ID, or the server the bot syncs members from."""
+    if DISCORD_GUILD_ID:
+        return DISCORD_GUILD_ID
+    if not _club_guild_cache["id"]:
+        _club_guild_cache["id"] = await fetchval("""
+            SELECT guild_id FROM discord_member_profiles GROUP BY guild_id ORDER BY COUNT(*) DESC LIMIT 1
+        """, default=None)
+    return _club_guild_cache["id"]
+
+
+def require_login(request: Request) -> dict:
+    user = current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Please log in first.")
+    return user
+
+
+def require_same_site(request: Request):
+    """Block cross-site requests that try to change a member's account (CSRF)."""
+    from urllib.parse import urlsplit
+    source = request.headers.get("origin") or request.headers.get("referer") or ""
+    source_host = urlsplit(source).netloc.lower()
+    allowed = {urlsplit(site_url(request)).netloc.lower(),
+               request.headers.get("x-forwarded-host", request.headers.get("host", "")).split(",")[0].strip().lower()}
+    if not source_host or source_host not in allowed:
+        raise HTTPException(status_code=403, detail="This request must come from the website.")
+
+
+@app.get("/auth/login", include_in_schema=False)
+async def auth_login(request: Request, next: str = "/account"):
+    if not login_enabled():
+        return RedirectResponse("/login?error=unavailable", status_code=302)
+    state = secrets.token_urlsafe(24)
+    query = httpx.QueryParams({
+        "client_id": DISCORD_CLIENT_ID, "response_type": "code", "scope": "identify guilds",
+        "redirect_uri": site_url(request) + "/auth/callback", "state": state, "prompt": "none",
+    })
+    response = RedirectResponse(f"{DISCORD_AUTHORIZE}?{query}", status_code=302)
+    response.set_cookie(STATE_COOKIE, _sign({"s": state, "n": _safe_next(next), "exp": time.time() + 600}),
+                        **_cookie_args(request, 600))
+    return response
+
+
+@app.get("/auth/callback", include_in_schema=False)
+async def auth_callback(request: Request, code: str = "", state: str = "", error: str = ""):
+    saved = _unsign(request.cookies.get(STATE_COOKIE))
+    if error:
+        return RedirectResponse("/login?error=cancelled", status_code=302)
+    if not saved or not code or not hmac.compare_digest(saved.get("s", ""), state):
+        return RedirectResponse("/login?error=expired", status_code=302)
+    try:
+        token = await http_client.post(f"{DISCORD_API}/oauth2/token", auth=(DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET), data={
+            "grant_type": "authorization_code", "code": code,
+            "redirect_uri": site_url(request) + "/auth/callback"})
+        token.raise_for_status()
+        headers = {"Authorization": f"Bearer {token.json()['access_token']}"}
+        me = await http_client.get(f"{DISCORD_API}/users/@me", headers=headers)
+        me.raise_for_status()
+        user = me.json()
+        guild = await club_guild_id()
+        in_guild = False
+        guilds = await http_client.get(f"{DISCORD_API}/users/@me/guilds", headers=headers)
+        if guilds.status_code == 200 and guild:
+            in_guild = any(str(g.get("id")) == str(guild) for g in guilds.json())
+    except Exception:
+        log.exception("Discord login failed")
+        return RedirectResponse("/login?error=discord", status_code=302)
+    session = {"uid": str(user["id"]), "name": user.get("global_name") or user.get("username") or "Member",
+               "avatar": _avatar_url(user), "g": in_guild, "exp": time.time() + SESSION_SECONDS}
+    response = RedirectResponse(saved.get("n") or "/account", status_code=302)
+    response.set_cookie(SESSION_COOKIE, _sign(session), **_cookie_args(request, SESSION_SECONDS))
+    response.delete_cookie(STATE_COOKIE, path="/")
+    return response
+
+
+@app.get("/auth/logout", include_in_schema=False)
+async def auth_logout(next: str = "/"):
+    response = RedirectResponse(_safe_next(next, "/"), status_code=302)
+    response.delete_cookie(SESSION_COOKIE, path="/")
+    return response
+
+
+async def _link_row(user_id: str):
+    guild = await club_guild_id()
+    rows = await fetch("""
+        SELECT profile_id, aoe4_name, bypassed, linked_at FROM aoe4_links
+        WHERE user_id=$1 AND ($2::text IS NULL OR guild_id=$2) ORDER BY linked_at DESC LIMIT 1
+    """, user_id, guild)
+    return rows[0] if rows else None
+
+
+@app.get("/api/me")
+async def api_me(request: Request):
+    user = current_user(request)
+    if not user:
+        return {"logged_in": False, "login_enabled": login_enabled()}
+    uid = user["uid"]
+    guild = await club_guild_id()
+    present = await fetchval("""
+        SELECT COUNT(*) FROM discord_member_profiles
+        WHERE user_id=$1 AND is_present AND ($2::text IS NULL OR guild_id=$2)
+    """, uid, guild, default=0)
+    link = await _link_row(uid)
+    hidden = await fetchval("SELECT hidden FROM website_member_settings WHERE user_id=$1", uid, default=False)
+    return {
+        "logged_in": True, "user_id": to_public_id(uid), "id_hint": id_hint(uid),
+        "username": user.get("name"), "avatar_url": user.get("avatar"),
+        "in_server": bool(present) or bool(user.get("g")), "invite_url": DISCORD_INVITE_URL,
+        "hidden": bool(hidden),
+        "aoe4": {"profile_id": link["profile_id"], "name": link["aoe4_name"], "bypassed": link["bypassed"],
+                 "linked_at": link["linked_at"]} if link and link["profile_id"] else None,
+    }
+
+
+def _candidate(player: dict) -> dict:
+    boards = player.get("leaderboards") or player.get("modes") or {}
+    def rating(*keys):
+        for k in keys:
+            v = boards.get(k)
+            if isinstance(v, dict) and v.get("rating"):
+                return v["rating"]
+        return None
+    return {"profile_id": player.get("profile_id"), "name": player.get("name"), "country": player.get("country"),
+            "solo_elo": rating("rm_solo", "rm_1v1"), "team_elo": rating("rm_team"),
+            "last_game_at": player.get("last_game_at")}
+
+
+@app.get("/api/me/aoe4/search")
+async def api_aoe4_search(request: Request, name: str = ""):
+    user = require_login(request)
+    name = (name or "").strip()[:60]
+    if len(name) < 2:
+        raise HTTPException(status_code=400, detail="Type at least 2 characters.")
+    now = time.time()
+    recent = [t for t in _search_log.get(user["uid"], []) if now - t < 60]
+    if len(recent) >= 15:
+        raise HTTPException(status_code=429, detail="Too many searches. Wait a minute and try again.")
+    _search_log[user["uid"]] = recent + [now]
+    # A pasted AoE4World profile link or ID
+    match = re.search(r"aoe4world\.com/players/(\d+)", name)
+    pid = match.group(1) if match else (name if name.isdigit() and 3 <= len(name) <= 12 else None)
+    try:
+        if pid:
+            r = await http_client.get(f"{AOE4WORLD_API}/players/{pid}")
+            return {"results": [_candidate(r.json())] if r.status_code == 200 else []}
+        # Same approach as the bot's /aoe4link: exact match first, then a wider search,
+        # then the name without decorations such as stars or brackets.
+        queries = [name]
+        stripped = " ".join("".join(ch for ch in name if ch.isalnum() or ch.isspace()).split())
+        if stripped and stripped.casefold() != name.casefold():
+            queries.append(stripped)
+        for q in queries:
+            for params in ({"query": q, "exact": "true"}, {"query": q}):
+                r = await http_client.get(f"{AOE4WORLD_API}/players/search", params=params)
+                if r.status_code == 200 and (r.json().get("players") or []):
+                    return {"results": [_candidate(p) for p in r.json()["players"][:8]]}
+        return {"results": []}
+    except Exception:
+        raise HTTPException(status_code=503, detail="AoE4World didn't respond. Try again in a minute.")
+
+
+@app.post("/api/me/aoe4")
+async def api_aoe4_link(request: Request):
+    user = require_login(request)
+    require_same_site(request)
+    body = await request.json()
+    try:
+        profile_id = int(body.get("profile_id"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Pick a profile from the list.")
+    r = await http_client.get(f"{AOE4WORLD_API}/players/{profile_id}")
+    if r.status_code != 200 or not r.json().get("profile_id"):
+        raise HTTPException(status_code=404, detail="That AoE4World profile couldn't be found.")
+    guild = await club_guild_id()
+    if not guild:
+        raise HTTPException(status_code=503, detail="Linking isn't available yet. Please try again later.")
+    name = r.json().get("name") or "?"
+    # Identical to the bot's own link command, so the bot sees it straight away
+    await fetch("""
+        INSERT INTO aoe4_links (guild_id, user_id, profile_id, aoe4_name, bypassed)
+        VALUES ($1, $2, $3, $4, FALSE)
+        ON CONFLICT (guild_id, user_id)
+        DO UPDATE SET profile_id=$3, aoe4_name=$4, bypassed=FALSE, linked_at=NOW()
+    """, guild, user["uid"], profile_id, name)
+    _rating_cache.pop(str(profile_id), None)
+    return {"ok": True, "profile_id": profile_id, "name": name}
+
+
+@app.delete("/api/me/aoe4")
+async def api_aoe4_unlink(request: Request):
+    user = require_login(request)
+    require_same_site(request)
+    guild = await club_guild_id()
+    # Keep an admin's queue bypass if there is one; otherwise remove the link entirely.
+    await fetch("""
+        UPDATE aoe4_links SET profile_id=NULL, aoe4_name=NULL
+        WHERE guild_id=$1 AND user_id=$2 AND bypassed
+    """, guild, user["uid"])
+    await fetch("DELETE FROM aoe4_links WHERE guild_id=$1 AND user_id=$2 AND NOT bypassed", guild, user["uid"])
+    return {"ok": True}
+
+
+@app.post("/api/me/privacy")
+async def api_privacy(request: Request):
+    user = require_login(request)
+    require_same_site(request)
+    body = await request.json()
+    hidden = bool(body.get("hidden"))
+    await fetch("""
+        INSERT INTO website_member_settings (user_id, hidden, updated_at) VALUES ($1, $2, NOW())
+        ON CONFLICT (user_id) DO UPDATE SET hidden=$2, updated_at=NOW()
+    """, user["uid"], hidden)
+    await refresh_hidden()
+    return {"ok": True, "hidden": hidden}
+
+
+# ---------------------------------------------------------------------------
 # Pages
 # Pages are served with link-preview tags filled in: %%SITE_URL%% becomes the
 # site's address, and player pages get the player's name and record.
@@ -1189,7 +1504,7 @@ PAGES = {
     "/tournament": "tournament.html",
     "/contact": "contact.html",
     "/login": "login.html",
-    "/signup": "signup.html",
+    "/account": "account.html",
 }
 
 
@@ -1227,6 +1542,12 @@ def _page_route(filename: str):
 
 for _path, _file in PAGES.items():
     app.add_api_route(_path, _page_route(_file), methods=["GET"], include_in_schema=False)
+
+
+@app.get("/signup", include_in_schema=False)
+async def signup_redirect():
+    # Signing up happens the first time someone logs in with Discord.
+    return RedirectResponse("/login", status_code=301)
 
 
 @app.get("/player/{player_id}", include_in_schema=False)

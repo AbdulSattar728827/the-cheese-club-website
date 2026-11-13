@@ -42,3 +42,15 @@
 .cc-live-dot{width:8px;height:8px;border-radius:50%;background:#69d49a;flex:0 0 8px;animation:ccPulse 2s infinite}
 @keyframes ccPulse{0%{box-shadow:0 0 0 0 #69d49a80}70%{box-shadow:0 0 0 7px #69d49a00}100%{box-shadow:0 0 0 0 #69d49a00}}
 @media(prefers-reduced-motion:reduce){.cc-live-dot{animation:none}}
+
+/* Account menu in the navigation */
+.nav-user{position:relative;display:inline-flex}
+.nav-user-btn{display:inline-flex;align-items:center;gap:7px;padding:4px 9px 4px 4px;border:1px solid #3a3327;border-radius:20px;background:#17171b;color:inherit;font:inherit;cursor:pointer;white-space:nowrap}
+.nav-user-btn:hover,.nav-user.active .nav-user-btn{border-color:var(--gold,#f0b82f);color:var(--gold,#f0b82f)}
+.nav-user-btn img{width:22px;height:22px;border-radius:50%;object-fit:cover}
+.nav-user-btn span{max-width:110px;overflow:hidden;text-overflow:ellipsis}
+.nav-user-btn i{font-style:normal;font-size:9px;opacity:.7}
+.nav-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:60;min-width:170px;padding:6px;background:#17171b;border:1px solid #3a3327;border-radius:10px;box-shadow:0 14px 40px #000a}
+.nav-menu a{display:block;padding:9px 11px;border-radius:7px;color:#ddd8cf;font-size:12.5px;font-weight:600}
+.nav-menu a:hover,.nav-menu a:focus-visible{background:#26221a;color:var(--gold,#f0b82f);outline:none}
+@media(max-width:1200px){.nav-menu{left:0;right:auto}}

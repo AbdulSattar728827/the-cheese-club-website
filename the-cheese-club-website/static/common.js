@@ -137,7 +137,7 @@ setInterval(async()=>{
 },15000);
 
 /* Navigation: highlight the current page and grey out pages that are not live yet. */
-const CC_COMING_SOON=['/tournament','/contact','/login','/signup'];
+const CC_COMING_SOON=['/tournament','/contact'];
 document.addEventListener('DOMContentLoaded',()=>{
   const clean=p=>{p=(p||'/').replace(/\/+$/,'');return p||'/'};
   const path=clean(location.pathname);
@@ -152,4 +152,30 @@ document.addEventListener('DOMContentLoaded',()=>{
   let footer=document.querySelector('.footer');
   if(!footer){const shell=document.querySelector('.shell');if(shell){footer=document.createElement('footer');footer.className='footer cc-footer';footer.innerHTML='<span>© '+new Date().getFullYear()+' THE CHEESE CLUB</span>';shell.appendChild(footer)}}
   if(footer&&!footer.querySelector('a[href="/privacy"]')){const span=document.createElement('span');span.innerHTML='<a class="footer-link" href="/privacy">Privacy</a>';footer.appendChild(span)}
+  ccSetupAccountNav();
 });
+
+/* Account menu in the navigation: "Log in" for visitors; name, avatar and a menu
+   (My profile, Account, Log out) for members who logged in with Discord. */
+async function ccSetupAccountNav(){
+  const link=document.querySelector('.nav a[href="/login"]');
+  if(!link)return;
+  const here=location.pathname+location.search;
+  let me=null;
+  try{const r=await fetch('/api/me',{credentials:'same-origin'});if(r.ok)me=await r.json()}catch(e){}
+  if(!me||!me.logged_in){link.textContent='Log in';return}
+  const wrap=document.createElement('div');wrap.className='nav-user';
+  wrap.innerHTML=`<button type="button" class="nav-user-btn" aria-haspopup="true" aria-expanded="false"><img src="${ccEsc(me.avatar_url||CC_DEFAULT_AVATAR)}" alt=""><span>${ccEsc(me.username||'Account')}</span><i aria-hidden="true">▾</i></button>
+  <div class="nav-menu" role="menu" hidden>
+    ${me.hidden?'':`<a role="menuitem" href="${ccPlayerHref(me.user_id)}">My profile</a>`}
+    <a role="menuitem" href="/account">Account</a>
+    <a role="menuitem" href="/auth/logout?next=${encodeURIComponent(here.startsWith('/account')?'/':here)}">Log out</a>
+  </div>`;
+  if(location.pathname==='/account')wrap.classList.add('active');
+  link.replaceWith(wrap);
+  const btn=wrap.querySelector('button'),menu=wrap.querySelector('.nav-menu');
+  const set=open=>{menu.hidden=!open;btn.setAttribute('aria-expanded',String(open))};
+  btn.addEventListener('click',e=>{e.stopPropagation();set(menu.hidden)});
+  document.addEventListener('click',e=>{if(!wrap.contains(e.target))set(false)});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')set(false)});
+}

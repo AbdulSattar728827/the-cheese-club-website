@@ -1,28 +1,101 @@
-<!doctype html><html lang="en"><head>
+<!doctype html>
+<html lang="en">
+<head>
 <link rel="icon" type="image/png" sizes="128x128" href="/static/favicon.png?v=3">
 <link rel="shortcut icon" type="image/x-icon" href="/static/favicon.ico?v=3">
 <link rel="apple-touch-icon" href="/static/favicon.png?v=3">
 
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Login — The Cheese Club</title>
-<meta name="description" content="Member login for The Cheese Club is coming soon.">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Log in — The Cheese Club</title>
+<meta name="description" content="Log in to The Cheese Club with your Discord account to see your profile and link your AoE4 account.">
 <meta name="theme-color" content="#f0b82f">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="The Cheese Club">
-<meta property="og:title" content="Login — The Cheese Club">
-<meta property="og:description" content="Member login for The Cheese Club is coming soon.">
+<meta property="og:title" content="Log in — The Cheese Club">
+<meta property="og:description" content="Log in to The Cheese Club with your Discord account to see your profile and link your AoE4 account.">
 <meta property="og:url" content="%%SITE_URL%%/login">
 <meta property="og:image" content="%%SITE_URL%%/static/og-image.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="The Cheese Club, an Age of Empires IV community">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"><style>:root{--bg:#0c0c0e;--gold:#f0b82f;--white:#f6f3eb;--muted:#98969a;--line:#2b2925}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -30%,#3a2910 0,transparent 44%),var(--bg);color:var(--white);font-family:Inter,Arial,sans-serif}a{color:inherit;text-decoration:none}.shell{max-width:1400px;margin:auto;padding:0 34px}.topbar{min-height:88px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid #ffffff12}.brand{display:flex;align-items:center;gap:14px}.brand img{width:130px;height:65px;object-fit:contain}.brand b{display:block;font:800 20px 'Barlow Condensed';letter-spacing:1px}.brand small{color:var(--gold);font-size:9px;letter-spacing:2px}.nav{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#c8c4bc}.nav a:hover{color:var(--gold)}.discord{background:linear-gradient(135deg,#f5c64c,#c98713);color:#201707;padding:12px 16px;border-radius:9px;font-weight:800;font-size:11px}.content{min-height:65vh;display:grid;place-items:center;text-align:center}.card{max-width:650px;padding:55px 28px;background:#17171b;border:1px solid #6e5424;border-radius:18px}.eyebrow{color:var(--gold);font-size:10px;font-weight:800;letter-spacing:3px}h1{font:800 clamp(48px,8vw,76px)/.95 'Barlow Condensed';margin:14px 0;text-transform:uppercase}p{color:#aaa;line-height:1.8;font-size:14px}.tag{display:inline-block;border:1px solid #69511e;color:var(--gold);padding:8px 12px;border-radius:30px;font-size:10px;letter-spacing:2px;margin-top:10px}@media(max-width:850px){.topbar{padding:12px 0;flex-wrap:wrap}.nav{gap:10px}.shell{padding:0 18px}}.nav a.active{color:var(--gold);font-weight:800;text-shadow:0 0 14px #dba62b35}.nav a:focus-visible{outline:1px solid var(--gold);outline-offset:4px;border-radius:3px}</style>
-<style id="cheese-club-global-background">
-html{min-height:100%;background:#080809}
-body{min-height:100vh;background:#080809!important;position:relative;isolation:isolate}
-body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(rgba(7,7,8,.68),rgba(7,7,8,.82)),url("/static/home-hero-medieval.jpg") center center/cover no-repeat}
+
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c0c0e;--panel:#151518;--panel2:#1b1b20;--line:#2b2925;--gold:#f0b82f;--gold2:#ffda70;--muted:#98969a;--white:#f6f3eb;--green:#69d49a}
+*{box-sizing:border-box}body{margin:0;background:#080809;color:var(--white);font-family:Inter,Arial,sans-serif;position:relative;isolation:isolate}body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(rgba(7,7,8,.68),rgba(7,7,8,.82)),url("/static/home-hero-medieval.jpg") center center/cover no-repeat}a{color:inherit;text-decoration:none}.shell{max-width:1400px;margin:auto;padding:0 34px}.topbar{height:88px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff12}.brand{display:flex;align-items:center;gap:14px}.brand img{width:155px;height:68px;object-fit:contain;object-position:left center}.brand small{display:block;color:var(--muted);font-size:10px;letter-spacing:2px;text-transform:uppercase}.brand .brand-title{display:block;color:var(--white);font:800 19px/1.05 'Barlow Condensed',sans-serif;letter-spacing:1.1px;white-space:nowrap}.brand .brand-sub{font-size:9px;letter-spacing:2.5px;margin-top:4px;color:var(--gold)}.nav{display:flex;gap:17px;align-items:center;flex-wrap:wrap;color:#c8c4bc;font-size:12px}.nav a:hover{color:var(--gold)}.discord{background:linear-gradient(135deg,#f5c64c,#c98713);color:#201707;padding:12px 18px;border-radius:9px;font-weight:800;font-size:12px;letter-spacing:.4px;box-shadow:0 5px 24px #e5a61b25}.hero{padding:62px 28px 36px;margin:22px 0 26px;display:grid;grid-template-columns:1.25fr .75fr;gap:34px;align-items:center;border:1px solid #8a682b55;border-radius:18px;overflow:hidden;background:linear-gradient(145deg,#1b1b20,#121214);box-shadow:0 18px 55px #0008}.eyebrow{color:var(--gold);font-weight:800;letter-spacing:2.4px;text-transform:uppercase;font-size:11px}.hero h1{font:800 clamp(44px,6vw,76px)/.94 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;margin:16px 0}.hero h1 span{color:var(--gold)}.hero p{color:#aaa7a0;max-width:610px;line-height:1.8;font-size:14px}.actions{display:flex;gap:12px;margin-top:25px}.btn{padding:14px 19px;border-radius:8px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase}.btn.primary{background:var(--gold);color:#211808}.btn.secondary{border:1px solid #4a4335;color:#eee}.hero-card{background:linear-gradient(145deg,#1b1b20,#121214);border:1px solid #6e5424;border-radius:18px;padding:23px;box-shadow:0 18px 60px #0008;position:relative;overflow:hidden}.hero-card:after{content:"";position:absolute;width:220px;height:220px;border:1px solid #dba62b25;border-radius:50%;right:-75px;top:-95px;box-shadow:0 0 0 25px #dba62b08,0 0 0 55px #dba62b06}.card-top{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1.5px}.live{color:var(--green)}.hero-stat{display:flex;align-items:end;gap:12px;margin:28px 0 12px}.hero-stat strong{font:800 56px 'Barlow Condensed';color:var(--gold)}.hero-stat span{font-size:12px;color:#c7c0b1;margin-bottom:9px}.mini-bars{display:flex;gap:6px;height:45px;align-items:end;margin-top:20px}.mini-bars i{display:block;flex:1;background:linear-gradient(#f8ce61,#98600c);border-radius:3px 3px 0 0;opacity:.8}.section-head{display:flex;align-items:end;justify-content:space-between;margin:28px 0 15px}.section-head h2{font:700 26px 'Barlow Condensed';text-transform:uppercase;letter-spacing:1px;margin:0}.section-head p{color:var(--muted);font-size:11px;margin:5px 0 0}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.stat{background:linear-gradient(145deg,#19191d,#121214);border:1px solid var(--line);border-radius:12px;padding:19px}.stat label{color:var(--muted);font-size:10px;letter-spacing:1.3px;text-transform:uppercase}.stat strong{display:block;font:700 34px 'Barlow Condensed';margin-top:8px;color:var(--gold2)}.stat small{color:#777;font-size:10px}.columns{display:grid;grid-template-columns:1.1fr .9fr;gap:16px;margin:18px 0 50px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:13px;overflow:hidden;display:flex;flex-direction:column}.panel > .table-wrap,.panel > .match-list{flex:1}.panel-footer{margin-top:auto;padding:12px 18px;display:flex;justify-content:flex-end;align-items:center;min-height:62px;border-top:1px solid var(--line);background:#151518}.members-more{display:flex;justify-content:center;margin:8px 0 30px}.members-more button{cursor:pointer;background:#17171b}.panel-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}.panel-head h3{font:700 20px 'Barlow Condensed';text-transform:uppercase;letter-spacing:1px;margin:0}.tag{font-size:9px;letter-spacing:1px;text-transform:uppercase;border:1px solid #69511e;color:var(--gold);padding:6px 9px;border-radius:20px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:420px}th{text-align:left;color:#777;font-size:9px;letter-spacing:1px;text-transform:uppercase;font-weight:700;padding:13px 17px}td{padding:13px 17px;border-top:1px solid #ffffff0b;font-size:12px;color:#dedbd4}tr:hover td{background:#ffffff05}.rank{font:700 18px 'Barlow Condensed';color:var(--gold)}.player{font-weight:700}.sub{display:block;color:#777;font-size:10px;margin-top:3px}.elo{color:var(--gold2);font-weight:800}.queue-tabs{display:flex;gap:5px}.queue-tabs button{background:#222226;border:1px solid #333;color:#aaa;padding:6px 9px;border-radius:6px;font-size:10px;cursor:pointer}.queue-tabs button.active{background:#5b4212;color:#ffdb78;border-color:#99701e}.match-list{padding:5px 18px}.match{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid #ffffff0c;gap:15px}.match:last-child{border:0}.match strong{font-size:12px}.match small{display:block;color:#777;margin-top:4px;font-size:10px}.result{font-size:9px;text-transform:uppercase;color:var(--green);border:1px solid #285a40;padding:6px 8px;border-radius:5px}.result.pending{color:var(--gold);border-color:#6e5424}.empty{padding:28px 20px;color:#777;font-size:12px;text-align:center}.footer{border-top:1px solid #ffffff12;padding:24px 0 35px;color:#777;font-size:10px;display:flex;justify-content:space-between}.toast{position:fixed;bottom:18px;right:18px;background:#251d0f;border:1px solid #72551c;color:#f1d28a;padding:10px 14px;border-radius:8px;font-size:11px;display:none}
+@media(max-width:850px){.shell{padding:0 18px}.nav{display:flex;gap:10px;flex-wrap:wrap;font-size:11px}.hero{grid-template-columns:1fr;padding:42px 18px 26px;background-position:center;background-size:cover}.hero-card{max-width:100%}.columns{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.brand img{width:130px}.footer{gap:10px;flex-direction:column}}
+@media(max-width:460px){.stats{gap:8px}.stat{padding:13px}.stat strong{font-size:28px}.hero h1{font-size:48px}.actions{flex-wrap:wrap}}
+.section-head h1{font:700 30px 'Barlow Condensed';text-transform:uppercase;letter-spacing:1px;margin:0}
+
+</style>
+<style>
+.auth-wrap{display:grid;place-items:center;padding:56px 0 30px}
+.auth-card{width:min(520px,100%);padding:38px 36px 30px;text-align:center;background:linear-gradient(145deg,#1b1b20,#121214);border:1px solid #6e5424;border-radius:18px;box-shadow:0 22px 60px #0008}
+.auth-card .logo{width:150px;height:auto;margin:0 auto 18px;display:block}
+.auth-card h1{font:800 34px/1 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.6px;margin:0 0 12px}
+.auth-card .lead{color:#b3afa7;font-size:14px;line-height:1.7;margin:0 auto 24px;max-width:40ch}
+.discord-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:15px 18px;border-radius:11px;background:#5865f2;color:#fff;font:800 14px Inter,sans-serif;letter-spacing:.3px;transition:background .15s}
+.discord-btn:hover{background:#4752c4}
+.discord-btn:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.auth-error{margin:0 0 16px;padding:11px 14px;border:1px solid #6a3329;border-radius:9px;background:#3a201c;color:#f3b4a6;font-size:12.5px;text-align:left}
+.auth-signed{margin:0 0 16px;padding:12px 14px;border:1px solid #285a40;border-radius:9px;background:#13241b;color:#cfe9d9;font-size:13px}
+.auth-signed a{color:#8fe0b2;font-weight:800}
+.auth-perks{list-style:none;margin:26px 0 0;padding:20px 0 0;border-top:1px solid var(--line);display:grid;gap:12px;text-align:left}
+.auth-perks li{display:grid;grid-template-columns:26px 1fr;gap:10px;color:#c8c3ba;font-size:13px;line-height:1.5}
+.auth-perks b{color:var(--white)}
+.auth-fine{margin:22px 0 0;color:#8f8b82;font-size:11.5px;line-height:1.6}
+.auth-fine a{color:var(--gold);font-weight:700}
+@media(max-width:520px){.auth-card{padding:28px 20px 24px}.auth-card h1{font-size:28px}}
 </style>
 <link rel="stylesheet" href="/static/common.css">
 <script src="/static/common.js"></script>
-</head><body><div class="shell"><header class="topbar"><a class="brand" href="/"><img src="/static/cheese-club-logo.png" alt="The Cheese Club"><span><b>THE CHEESE CLUB</b><small>COMMUNITY HUB</small></span></a><nav class="nav"><a href="/">Home</a><a href="/leaderboard">Leaderboard</a><a href="/matches">Matches</a><a href="/civs">Civ Stats</a><a href="/community">Community</a><a href="/voice-activity">Voice Activity</a><a href="/tournament">Tournament</a><a href="/about">About</a><a href="/contact">Contact Us</a><a href="/login">Login</a><a href="/signup">Sign Up</a></nav><a class="discord" href="https://discord.gg/thecheeseclub" target="_blank" rel="noopener noreferrer">JOIN DISCORD ↗</a></header><main class="content"><section class="card"><div class="eyebrow">THE CHEESE CLUB</div><h1>Login</h1><p>Member login is not available yet. We are working on this feature.</p><span class="tag">COMING SOON</span></section></main></div><!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "2b0d231e55714801ba9356211021134c"}'></script><!-- End Cloudflare Web Analytics -->
+</head>
+<body>
+<div class="shell">
+<header class="topbar">
+ <a class="brand" href="/"><img src="/static/cheese-club-logo.png" alt="The Cheese Club"><span><small>Age of Empires IV</small><b class="brand-title">THE CHEESE CLUB</b><small class="brand-sub">COMMUNITY HUB</small></span></a>
+ <nav class="nav"><a href="/">Home</a><a href="/leaderboard">Leaderboard</a><a href="/matches">Matches</a><a href="/civs">Civ Stats</a><a href="/community">Community</a><a href="/voice-activity">Voice Activity</a><a href="/tournament">Tournament</a><a href="/about">About</a><a href="/contact">Contact Us</a><a href="/login">Log in</a></nav>
+ <a class="discord" id="discordLink" href="https://discord.gg/thecheeseclub" target="_blank" rel="noreferrer">JOIN DISCORD ↗</a>
+</header>
+
+<main class="auth-wrap">
+ <section class="auth-card" aria-labelledby="loginTitle">
+  <img class="logo" src="/static/cheese-club-logo.png" alt="The Cheese Club">
+  <h1 id="loginTitle">Log in to The Cheese Club</h1>
+  <p class="lead">Use your Discord account. There's no separate sign-up or password: your first login creates your account.</p>
+  <div class="auth-error" id="loginError" role="alert" hidden></div>
+  <div class="auth-signed" id="loginSigned" hidden></div>
+  <a class="discord-btn" id="loginBtn" href="/auth/login?next=/account">Log in with Discord</a>
+  <ul class="auth-perks">
+   <li><span aria-hidden="true">👤</span><span><b>Your profile in one click:</b> your matches, stats and achievements, already waiting for you.</span></li>
+   <li><span aria-hidden="true">🔗</span><span><b>Link your AoE4 account:</b> it works for the Discord queue too, so you only do it once.</span></li>
+   <li><span aria-hidden="true">🙈</span><span><b>You're in control:</b> hide your profile from the website at any time.</span></li>
+  </ul>
+  <p class="auth-fine">We only receive your Discord username, avatar and ID, plus your server list to check whether you've joined The Cheese Club. We never see your password or email. <a href="/privacy">How we handle your information</a></p>
+ </section>
+</main>
+
+<footer class="footer"><span>© <span id="year"></span> THE CHEESE CLUB</span><span>Play Together. Laugh Together. Win Together.</span></footer>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=ccEsc,fmt=ccFmt;
+$('year').textContent=new Date().getFullYear();
+
+const params=new URLSearchParams(location.search);
+const next=params.get('next');
+if(next&&next.startsWith('/')&&!next.startsWith('//'))$('loginBtn').href='/auth/login?next='+encodeURIComponent(next);
+const errors={cancelled:'You cancelled the Discord login. Try again whenever you like.',expired:'That login attempt expired. Please try again.',discord:"Discord didn't respond properly. Please try again in a moment.",unavailable:"Logging in isn't switched on yet. Please check back soon."};
+const err=params.get('error');
+if(err){$('loginError').textContent=errors[err]||'Something went wrong. Please try again.';$('loginError').hidden=false}
+fetch('/api/me').then(r=>r.ok?r.json():null).then(me=>{
+ if(me&&me.logged_in){$('loginSigned').innerHTML=`You're logged in as <b>${esc(me.username)}</b>. <a href="/account">Go to your account →</a>`;$('loginSigned').hidden=false;$('loginBtn').hidden=true;$('loginError').hidden=true}
+ else if(me&&!me.login_enabled&&!err){$('loginError').textContent=errors.unavailable;$('loginError').hidden=false}
+}).catch(()=>{});
+
+</script>
+<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "2b0d231e55714801ba9356211021134c"}'></script><!-- End Cloudflare Web Analytics -->
 </body></html>

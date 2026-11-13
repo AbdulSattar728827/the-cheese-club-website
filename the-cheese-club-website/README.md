@@ -17,7 +17,9 @@ Discord bot's existing Railway PostgreSQL database.
 - 12 achievements calculated from match history and voice time
 - About page (`/about`) and privacy page (`/privacy`)
 - Link previews (Open Graph) on every page, with player-specific previews on player pages
-- Placeholder pages for Tournament, Contact, Login and Sign Up (greyed out in the navigation)
+- "Log in with Discord" accounts (`/login`, `/account`): members link their AoE4 account (shared with the
+  bot's `/aoe4link`) and can hide their own profile
+- Placeholder pages for Tournament and Contact (greyed out in the navigation)
 
 ## Deploy as a NEW Railway service
 1. Push this folder to a NEW GitHub repository.
@@ -37,12 +39,32 @@ Discord bot's existing Railway PostgreSQL database.
 5. Deploy. Railway will use the Procfile / railway.json start command.
 6. Generate a public domain in the new website service's Settings → Networking.
 
+## Logging in (Discord accounts)
+Members log in with Discord; there are no passwords and no separate sign-up. To switch it on:
+1. In the [Discord Developer Portal](https://discord.com/developers/applications), open your bot's
+   application → **OAuth2**. Copy the **Client ID** and **Client Secret** (reset it if you can't see it).
+2. Under **Redirects**, add your website address followed by `/auth/callback`, exactly, for example
+   `https://thecheeseclub.up.railway.app/auth/callback`. Add one per address if you use several.
+3. Add these variables to the website service in Railway:
+   - `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET`
+   - `SESSION_SECRET`: a long random string, like `PUBLIC_ID_SECRET` but different. Changing it logs
+     everyone out.
+   - `SITE_URL`: must match the redirect address you registered.
+   - Optional: `DISCORD_GUILD_ID` (your server's ID; otherwise the server the bot syncs members from)
+     and `DISCORD_INVITE_URL` (default `https://discord.gg/thecheeseclub`).
+Without the client ID and secret, the site works normally and the login page says logging in is not
+switched on yet. Scopes requested: `identify` and `guilds` (only to check server membership; not stored).
+
 ## Database access
-- The site only reads the bot's tables: `aoe_queue_stats`, `aoe_matches`, `aoe4_links`, `vc_stats`,
-  `vc_logs` and `discord_member_profiles`.
+- The site reads the bot's tables: `aoe_queue_stats`, `aoe_matches`, `aoe4_links`, `vc_stats`,
+  `vc_logs`, `vc_live` and `discord_member_profiles`.
+- It writes in exactly two places, both for logged-in members acting on their own account:
+  `aoe4_links` (linking or unlinking their AoE4 account, the same way the bot's `/aoe4link` does) and
+  its own `website_member_settings` table (the "Hide my profile" choice), which it creates on startup.
 - On startup it runs `CREATE TABLE IF NOT EXISTS discord_member_profiles`, so the site still works
   before the bot's member sync has created that table. It never alters or deletes tables or rows.
-- The public API has no write endpoints.
+- Write endpoints require a logged-in member and a request from the website itself (cross-site requests
+  are refused).
 
 ## Member privacy
 Discord user IDs are never sent to browsers. Each member gets a stable public ID (`p` followed by

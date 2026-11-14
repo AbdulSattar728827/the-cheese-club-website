@@ -168,6 +168,70 @@ button.btn.secondary{background:transparent;color:var(--white)}
 .tform textarea{min-height:110px;resize:vertical}
 .tform input:focus,.tform select:focus,.tform textarea:focus{outline:none;border-color:var(--gold)}
 @media(max-width:760px){.rtabs{display:flex}.bracket{grid-template-columns:1fr!important;min-width:0!important}.round{display:none}.round.active{display:block}.round .col{height:auto!important;gap:12px}.round:not(:last-child) .m::after{display:none}.tform{grid-template-columns:1fr}}
+
+.fmtchip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;background:#1f1a10;border:1px solid #6e5424;color:var(--gold);font:800 10px Inter;letter-spacing:.8px;text-transform:uppercase;margin-left:8px;vertical-align:4px}
+.rt-grid{display:grid;grid-template-columns:minmax(0,1fr) 480px;gap:18px;align-items:start}
+.rt-tabs{display:flex;gap:6px;margin:0 0 14px;flex-wrap:wrap}
+.rt-tabs button{padding:8px 14px;border-radius:20px;border:1px solid #3a3327;background:transparent;font:700 12px Inter;color:#cfcac0;cursor:pointer}
+.rt-tabs button.on{border-color:var(--gold);color:var(--gold);background:#2a2213}.rt-tabs button.done{color:#8fe0b2;border-color:#285a40}
+.rt-tabs span{padding:8px 14px;border-radius:20px;border:1px dashed #3a3327;font:700 12px Inter;color:#6f6c66}
+.rt-mlist{display:grid;gap:12px}
+.rt-mc{border-radius:14px;background:#141417;border:1px solid #2c2a26;overflow:hidden}
+.rt-mc.rt-mine{border-color:#5865f2;box-shadow:0 0 0 1px #5865f288}.rt-mc.rt-on{border-color:#285a40}
+.rt-mh{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 14px;background:#ffffff06;font-size:11.5px;color:#a29e95}
+.rt-mh b{color:var(--white);font:700 15px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.6px}
+.rt-mh .rt-st{font-weight:800;font-size:10.5px;letter-spacing:.6px;text-transform:uppercase}
+.rt-mb{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;padding:12px 14px}
+.rt-side{display:flex;flex-direction:column;gap:5px;min-width:0}
+.rt-side.rt-r{text-align:right;align-items:flex-end}
+.rt-side span{font-size:12.5px;color:#cfcac0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.rt-side span a{color:inherit}.rt-side span a:hover{color:var(--gold)}
+.rt-side span.rt-me{color:#b9bde8}
+.rt-side span em{font-style:normal;color:#8f8b82;font-weight:500;font-size:11px}
+.rt-side small{color:#6f6c66;font-size:10.5px;margin-top:3px}
+.rt-side.rt-win span{color:var(--white)}.rt-side.rt-win small{color:#8fe0b2}
+.rt-side.rt-lose span{color:#6f6c66}
+.rt-vs{font:800 16px 'Barlow Condensed';color:#6f6c66;text-align:center}
+.rt-vs b{display:block;font-size:20px;color:var(--gold2)}
+.rt-foot{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 14px 10px;border-top:1px solid #ffffff08;font-size:11px;color:#8f8b82}
+.rt-foot a{color:var(--gold);font-weight:700}
+.rt-foot select{padding:5px 6px;border-radius:6px;border:1px solid #3a3327;background:#111114;color:var(--white);font:inherit;font-size:11px;max-width:150px}
+.rt-foot button{padding:5px 9px;border-radius:6px;border:1px solid #6e5424;background:#2a2213;color:var(--gold);font:700 10.5px Inter;cursor:pointer}
+.rt-byes{margin-top:12px;padding:12px 14px;border-radius:12px;border:1px dashed #3a3327;font-size:12.5px;color:#a29e95;line-height:1.6}
+.rt-byes b{color:var(--white)}
+table.rt-std{width:100%;border-collapse:collapse;font-size:12.5px}
+.rt-std th{padding:9px 6px;color:#8f8b82;font-size:9.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;text-align:right;border-bottom:1px solid var(--line)}
+.rt-std th:nth-child(-n+2){text-align:left}
+.rt-std td{padding:9px 6px;text-align:right;border-bottom:1px solid #ffffff08;color:#cfcac0}
+.rt-std td:nth-child(-n+2){text-align:left}
+.rt-std td.rt-pts{font:800 17px 'Barlow Condensed';color:var(--gold2)}
+.rt-std tr.rt-me td{background:#1c1f3a}
+.rt-std .rt-rk{font:800 15px 'Barlow Condensed';color:#8f8b82;width:30px}
+.rt-std .rt-who{display:flex;align-items:center;gap:8px;min-width:0}
+.rt-std .rt-who a{color:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px}
+.rt-av{flex:0 0 24px;width:24px;height:24px;border-radius:50%;background:#29251d;color:var(--gold);display:grid;place-items:center;font-size:10px;font-weight:800}
+.rt-form{display:inline-flex;gap:3px}.rt-form i{width:16px;height:16px;border-radius:4px;font:800 9px/16px Inter;text-align:center;font-style:normal;color:#0c0c0e}
+.rt-form .w{background:#69d49a}.rt-form .l{background:#e2735f}.rt-form .b{background:#4a4a52;color:#ddd}.rt-form .n{background:transparent;border:1px dashed #3a3327;color:#6f6c66}
+.rt-podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:14px;align-items:end;margin:6px 0 20px}
+.rt-pod{text-align:center;padding:20px 14px;border-radius:16px;background:linear-gradient(180deg,#1b1b20,#121214);border:1px solid #3a3327}
+.rt-pod.rt-first{border-color:#8a682b;background:radial-gradient(120% 120% at 50% 0%,#3a2a0e,#121214);padding:28px 14px}
+.rt-pod .rt-medal{font-size:38px}.rt-pod.rt-first .rt-medal{font-size:52px}
+.rt-pod .rt-pav{width:64px;height:64px;margin:8px auto;border-radius:50%;border:2px solid #b88927;background:#29251d;color:var(--gold);display:grid;place-items:center;font:800 26px 'Barlow Condensed'}
+.rt-pod b{display:block;font:800 24px 'Barlow Condensed';text-transform:uppercase}
+.rt-pod small{display:block;color:#a29e95;font-size:12px;margin-top:3px}
+.rt-pod .rt-p{font:800 30px 'Barlow Condensed';color:var(--gold2);margin-top:6px}
+.fmt-pick{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fmt-pick label{display:block;padding:16px;border-radius:12px;border:1px solid #3a3327;background:#141417;cursor:pointer}
+.fmt-pick input{width:auto!important;margin-right:8px;accent-color:#f0b82f}
+.fmt-pick label:has(input:checked){border-color:var(--gold);background:#221c10}
+.fmt-pick b{font-size:14px}.fmt-pick small{display:block;margin-top:6px}
+.pool{display:flex;flex-wrap:wrap;gap:8px}.pool label{display:flex;align-items:center;gap:6px;margin:0;padding:7px 10px;border-radius:8px;border:1px solid #3a3327;background:#141417;font-weight:600;font-size:12px;cursor:pointer}
+.pool input{width:auto;accent-color:#f0b82f}
+.roundmaps{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.hint6{margin-top:6px;font-size:11.5px;padding:8px 10px;border-radius:8px}
+.hint6.ok{background:#13241b;color:#cfe9d9;border:1px solid #285a40}.hint6.warn{background:#2a2213;color:#f0d79a;border:1px solid #6e5424}
+@media(max-width:1100px){.rt-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.rt-podium{grid-template-columns:1fr}.rt-pod.rt-first{order:-1}.rt-mb{grid-template-columns:1fr;text-align:left}.rt-side.rt-r{text-align:left;align-items:flex-start}.rt-std th:nth-child(n+5):not(:last-child),.rt-std td:nth-child(n+5):not(:last-child){display:none}.fmt-pick{grid-template-columns:1fr}}
 </style>
 <link rel="stylesheet" href="/static/common.css">
 <script src="/static/common.js"></script>
@@ -201,6 +265,9 @@ setInterval(()=>document.querySelectorAll('[data-until]').forEach(el=>{el.textCo
 const boText=t=>t.bo_default===t.bo_semi&&t.bo_semi===t.bo_final?`Best of ${t.bo_final} every round`:`Best of ${t.bo_default} early rounds, ${t.bo_semi} semis, ${t.bo_final} final`;
 const STATUS={signup:'Sign-ups open',checkin:'Check-in open',live:'Live',finished:'Finished',cancelled:'Cancelled'};
 const initials=n=>esc((n||'?').trim().slice(0,1).toUpperCase());
+const isRT=t=>t.format==='random3v3';
+const fmtName=t=>isRT(t)?'🎲 Random Team 3v3':'⚔️ 1v1 Cup';
+const fmtIcon=t=>isRT(t)?'🎲':'⚔️';
 
 function closeMatchDetail(){$('detailBackdrop').style.display='none';document.body.style.overflow=''}
 async function openMatchDetail(id){$('detailBackdrop').style.display='flex';document.body.style.overflow='hidden';$('detailTitle').textContent='Match #'+id;const box=$('detailContent');box.innerHTML='<div class="empty">Loading match details…</div>';try{box.innerHTML=matchDetailHtml(await fetchMatchDetail(id))}catch(e){box.innerHTML=`<div class="empty">${esc(e.message)}. Please try again.</div>`}}
@@ -274,25 +341,93 @@ function adminPanel(){
  return `<section class="panel admin"><div class="panel-head"><h3>Admin</h3><small style="color:#f0a090;font-size:11px">Only admins see this</small></div><div class="info-body">
   ${st==='signup'?'<button class="btn secondary" type="button" data-admin="open_checkin">Open check-in now</button>':''}
   ${st!=='live'?'<button class="btn primary" type="button" data-admin="start" data-confirm="Start now? Players who haven\'t checked in will lose their spot.">Start now</button>':''}
+  ${st==='live'&&isRT(D.tournament)?'<button class="btn secondary" type="button" data-admin="regenerate_round" data-confirm="Make new teams for this round? Only possible before anyone presses Ready.">Regenerate this round\'s teams</button>':''}
   ${removable.length?`<select id="rmSel" aria-label="Player">${removable.map(p=>`<option value="${p.user_id}">${esc(p.username)}</option>`).join('')}</select><button class="btn danger" type="button" data-admin="remove_player" data-confirm="Remove this player?${st==='live'?' Their opponent advances.':''}">Remove player</button>`:''}
   <button class="btn danger" type="button" data-admin="cancel" data-confirm="Cancel the whole tournament?">Cancel tournament</button></div></section>`}
+let rtRound=null;
+function rtCard(){
+ const R=D.random,t=D.tournament,me=D.me;if(t.status!=='live')return '';
+ const m=R.my_match;
+ if(m){const mine=m.my_team,us=mine===1?m.team1:m.team2,them=mine===1?m.team2:m.team1,usAvg=mine===1?m.team1_avg:m.team2_avg,themAvg=mine===1?m.team2_avg:m.team1_avg,playing=m.status==='playing'||m.status==='starting';
+  return `<div class="mine"><div style="min-width:0"><div class="vs">Round ${m.round} · Match ${m.match_no}</div>
+   <small>Your team: <b style="color:#fff">${us.map(p=>p.me?'You':esc(p.username)).join(', ')}</b> (avg ${fmt(usAvg)}) vs ${them.map(p=>esc(p.username)).join(', ')} (avg ${fmt(themAvg)})${m.map?` · Map: <b style="color:#fff">${esc(m.map)}</b>`:''}.<br>
+   ${playing?'Your match is on in Discord: head to the match thread for civ bans and picks.':m.me_ready?'You\'re ready. The match starts in Discord as soon as all six players are ready.':'Join a voice channel in Discord, then press I\'m ready.'}</small>
+   ${playing?'':`<div class="ready-row"><span class="rdy ${m.me_ready?'yes':''}">${m.me_ready?'✓':'○'} You</span><span class="rdy ${m.ready_count===6?'yes':''}">${m.ready_count} of 6 ready</span></div>`}</div>
+   ${playing?'<a class="btn primary" href="https://discord.com/channels/@me" target="_blank" rel="noopener noreferrer">Open Discord ↗</a>':m.me_ready?`<button class="btn danger" type="button" data-tready="${m.id}" data-on="0">Not ready</button>`:`<button class="btn primary" type="button" data-tready="${m.id}" data-on="1">✅ I'm ready</button>`}</div>`}
+ if(R.my_bye)return `<div class="you"><i class="pulse"></i><div><b>You're sitting out round ${t.current_round}</b><small>You get ${t.points_bye} point${t.points_bye===1?'':'s'}, and you won't sit out again until everyone else has. Stay nearby: an admin may call you in as a substitute.</small></div></div>`;
+ if(me.status==='removed')return '<div class="t-msg err">You were removed from the remaining rounds. Your points so far still count.</div>';
+ if(me.status==='playing')return '<div class="t-msg ok">Your match this round is done. The next round\'s teams appear as soon as every match has finished.</div>';
+ return '';
+}
+function rtSide(team,avg,cls,right,m){
+ return `<div class="rt-side ${cls} ${right?'rt-r':''}">${team.map(p=>`<span class="${p.me?'rt-me':''}">${p.user_id?`<a href="${ccPlayerHref(p.user_id)}">${esc(p.username)}</a>`:esc(p.username)}${p.me?' (you)':''}${p.civ?` <em>· ${esc(p.civ)}</em>`:''}${m.status==='ready'&&p.ready?' <em>✓</em>':''}</span>`).join('')}<small>avg ${fmt(avg)}${cls==='rt-win'?` · +${D.tournament.points_win} each`:''}</small></div>`}
+function rtMatch(m,round){
+ const live=m.status==='playing'||m.status==='starting';
+ const [stxt,scol]=m.status==='done'?['✓ Finished','#8fe0b2']:m.status==='void'?['No result','#8f8b82']:live?['● Game live','#8fe0b2']:[`Waiting for ready · ${m.ready_count}/6`,'#b9bde8'];
+ const c1=m.winner_team===1?'rt-win':m.winner_team===2?'rt-lose':'',c2=m.winner_team===2?'rt-win':m.winner_team===1?'rt-lose':'';
+ let admin='';
+ if(D.is_admin&&D.tournament.status==='live'){
+  admin=`<span style="margin-left:auto"></span><select aria-label="Result"><option value="1">Team 1 won</option><option value="2">Team 2 won</option><option value="0">No result</option></select><button type="button" data-tres="${m.id}">${m.status==='done'?'Correct result':'Set result'}</button>`;
+  const subs=round.byes.filter(b=>!b.substituted_into&&b.user_id);
+  if(m.status==='ready'&&subs.length)admin+=`<select aria-label="Player out">${[...m.team1,...m.team2].filter(p=>p.user_id).map(p=>`<option value="${p.user_id}">Out: ${esc(p.username)}</option>`).join('')}</select><select aria-label="Substitute in">${subs.map(p=>`<option value="${p.user_id}">In: ${esc(p.username)}</option>`).join('')}</select><button type="button" data-tsub="${m.id}">Substitute</button>`;
+ }
+ return `<div class="rt-mc ${m.me_in?'rt-mine':live?'rt-on':''}"><div class="rt-mh"><b>Match ${m.match_no}</b><span class="rt-st" style="color:${scol}">${stxt}</span></div>
+  <div class="rt-mb">${rtSide(m.team1,m.team1_avg,c1,false,m)}<div class="rt-vs">${m.winner_team?`<b>${m.winner_team===1?'1–0':'0–1'}</b>Team ${m.winner_team}`:'vs'}</div>${rtSide(m.team2,m.team2_avg,c2,true,m)}</div>
+  <div class="rt-foot">${m.map?`🗺️ ${esc(m.map)}`:''}${m.aoe_match_id?` · <a href="#" data-match="${m.aoe_match_id}">Game #${m.aoe_match_id}</a>`:''}${m.note?` · ${esc(m.note)}`:''}${admin}</div></div>`}
+function rtStandings(){
+ const R=D.random,t=D.tournament,rows=R.standings;
+ if(!rows.length)return '<div class="t-empty">Standings appear after the first round.</div>';
+ return `<div style="overflow-x:auto;padding:4px 10px 10px"><table class="rt-std"><thead><tr><th>#</th><th>Player</th><th>Pts</th><th>P</th><th>W</th><th>L</th><th>Win %</th><th>Sat out</th><th>Form</th></tr></thead><tbody>${rows.map(r=>`<tr class="${r.me?'rt-me':''}"><td class="rt-rk">${r.rank<=3?['🥇','🥈','🥉'][r.rank-1]:r.rank}</td><td><span class="rt-who"><span class="rt-av">${initials(r.username)}</span>${r.user_id?`<a href="${ccPlayerHref(r.user_id)}">${esc(r.username)}</a>`:esc(r.username)}${r.status==='removed'?' <em style="color:#8f8b82;font-style:normal;font-size:10.5px">(left)</em>':''}</span></td><td class="rt-pts">${r.points}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.losses}</td><td>${r.win_rate==null?'—':r.win_rate+'%'}</td><td>${r.byes}</td><td><span class="rt-form">${r.form.map(f=>`<i class="${f==='-'?'n':f}" title="${f==='w'?'Win':f==='l'?'Loss':f==='b'?'Sat out':'Did not play'}">${f==='w'?'W':f==='l'?'L':'–'}</i>`).join('')}</span></td></tr>`).join('')}</tbody></table>
+  <p style="padding:10px 8px 0;margin:0;color:#8f8b82;font-size:11px;line-height:1.6">Win = ${t.points_win} point${t.points_win===1?'':'s'} · Sitting out = ${t.points_bye} · Ties broken by opponents' points, then fewer sit-outs, then rating.</p></div>`}
+function rtPodium(){
+ const rows=D.random.standings.slice(0,3);if(!rows.length)return '';
+ const pod=(r,cls,medal,label)=>r?`<div class="rt-pod ${cls}"><div class="rt-medal">${medal}</div><div class="rt-pav" ${cls?'style="width:80px;height:80px;font-size:32px"':''}>${initials(r.username)}</div><b>${esc(r.username)}</b><small>${label} · ${r.wins} win${r.wins===1?'':'s'}${r.byes?', '+r.byes+' sat out':''}</small><div class="rt-p">${r.points} pts</div></div>`:'<div></div>';
+ return `<div class="rt-podium">${pod(rows[1],'','🥈','Runner-up')}${pod(rows[0],'rt-first','🏆','Champion')}${pod(rows[2],'','🥉','Third place')}</div>`}
+function rtMain(){
+ const R=D.random,t=D.tournament;
+ if(!R.rounds.length)return '<div class="t-empty">The first round\'s teams are made when the tournament starts.</div>';
+ if(rtRound===null||!R.rounds.find(r=>r.round===rtRound))rtRound=R.rounds[R.rounds.length-1].round;
+ const sel=R.rounds.find(r=>r.round===rtRound);
+ const tabs=R.rounds.map(r=>{const done=r.matches.every(m=>m.status==='done'||m.status==='void');return `<button type="button" class="${r.round===rtRound?'on':done?'done':''}" data-rround="${r.round}">Round ${r.round}${done?' ✓':r.round===t.current_round&&t.status==='live'?' · live':''}</button>`}).join('')+
+  Array.from({length:Math.max(0,t.rounds-R.rounds.length)},(_,i)=>`<span>Round ${R.rounds.length+i+1}</span>`).join('');
+ const byes=sel.byes.length?`<div class="rt-byes">🪑 <b>Sat out round ${sel.round}:</b> ${sel.byes.map(b=>esc(b.username)+(b.substituted_into?' (subbed in)':'')).join(', ')}. ${t.status==='live'&&sel.round===t.current_round?`They get ${t.points_bye} point${t.points_bye===1?'':'s'}, can be called in as substitutes, and won't sit out again until everyone else has.`:''}</div>`:'';
+ return `${t.status==='finished'?rtPodium():''}<div class="rt-grid"><div><div class="rt-tabs">${tabs}</div>${sel.map?`<p style="margin:-4px 0 12px;color:#a29e95;font-size:12.5px">🗺️ Round ${sel.round} map: <b style="color:#fff">${esc(sel.map)}</b></p>`:''}<div class="rt-mlist">${sel.matches.map(m=>rtMatch(m,sel)).join('')}</div>${byes}</div>
+  <section class="panel"><div class="panel-head"><h3>${t.status==='finished'?'Final standings':'Standings'}</h3><small style="color:var(--muted);font-size:11px">${t.status==='finished'?'':'After round '+Math.max(0,t.current_round-(R.rounds.length&&R.rounds[R.rounds.length-1].matches.some(m=>m.status!=='done'&&m.status!=='void')?1:0))+' of '+t.rounds}</small></div>${rtStandings()}</section></div>`}
+function rtRules(){const t=D.tournament;
+ return `<div class="info-body" style="padding:18px 20px"><ul>
+  <li><b>Format:</b> everyone signs up alone. Each round, the website makes new random 3v3 teams, balanced by AoE4World rating, and avoids giving you the same teammates twice.</li>
+  <li><b>Rounds:</b> ${t.rounds}. Each round, every team plays one match.</li>
+  <li><b>Points (individual):</b> win = ${t.points_win}, loss = 0, sitting out = ${t.points_bye}. Your points are yours, even though you play in a team.</li>
+  <li><b>Sitting out:</b> if the number of players isn't a multiple of 6, a few players sit out each round. Whoever has sat out the least goes first, and nobody sits out twice in a row if it can be avoided. Players sitting out can be called in as substitutes.</li>
+  <li><b>Ties:</b> opponents' points (beating strong players counts more), then fewer sit-outs, then rating.</li>
+  <li><b>Playing:</b> when your teams are out, all six players press <b>I'm ready</b>. The bot starts the match in Discord with your teams already set, runs civ bans and picks, and both sides confirm the result.</li>
+  <li><b>Maps:</b> ${(t.round_maps||[]).length?(t.round_maps.map((m,i)=>`round ${i+1}: ${m==='random'?'random from the pool':esc(m)}`).join(', ')):'random from the pool each round'}.</li>
+  <li>Tournament games appear in match history but don't change club stats or community ratings.</li></ul>
+  ${t.prizes?`<p style="margin-top:12px"><b>Prizes:</b> ${esc(t.prizes)}</p>`:''}${t.rules?`<p style="margin-top:12px"><b>Rules</b></p><p class="rules-text">${esc(t.rules)}</p>`:''}</div>`}
 function render(){
  const t=D.tournament,st=t.status,cur=D.matches.find(m=>m.status!=='done');
  document.title=`${t.name} — The Cheese Club`;
- if(!tab)tab=D.matches.length?'bracket':'players';
+ if(!tab)tab=isRT(t)?((st==='live'||st==='finished')?'rounds':'players'):(D.matches.length?'bracket':'players');
  const count=D.players.filter(p=>!['waitlist','no_show','withdrawn'].includes(p.status)).length;
- $('tour').innerHTML=`<div class="t-top"><div>${st==='live'?`<span class="livepill"><i></i>Live${cur?' · '+esc(cur.round_name):''}</span>`:`<span class="t-kicker">${STATUS[st]}</span>`}
-  <h1>${esc(t.name)}</h1><p>${esc(t.mode)} · Single elimination · ${count} of ${t.max_players} players · ${st==='live'||st==='finished'?'Started':'Starts'} ${esc(when(t.started_at||t.starts_at))} your time</p>${t.description?`<p style="margin-top:6px;color:#c8c3ba">${esc(t.description)}</p>`:''}</div>
+ const rt=isRT(t);
+ $('tour').innerHTML=`<div class="t-top"><div>${st==='live'?`<span class="livepill"><i></i>Live${rt?' · Round '+t.current_round+' of '+t.rounds:cur?' · '+esc(cur.round_name):''}</span>`:`<span class="t-kicker">${STATUS[st]}</span>`}${rt?'<span class="fmtchip">🎲 Random Team 3v3</span>':''}
+  <h1>${esc(t.name)}</h1><p>${rt?`3v3 · ${t.rounds} rounds · new random teammates every round · individual points`:`${esc(t.mode)} · Single elimination`} · ${count} of ${t.max_players} players · ${st==='live'||st==='finished'?'Started':'Starts'} ${esc(when(t.started_at||t.starts_at))} your time</p>${t.description?`<p style="margin-top:6px;color:#c8c3ba">${esc(t.description)}</p>`:''}</div>
   <div style="display:flex;gap:8px"><a class="btn secondary" href="/tournament">All tournaments</a><button class="btn secondary" type="button" id="shareBtn">Copy link</button></div></div>
   ${msg?`<div class="t-msg ${msg.ok?'ok':'err'}" role="status">${esc(msg.text)}</div>`:''}
-  ${myCard()}
-  <div class="tabs" role="tablist">${D.matches.length?`<span class="${tab==='bracket'?'on':''}" data-tab="bracket" role="tab" tabindex="0">Bracket</span>`:''}<span class="${tab==='players'?'on':''}" data-tab="players" role="tab" tabindex="0">Players (${D.players.filter(p=>p.status!=='no_show').length})</span><span class="${tab==='rules'?'on':''}" data-tab="rules" role="tab" tabindex="0">Rules & prizes</span></div>
-  <section class="panel">${tab==='bracket'?`<div class="panel-head"><h3>Bracket</h3><small style="color:var(--muted);font-size:11px">${st==='live'?'Updates live':''}</small></div><div style="padding:16px 18px">${bracket()}</div>`:tab==='players'?`<div class="panel-head"><h3>Players</h3></div>${playersTab()}`:`<div class="panel-head"><h3>Rules & prizes</h3></div>${rulesTab()}`}</section>
+  ${rt&&(st==='live'||st==='finished')?rtCard():myCard()}
+  <div class="tabs" role="tablist">${rt&&(st==='live'||st==='finished')?`<span class="${tab==='rounds'?'on':''}" data-tab="rounds" role="tab" tabindex="0">Rounds & standings</span>`:''}${!rt&&D.matches.length?`<span class="${tab==='bracket'?'on':''}" data-tab="bracket" role="tab" tabindex="0">Bracket</span>`:''}<span class="${tab==='players'?'on':''}" data-tab="players" role="tab" tabindex="0">Players (${D.players.filter(p=>p.status!=='no_show').length})</span><span class="${tab==='rules'?'on':''}" data-tab="rules" role="tab" tabindex="0">Rules & prizes</span></div>
+  ${tab==='rounds'?rtMain():''}<section class="panel" ${tab==='rounds'?'hidden':''}>${tab==='rounds'?'':tab==='rules'&&rt?`<div class="panel-head"><h3>Rules & prizes</h3></div>${rtRules()}`:tab==='bracket'?`<div class="panel-head"><h3>Bracket</h3><small style="color:var(--muted);font-size:11px">${st==='live'?'Updates live':''}</small></div><div style="padding:16px 18px">${bracket()}</div>`:tab==='players'?`<div class="panel-head"><h3>Players</h3></div>${playersTab()}`:`<div class="panel-head"><h3>Rules & prizes</h3></div>${rulesTab()}`}</section>
   ${adminPanel()}`;
 }
 async function load(){try{D=await call('GET','/api/tournaments/'+TID)}catch(e){$('tour').innerHTML=`<div class="t-empty">${esc(e.message)} <a href="/tournament" style="color:var(--gold)">See all tournaments</a></div>`;return}render()}
 document.addEventListener('click',async e=>{
  const tb=e.target.closest('[data-tab]');if(tb){tab=tb.dataset.tab;render();return}
+ const rr=e.target.closest('[data-rround]');if(rr){rtRound=+rr.dataset.rround;render();return}
+ const tr=e.target.closest('[data-tready]');if(tr){tr.disabled=true;await act(`/api/tournaments/${TID}/team-ready`,{match_id:+tr.dataset.tready,ready:tr.dataset.on==='1'},tr.dataset.on==='1'?"You're ready! The match starts in Discord when all six players are ready.":'Marked as not ready.');return}
+ const tres=e.target.closest('[data-tres]');if(tres){const sel=tres.previousElementSibling;if(!confirm('Save this result? Standings update straight away.'))return;tres.disabled=true;
+  await act(`/api/tournaments/${TID}/admin`,{action:'team_result',match_id:+tres.dataset.tres,winner_team:+sel.value});return}
+ const tsub=e.target.closest('[data-tsub]');if(tsub){const inSel=tsub.previousElementSibling,outSel=inSel.previousElementSibling;if(!confirm(`${inSel.options[inSel.selectedIndex].text.replace('In: ','')} replaces ${outSel.options[outSel.selectedIndex].text.replace('Out: ','')}?`))return;tsub.disabled=true;
+  await act(`/api/tournaments/${TID}/admin`,{action:'substitute',match_id:+tsub.dataset.tsub,out_user:outSel.value,in_user:inSel.value});return}
  const rb=e.target.closest('[data-round]');if(rb){roundSel=+rb.dataset.round;render();return}
  const mm=e.target.closest('[data-match]');if(mm){e.preventDefault();openMatchDetail(mm.dataset.match);return}
  if(e.target.id==='shareBtn'){try{await navigator.clipboard.writeText(location.href);e.target.textContent='Link copied ✓'}catch(_){};return}

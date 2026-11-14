@@ -168,6 +168,70 @@ button.btn.secondary{background:transparent;color:var(--white)}
 .tform textarea{min-height:110px;resize:vertical}
 .tform input:focus,.tform select:focus,.tform textarea:focus{outline:none;border-color:var(--gold)}
 @media(max-width:760px){.rtabs{display:flex}.bracket{grid-template-columns:1fr!important;min-width:0!important}.round{display:none}.round.active{display:block}.round .col{height:auto!important;gap:12px}.round:not(:last-child) .m::after{display:none}.tform{grid-template-columns:1fr}}
+
+.fmtchip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;background:#1f1a10;border:1px solid #6e5424;color:var(--gold);font:800 10px Inter;letter-spacing:.8px;text-transform:uppercase;margin-left:8px;vertical-align:4px}
+.rt-grid{display:grid;grid-template-columns:minmax(0,1fr) 480px;gap:18px;align-items:start}
+.rt-tabs{display:flex;gap:6px;margin:0 0 14px;flex-wrap:wrap}
+.rt-tabs button{padding:8px 14px;border-radius:20px;border:1px solid #3a3327;background:transparent;font:700 12px Inter;color:#cfcac0;cursor:pointer}
+.rt-tabs button.on{border-color:var(--gold);color:var(--gold);background:#2a2213}.rt-tabs button.done{color:#8fe0b2;border-color:#285a40}
+.rt-tabs span{padding:8px 14px;border-radius:20px;border:1px dashed #3a3327;font:700 12px Inter;color:#6f6c66}
+.rt-mlist{display:grid;gap:12px}
+.rt-mc{border-radius:14px;background:#141417;border:1px solid #2c2a26;overflow:hidden}
+.rt-mc.rt-mine{border-color:#5865f2;box-shadow:0 0 0 1px #5865f288}.rt-mc.rt-on{border-color:#285a40}
+.rt-mh{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 14px;background:#ffffff06;font-size:11.5px;color:#a29e95}
+.rt-mh b{color:var(--white);font:700 15px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.6px}
+.rt-mh .rt-st{font-weight:800;font-size:10.5px;letter-spacing:.6px;text-transform:uppercase}
+.rt-mb{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;padding:12px 14px}
+.rt-side{display:flex;flex-direction:column;gap:5px;min-width:0}
+.rt-side.rt-r{text-align:right;align-items:flex-end}
+.rt-side span{font-size:12.5px;color:#cfcac0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.rt-side span a{color:inherit}.rt-side span a:hover{color:var(--gold)}
+.rt-side span.rt-me{color:#b9bde8}
+.rt-side span em{font-style:normal;color:#8f8b82;font-weight:500;font-size:11px}
+.rt-side small{color:#6f6c66;font-size:10.5px;margin-top:3px}
+.rt-side.rt-win span{color:var(--white)}.rt-side.rt-win small{color:#8fe0b2}
+.rt-side.rt-lose span{color:#6f6c66}
+.rt-vs{font:800 16px 'Barlow Condensed';color:#6f6c66;text-align:center}
+.rt-vs b{display:block;font-size:20px;color:var(--gold2)}
+.rt-foot{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 14px 10px;border-top:1px solid #ffffff08;font-size:11px;color:#8f8b82}
+.rt-foot a{color:var(--gold);font-weight:700}
+.rt-foot select{padding:5px 6px;border-radius:6px;border:1px solid #3a3327;background:#111114;color:var(--white);font:inherit;font-size:11px;max-width:150px}
+.rt-foot button{padding:5px 9px;border-radius:6px;border:1px solid #6e5424;background:#2a2213;color:var(--gold);font:700 10.5px Inter;cursor:pointer}
+.rt-byes{margin-top:12px;padding:12px 14px;border-radius:12px;border:1px dashed #3a3327;font-size:12.5px;color:#a29e95;line-height:1.6}
+.rt-byes b{color:var(--white)}
+table.rt-std{width:100%;border-collapse:collapse;font-size:12.5px}
+.rt-std th{padding:9px 6px;color:#8f8b82;font-size:9.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;text-align:right;border-bottom:1px solid var(--line)}
+.rt-std th:nth-child(-n+2){text-align:left}
+.rt-std td{padding:9px 6px;text-align:right;border-bottom:1px solid #ffffff08;color:#cfcac0}
+.rt-std td:nth-child(-n+2){text-align:left}
+.rt-std td.rt-pts{font:800 17px 'Barlow Condensed';color:var(--gold2)}
+.rt-std tr.rt-me td{background:#1c1f3a}
+.rt-std .rt-rk{font:800 15px 'Barlow Condensed';color:#8f8b82;width:30px}
+.rt-std .rt-who{display:flex;align-items:center;gap:8px;min-width:0}
+.rt-std .rt-who a{color:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px}
+.rt-av{flex:0 0 24px;width:24px;height:24px;border-radius:50%;background:#29251d;color:var(--gold);display:grid;place-items:center;font-size:10px;font-weight:800}
+.rt-form{display:inline-flex;gap:3px}.rt-form i{width:16px;height:16px;border-radius:4px;font:800 9px/16px Inter;text-align:center;font-style:normal;color:#0c0c0e}
+.rt-form .w{background:#69d49a}.rt-form .l{background:#e2735f}.rt-form .b{background:#4a4a52;color:#ddd}.rt-form .n{background:transparent;border:1px dashed #3a3327;color:#6f6c66}
+.rt-podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:14px;align-items:end;margin:6px 0 20px}
+.rt-pod{text-align:center;padding:20px 14px;border-radius:16px;background:linear-gradient(180deg,#1b1b20,#121214);border:1px solid #3a3327}
+.rt-pod.rt-first{border-color:#8a682b;background:radial-gradient(120% 120% at 50% 0%,#3a2a0e,#121214);padding:28px 14px}
+.rt-pod .rt-medal{font-size:38px}.rt-pod.rt-first .rt-medal{font-size:52px}
+.rt-pod .rt-pav{width:64px;height:64px;margin:8px auto;border-radius:50%;border:2px solid #b88927;background:#29251d;color:var(--gold);display:grid;place-items:center;font:800 26px 'Barlow Condensed'}
+.rt-pod b{display:block;font:800 24px 'Barlow Condensed';text-transform:uppercase}
+.rt-pod small{display:block;color:#a29e95;font-size:12px;margin-top:3px}
+.rt-pod .rt-p{font:800 30px 'Barlow Condensed';color:var(--gold2);margin-top:6px}
+.fmt-pick{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fmt-pick label{display:block;padding:16px;border-radius:12px;border:1px solid #3a3327;background:#141417;cursor:pointer}
+.fmt-pick input{width:auto!important;margin-right:8px;accent-color:#f0b82f}
+.fmt-pick label:has(input:checked){border-color:var(--gold);background:#221c10}
+.fmt-pick b{font-size:14px}.fmt-pick small{display:block;margin-top:6px}
+.pool{display:flex;flex-wrap:wrap;gap:8px}.pool label{display:flex;align-items:center;gap:6px;margin:0;padding:7px 10px;border-radius:8px;border:1px solid #3a3327;background:#141417;font-weight:600;font-size:12px;cursor:pointer}
+.pool input{width:auto;accent-color:#f0b82f}
+.roundmaps{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.hint6{margin-top:6px;font-size:11.5px;padding:8px 10px;border-radius:8px}
+.hint6.ok{background:#13241b;color:#cfe9d9;border:1px solid #285a40}.hint6.warn{background:#2a2213;color:#f0d79a;border:1px solid #6e5424}
+@media(max-width:1100px){.rt-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.rt-podium{grid-template-columns:1fr}.rt-pod.rt-first{order:-1}.rt-mb{grid-template-columns:1fr;text-align:left}.rt-side.rt-r{text-align:left;align-items:flex-start}.rt-std th:nth-child(n+5):not(:last-child),.rt-std td:nth-child(n+5):not(:last-child){display:none}.fmt-pick{grid-template-columns:1fr}}
 </style>
 <link rel="stylesheet" href="/static/common.css">
 <script src="/static/common.js"></script>
@@ -179,7 +243,7 @@ button.btn.secondary{background:transparent;color:var(--white)}
  <nav class="nav"><a href="/">Home</a><a href="/leaderboard">Leaderboard</a><a href="/matches">Matches</a><a href="/civs">Civ Stats</a><a href="/community">Community</a><a href="/voice-activity">Voice Activity</a><a href="/tournament">Tournament</a><a href="/about">About</a><a href="/contact">Contact Us</a><a href="/login">Log in</a></nav>
  <a class="discord" id="discordLink" href="https://discord.gg/thecheeseclub" target="_blank" rel="noreferrer">JOIN DISCORD ↗</a>
 </header>
-<div class="t-wrap"><div class="t-top"><div><span class="t-kicker">Admins only</span><h1>Create a tournament</h1><p>1v1, single elimination. Players sign up on the website, check in before it starts, and play their matches in Discord.</p></div></div><div id="formBox"><div class="t-empty">Loading…</div></div></div>
+<div class="t-wrap"><div class="t-top"><div><span class="t-kicker">Admins only</span><h1>Create a tournament</h1><p>Players sign up on the website, check in before it starts, and play their matches in Discord.</p></div></div><div id="formBox"><div class="t-empty">Loading…</div></div></div>
 <footer class="footer"><span>© <span id="year"></span> THE CHEESE CLUB</span><span>Play Together. Laugh Together. Win Together.</span></footer>
 </div>
 <div class="detail-backdrop" id="detailBackdrop" onclick="if(event.target===this)closeMatchDetail()"><section class="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailTitle"><div class="detail-head"><h2 id="detailTitle">Match Details</h2><button class="detail-close" onclick="closeMatchDetail()">Close ✕</button></div><div id="detailContent"><div class="empty">Loading match details…</div></div></section></div>
@@ -201,26 +265,50 @@ setInterval(()=>document.querySelectorAll('[data-until]').forEach(el=>{el.textCo
 const boText=t=>t.bo_default===t.bo_semi&&t.bo_semi===t.bo_final?`Best of ${t.bo_final} every round`:`Best of ${t.bo_default} early rounds, ${t.bo_semi} semis, ${t.bo_final} final`;
 const STATUS={signup:'Sign-ups open',checkin:'Check-in open',live:'Live',finished:'Finished',cancelled:'Cancelled'};
 const initials=n=>esc((n||'?').trim().slice(0,1).toUpperCase());
+const isRT=t=>t.format==='random3v3';
+const fmtName=t=>isRT(t)?'🎲 Random Team 3v3':'⚔️ 1v1 Cup';
+const fmtIcon=t=>isRT(t)?'🎲':'⚔️';
 
 const pad=n=>String(n).padStart(2,'0');
 function defaultStart(){const d=new Date();d.setDate(d.getDate()+((6-d.getDay()+7)%7||7));d.setHours(20,0,0,0);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T20:00`}
+let MAPS=[];
+function hint6(){const n=+$('tMax').value,rt=$('fRT').checked,box=$('hint6');if(!rt){box.hidden=true;return}box.hidden=false;
+ const out=n%6,m=Math.floor(n/6);box.className='hint6 '+(out?'warn':'ok');
+ box.textContent=out?`${n} players → ${m} matches per round and ${out} sit${out===1?'s':''} out each round (they get the sit-out points and can be substitutes). Multiples of 6 mean nobody sits out.`:`${n} players → ${m} matches per round and nobody sits out. 👍`}
+function roundMaps(){const n=+$('tRounds').value,prev=[...document.querySelectorAll('.rmap')].map(x=>x.value);
+ $('roundMaps').innerHTML=Array.from({length:n},(_,i)=>`<label style="margin:0"><small style="display:block;margin:0 0 4px;font-weight:700;color:#cfcac0">Round ${i+1}</small><select class="rmap"><option value="random">🎲 Random (pool)</option>${MAPS.map(m=>`<option ${prev[i]===m?'selected':''}>${esc(m)}</option>`).join('')}</select></label>`).join('')}
+function toggle(){const rt=$('fRT').checked;document.querySelectorAll('.only-rt').forEach(e=>e.hidden=!rt);document.querySelectorAll('.only-1v1').forEach(e=>e.hidden=rt);
+ if(rt&&+$('tMax').value<12){$('tMax').value='24'}hint6()}
 (async()=>{
  let d;try{d=await call('GET','/api/tournaments')}catch(e){d={is_admin:false}}
  if(!d.is_admin){$('formBox').innerHTML='<div class="t-empty">Only Cheese Club admins can create tournaments. <a href="/tournament" style="color:var(--gold);font-weight:700">See tournaments</a></div>';return}
+ try{MAPS=(await call('GET','/api/tournaments/config/maps')).maps}catch(e){MAPS=[]}
  $('formBox').innerHTML=`<section class="panel"><div id="fmsg" style="padding:16px 22px 0"></div><form class="tform" id="tf">
+  <div class="full"><label>Format</label><div class="fmt-pick">
+   <label><input type="radio" name="fmt" id="f1v1" value="single" checked><b>⚔️ 1v1 Cup</b><small>Single elimination bracket. Best-of series, seeded by AoE4World rating.</small></label>
+   <label><input type="radio" name="fmt" id="fRT" value="random3v3"><b>🎲 Random Team 3v3</b><small>Players sign up alone, get new random (balanced) teammates every round, and score individual points.</small></label></div></div>
   <div class="full"><label for="tName">Name</label><input id="tName" maxlength="80" required placeholder="Weekly Cheese Cup #1"></div>
-  <div class="full"><label for="tDesc">Short description</label><input id="tDesc" maxlength="600" placeholder="Our Saturday 1v1 cup. Eight players, best of 3 semis, best of 5 final."></div>
+  <div class="full"><label for="tDesc">Short description</label><input id="tDesc" maxlength="600" placeholder="Our Saturday cup."></div>
   <div><label for="tStart">Starts</label><input id="tStart" type="datetime-local" required value="${defaultStart()}"><small>In your time zone (${esc(Intl.DateTimeFormat().resolvedOptions().timeZone)}). Everyone sees it in theirs.</small></div>
-  <div><label for="tMax">Players</label><select id="tMax"><option>4</option><option selected>8</option><option>16</option><option>32</option></select><small>Extra sign-ups go on a waiting list.</small></div>
+  <div><label for="tMax">Players</label><select id="tMax">${[4,8,12,16,18,20,24,30,32,36,48].map(n=>`<option ${n===8?'selected':''}>${n}</option>`).join('')}</select><small>Extra sign-ups go on a waiting list.</small><div class="hint6" id="hint6" hidden></div></div>
   <div><label for="tCheck">Check-in opens</label><select id="tCheck"><option value="15">15 minutes before</option><option value="30" selected>30 minutes before</option><option value="45">45 minutes before</option><option value="60">1 hour before</option></select><small>Players who don't check in lose their spot.</small></div>
-  <div><label>Best of</label><div style="display:flex;gap:8px"><select id="tBo1" aria-label="Early rounds"><option value="1" selected>Early: Bo1</option><option value="3">Early: Bo3</option></select><select id="tBo2" aria-label="Semifinals"><option value="1">Semis: Bo1</option><option value="3" selected>Semis: Bo3</option><option value="5">Semis: Bo5</option></select><select id="tBo3" aria-label="Final"><option value="1">Final: Bo1</option><option value="3">Final: Bo3</option><option value="5" selected>Final: Bo5</option><option value="7">Final: Bo7</option></select></div></div>
+  <div class="only-1v1"><label>Best of</label><div style="display:flex;gap:8px"><select id="tBo1" aria-label="Early rounds"><option value="1" selected>Early: Bo1</option><option value="3">Early: Bo3</option></select><select id="tBo2" aria-label="Semifinals"><option value="1">Semis: Bo1</option><option value="3" selected>Semis: Bo3</option><option value="5">Semis: Bo5</option></select><select id="tBo3" aria-label="Final"><option value="1">Final: Bo1</option><option value="3">Final: Bo3</option><option value="5" selected>Final: Bo5</option><option value="7">Final: Bo7</option></select></div></div>
+  <div class="only-rt" hidden><label for="tRounds">Rounds</label><select id="tRounds">${[3,4,5,6,7,8].map(n=>`<option ${n===5?'selected':''}>${n}</option>`).join('')}</select><small>Each round: new random teams, one 3v3 match each.</small></div>
+  <div class="only-rt" hidden><label>Points</label><div style="display:flex;gap:8px"><select id="tPw" aria-label="Points for a win"><option value="1" selected>Win: 1 point</option><option value="2">Win: 2 points</option><option value="3">Win: 3 points</option></select><select id="tPb" aria-label="Points for sitting out"><option value="0">Sit-out: 0</option><option value="0.5" selected>Sit-out: 0.5</option><option value="1">Sit-out: 1</option></select></div><small>Loss = 0. Ties: opponents' points, then fewer sit-outs.</small></div>
+  <div class="full only-rt" hidden><label>Map for each round</label><div class="roundmaps" id="roundMaps"></div><small>Everyone plays the same map in a round. "Random from pool" picks one when the round's teams are made.</small></div>
+  <div class="full only-rt" hidden><label>Map pool (for random rounds)</label><div class="pool">${MAPS.map(m=>`<label><input type="checkbox" class="pmap" value="${esc(m)}" checked>${esc(m)}</label>`).join('')}</div></div>
   <div class="full"><label for="tPrize">Prizes (optional)</label><input id="tPrize" maxlength="500" placeholder="Champion role, trophy badge and 500 Cheese Coins"></div>
-  <div class="full"><label for="tRules">Rules (optional)</label><textarea id="tRules" maxlength="3000" placeholder="10 minutes late = forfeit. Map veto and civ bans are run by the bot. Disputes go to an admin."></textarea></div>
+  <div class="full"><label for="tRules">Rules (optional)</label><textarea id="tRules" maxlength="3000" placeholder="10 minutes late = forfeit. Civ bans are run by the bot. Disputes go to an admin."></textarea></div>
   <div class="full" style="display:flex;gap:10px"><button class="btn primary" type="submit">Create tournament</button><a class="btn secondary" href="/tournament">Cancel</a></div></form></section>`;
- $('tf').addEventListener('submit',async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;
-  try{const r=await call('POST','/api/tournaments',{name:$('tName').value,description:$('tDesc').value,starts_at:new Date($('tStart').value).toISOString(),
-   max_players:+$('tMax').value,checkin_minutes:+$('tCheck').value,bo_default:+$('tBo1').value,bo_semi:+$('tBo2').value,bo_final:+$('tBo3').value,prizes:$('tPrize').value,rules:$('tRules').value});
-   location.href='/tournament/'+r.id}catch(err){btn.disabled=false;$('fmsg').innerHTML=`<div class="t-msg err">${esc(err.message)}</div>`}});
+ roundMaps();
+ document.querySelectorAll('input[name=fmt]').forEach(r=>r.addEventListener('change',toggle));
+ $('tMax').addEventListener('change',hint6);$('tRounds').addEventListener('change',roundMaps);
+ $('tf').addEventListener('submit',async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;const rt=$('fRT').checked;
+  try{const r=await call('POST','/api/tournaments',{format:rt?'random3v3':'single',name:$('tName').value,description:$('tDesc').value,starts_at:new Date($('tStart').value).toISOString(),
+   max_players:+$('tMax').value,checkin_minutes:+$('tCheck').value,bo_default:+$('tBo1').value,bo_semi:+$('tBo2').value,bo_final:+$('tBo3').value,
+   rounds:+$('tRounds').value,points_win:+$('tPw').value,points_bye:+$('tPb').value,round_maps:[...document.querySelectorAll('.rmap')].map(x=>x.value),
+   map_pool:[...document.querySelectorAll('.pmap:checked')].map(x=>x.value),prizes:$('tPrize').value,rules:$('tRules').value});
+   location.href='/tournament/'+r.id}catch(err){btn.disabled=false;$('fmsg').innerHTML=`<div class="t-msg err">${esc(err.message)}</div>`;$('fmsg').scrollIntoView()}});
 })();
 
 </script>

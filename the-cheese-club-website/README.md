@@ -124,7 +124,10 @@ Needs the bot version with website queueing (it creates `aoe_queue_live` and `ao
   `website_users` and `member_achievements_seen` (website).
 
 ## Tournaments
-Version 1: 1v1, single elimination.
+Two formats: **1v1 Cup** (single elimination) and **Random Team 3v3** (below). Tournament games are marked
+as tournament games (`aoe_matches.is_tournament`): they appear in match history and live with a
+"Tournament" label, but don't change queue stats, community ratings, player insights, civ stats or
+highlights.
 - **Admins** create tournaments at `/tournament/new`. Set `ADMIN_DISCORD_IDS` on the **website** service
   (comma-separated Discord IDs) to choose who can create, start, cancel, set winners and remove players.
 - **Lifecycle:** sign-ups open as soon as a tournament is created. Check-in opens automatically before the
@@ -136,9 +139,25 @@ Version 1: 1v1, single elimination.
   Once both are ready, the bot starts the game in Discord (thread, map veto, civ bans) with a tournament
   heading. Results come from the normal match result. In best-of series the next game starts automatically.
   A game cancelled in Discord doesn't count, and both players press Ready again.
-- Tournament games also count as normal 1v1 club matches.
 - Champions and runners-up appear in the Hall of Champions and as trophies on their player pages.
 - Tables: `tournaments`, `tournament_players`, `tournament_matches`, `tournament_games` (created by the website).
+
+### Random Team 3v3
+- Players sign up alone. Each round the website makes new 3v3 teams: random, but balanced by rating
+  (team averages within about 60) and avoiding repeated teammates (and, less strongly, opponents).
+- If the player count isn't a multiple of 6, the extra players sit out: whoever has sat out least goes
+  first, and nobody sits out twice in a row if avoidable. They get the sit-out points and can be
+  substituted in by an admin if someone doesn't show up.
+- Points are individual: win (default 1), loss 0, sit-out (default 0.5). Ties: opponents' points, then
+  fewer sit-outs, then rating. Standings are calculated from saved results, so corrections update them.
+- Admin chooses the rounds, points, a map for each round (or random from a pool) and the pool.
+- When all six players in a match press Ready, the bot starts it in Discord with the teams already set
+  (no draft), runs civ bans and picks, and the normal result confirmation records the winner. After the
+  last match of a round the next round's teams are made automatically; after the last round the top 3
+  are recorded (Hall of Fame, player trophies).
+- Admin: set or correct results, substitute, regenerate the current round (before anyone is ready),
+  remove a player from later rounds. Every admin action is saved in `tournament_admin_log`.
+- Tables: `tournament_team_matches`, `tournament_round_byes`, `tournament_admin_log`.
 
 ## Voice time
 A member's voice time is their `vc_stats` total. Members with no `vc_stats` rows fall back to the

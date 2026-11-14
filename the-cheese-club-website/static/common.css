@@ -105,3 +105,6 @@
 @media(max-width:520px){.top-actions{gap:8px}.top-actions .nav-user-btn span{display:none}.top-actions .discord{padding:9px 11px;font-size:10px}}
 @media(max-width:520px){.top-actions .bell-panel{position:fixed;left:12px;right:12px;width:auto}}
 @media(max-width:1499px){.top-actions.with-discord .nav-user-btn span{display:none}.top-actions.with-discord .nav-user-btn{padding:4px 7px 4px 4px}}
+
+/* Tournament games in match lists */
+.t-label{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:10px;background:#2a2213;border:1px solid #6e5424;color:var(--gold,#f0b82f);font:800 9.5px Inter,sans-serif;letter-spacing:.4px;text-transform:uppercase;vertical-align:2px}

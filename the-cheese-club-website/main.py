@@ -444,6 +444,17 @@ async def fetchval(query: str, *args, default=0):
         return default if value is None else value
 
 
+def _str_list(value) -> list:
+    """A JSON list from the database as a list of strings; anything else (NULL, JSON null,
+    bad data) is an empty list, so one odd value can't break the match pop-up."""
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            return []
+    return [str(x) for x in value] if isinstance(value, list) else []
+
+
 def match_summary(row) -> dict:
     """Public fields of a match list entry. Raw Discord IDs are not included."""
     return {
@@ -734,7 +745,7 @@ async def match_detail(match_id: int):
         "result": row["result"],
         "tournament": bool(row["is_tournament"]),
         "map": row["map"] or (_json_obj(row["active_state"]).get("final_map") if row["active_state"] else None),
-        "map_bans": [str(x) for x in (json.loads(row["map_bans"]) if isinstance(row["map_bans"], str) else (row["map_bans"] or []))],
+        "map_bans": _str_list(row["map_bans"]),
         "created_at": row["created_at"],
         "finished_at": row["finished_at"],
         "player_count": len(all_ids),
@@ -3399,6 +3410,7 @@ def _ffa_needed(n: int) -> int:
 
 async def _ffa_out(t: dict, uid) -> dict:
     ms = [dict(r) for r in await fetch("SELECT * FROM tournament_ffa_matches WHERE tournament_id=$1 ORDER BY round", t["id"])]
+    guild = t.get("guild_id")
     names = await people(list({u for m in ms for u in m["players"]}))
     out = []
     for m in ms:
@@ -3412,6 +3424,7 @@ async def _ffa_out(t: dict, uid) -> dict:
                     "reported_by": names.get(m["reported_by"]) if m["reported_by"] else None,
                     "confirmations": len(m["confirmations"]), "needed": _ffa_needed(len(m["players"])),
                     "civ_phase": m.get("civ_phase") or "done",
+                    "thread_url": f"https://discord.com/channels/{guild}/{m['thread_id']}" if guild and m.get("thread_id") else None,
                     "bans_done": len(json_obj_safe(m.get("bans"))), "picks_done": len(json_obj_safe(m.get("picks"))),
                     "my_ban": json_obj_safe(m.get("bans")).get(uid) if uid else None,
                     "my_pick": json_obj_safe(m.get("picks")).get(uid) if uid else None,
@@ -3514,6 +3527,8 @@ async def api_ffa_ready(request: Request, tid: int):
     m = await _ffa_match(tid, int(b.get("match_id") or 0))
     if user["uid"] not in m["players"] or m["status"] != "ready":
         raise HTTPException(status_code=400, detail="This lobby isn't waiting for you right now.")
+    if b.get("ready", True) and m.get("civ_phase") in ("ban", "pick") and user["uid"] not in json_obj_safe(m.get("picks")):
+        raise HTTPException(status_code=400, detail="Lock in your civ first, then press I'm ready.")
     if b.get("ready", True):
         await fetch("UPDATE tournament_ffa_matches SET ready_ids=array_append(array_remove(ready_ids,$2),$2), updated_at=NOW() WHERE id=$1 AND status='ready'", m["id"], user["uid"])
     else:

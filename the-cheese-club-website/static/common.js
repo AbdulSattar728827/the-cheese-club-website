@@ -250,3 +250,69 @@ function ccRenderBell(bell){
   const list=bell.querySelector('.bell-list');
   list.innerHTML=ccBellItems.length?ccBellItems.map(i=>`<a class="bell-item ${i.read_at?'':'unread'}" href="${ccEsc(i.link||'/dashboard')}" data-nid="${i.id}"><span class="bell-dot" aria-hidden="true"></span><span class="bell-text"><b>${ccEsc(i.title)}</b>${i.body?`<span>${ccEsc(i.body)}</span>`:''}<small>${ccAgo(i.created_at)}</small></span></a>`).join(''):'<div class="bell-empty">You\'re all caught up. 🧀<br><small>Queue alerts, match results and new achievements show up here.</small></div>';
 }
+
+
+/* ---- Sortable tables -------------------------------------------------------
+   Every table with a header row becomes sortable: click a column header to sort
+   (high to low first, click again for low to high). The choice is remembered for
+   the page, so it survives the automatic refreshes. Tables that sort themselves
+   (header buttons with data-sort) are left alone. */
+const ccSortState={};
+function ccCellValue(td){
+  if(!td)return {n:null,t:''};
+  if(td.dataset.sort!==undefined){const v=Number(td.dataset.sort);return isNaN(v)?{n:null,t:td.dataset.sort.toLowerCase()}:{n:v,t:''}}
+  const t=(td.innerText||td.textContent||'').trim();
+  if(!t||t==='—'||t==='-'||t==='–'||t==='N/A')return {n:-Infinity,t:''};
+  const dur=t.replace(/,/g,'').match(/^(?:(\d+)\s*d)?\s*(?:(\d+)\s*h)?\s*(?:(\d+)\s*m(?:in)?)?\s*(?:(\d+)\s*s)?$/i);
+  if(dur&&dur.slice(1).some(Boolean))return {n:((+dur[1]||0)*1440+(+dur[2]||0)*60+(+dur[3]||0))*60+(+dur[4]||0),t:''};
+  const num=t.replace(/[,\s]/g,'').match(/^[#+]?(-?\d+(?:\.\d+)?)/);
+  if(num)return {n:parseFloat(num[1]),t:''};
+  const any=t.replace(/,/g,'').match(/-?\d+(?:\.\d+)?/);
+  if(any&&/^[^a-z]*\d/i.test(t))return {n:parseFloat(any[0]),t:''};
+  return {n:null,t:t.toLowerCase()};
+}
+function ccTableKey(table){return location.pathname+'|'+(table.id||'')+'|'+[...table.querySelectorAll('thead th')].map(th=>th.textContent.trim()).join('/')}
+let ccSorting=false;
+function ccApplySort(table){
+  const st=ccSortState[ccTableKey(table)];const ths=[...table.querySelectorAll('thead th')];
+  ths.forEach((th,i)=>{if(st&&st.col===i)th.setAttribute('aria-sort',st.dir>0?'ascending':'descending');else th.removeAttribute('aria-sort')});
+  if(!st)return;
+  const body=table.tBodies[0];if(!body)return;
+  const rows=[...body.rows].filter(r=>r.cells.length>1);if(rows.length<2)return;
+  const keyed=rows.map((r,i)=>({r,i,v:ccCellValue(r.cells[st.col])}));
+  keyed.sort((a,b)=>{
+    const an=a.v.n!==null,bn=b.v.n!==null;
+    if(an&&bn&&a.v.n!==b.v.n){if(a.v.n===-Infinity)return 1;if(b.v.n===-Infinity)return -1;return st.dir*(a.v.n-b.v.n)}
+    if(!an&&!bn&&a.v.t!==b.v.t)return st.dir*a.v.t.localeCompare(b.v.t);
+    if(an!==bn)return an?-1:1;
+    return a.i-b.i});
+  if(keyed.every((k,i)=>k.r===rows[i]))return;
+  ccSorting=true;keyed.forEach(k=>body.appendChild(k.r));ccSorting=false;
+  if(window.ccSortObserver)window.ccSortObserver.takeRecords();
+}
+function ccSortTables(root){
+  (root||document).querySelectorAll('table').forEach(table=>{
+    if(table.dataset.ccSortable||!table.tHead||table.querySelector('thead th button[data-sort]'))return;
+    const ths=[...table.querySelectorAll('thead th')];if(!ths.length)return;
+    table.dataset.ccSortable='1';
+    ths.forEach((th,i)=>{
+      if(!th.textContent.trim()||th.dataset.nosort!==undefined)return;
+      th.classList.add('cc-sort');th.tabIndex=0;th.setAttribute('role','button');th.title='Sort by '+th.textContent.trim();
+      const go=()=>{const k=ccTableKey(table),cur=ccSortState[k];
+        const textCol=[...table.tBodies[0]?.rows||[]].slice(0,5).every(r=>ccCellValue(r.cells[i]).n===null);
+        ccSortState[k]={col:i,dir:cur&&cur.col===i?-cur.dir:(textCol?1:-1)};ccApplySort(table)};
+      th.addEventListener('click',go);th.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}});
+    });
+    ccApplySort(table);
+  });
+}
+if(typeof MutationObserver!=='undefined'){
+  const ccObs=window.ccSortObserver=new MutationObserver(muts=>{if(ccSorting)return;
+    const tables=new Set();
+    muts.forEach(m=>{const el=m.target.nodeType===1?m.target:m.target.parentElement;const t=el&&el.closest&&el.closest('table');if(t)tables.add(t);
+      m.addedNodes.forEach(n=>{if(n.nodeType===1){if(n.tagName==='TABLE')tables.add(n);n.querySelectorAll&&n.querySelectorAll('table').forEach(x=>tables.add(x))}})});
+    tables.forEach(t=>{if(!t.dataset.ccSortable)ccSortTables(t.parentElement||document);else ccApplySort(t)});
+  });
+  const ccStart=()=>{ccSortTables(document);ccObs.observe(document.body,{childList:true,subtree:true})};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ccStart);else ccStart();
+}

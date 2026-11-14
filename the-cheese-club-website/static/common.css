@@ -108,3 +108,10 @@
 
 /* Tournament games in match lists */
 .t-label{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:10px;background:#2a2213;border:1px solid #6e5424;color:var(--gold,#f0b82f);font:800 9.5px Inter,sans-serif;letter-spacing:.4px;text-transform:uppercase;vertical-align:2px}
+
+/* Sortable tables: every column header can be clicked (common.js ccSortTables) */
+th.cc-sort{cursor:pointer;user-select:none;white-space:nowrap}
+th.cc-sort:hover,th.cc-sort:focus-visible{color:var(--gold,#f0b82f);outline:none}
+th.cc-sort::after{content:" ↕";opacity:.4;font-size:.9em}
+th.cc-sort[aria-sort="descending"]::after{content:" ↓";opacity:1;color:var(--gold,#f0b82f)}
+th.cc-sort[aria-sort="ascending"]::after{content:" ↑";opacity:1;color:var(--gold,#f0b82f)}

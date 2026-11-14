@@ -118,6 +118,9 @@ TOURNAMENT_TABLES = [
     )""",
     "ALTER TABLE tournament_ffa_matches ADD COLUMN IF NOT EXISTS civs JSONB",
     "ALTER TABLE tournament_ffa_matches ADD COLUMN IF NOT EXISTS civ_phase TEXT",
+    "ALTER TABLE tournament_ffa_matches ADD COLUMN IF NOT EXISTS claims JSONB NOT NULL DEFAULT '{}'",
+    "ALTER TABLE tournament_ffa_matches ADD COLUMN IF NOT EXISTS dnf TEXT[] NOT NULL DEFAULT '{}'",
+    "ALTER TABLE tournament_ffa_matches ADD COLUMN IF NOT EXISTS vc_ids JSONB NOT NULL DEFAULT '{}'",
     "ALTER TABLE tournament_ffa_matches ADD COLUMN IF NOT EXISTS bans JSONB NOT NULL DEFAULT '{}'",
     "ALTER TABLE tournament_ffa_matches ADD COLUMN IF NOT EXISTS picks JSONB NOT NULL DEFAULT '{}'",
     "ALTER TABLE tournament_ffa_matches ADD COLUMN IF NOT EXISTS civ_announced TEXT[] NOT NULL DEFAULT '{}'",
@@ -3411,7 +3414,7 @@ def _ffa_needed(n: int) -> int:
 async def _ffa_out(t: dict, uid) -> dict:
     ms = [dict(r) for r in await fetch("SELECT * FROM tournament_ffa_matches WHERE tournament_id=$1 ORDER BY round", t["id"])]
     guild = t.get("guild_id")
-    names = await people(list({u for m in ms for u in m["players"]}))
+    names = await people(list({u for m in ms for u in list(m["players"]) + list(m.get("dnf") or [])}))
     out = []
     for m in ms:
         pl = json_obj_safe(m["placements"]) if m["placements"] else {}
@@ -3424,6 +3427,10 @@ async def _ffa_out(t: dict, uid) -> dict:
                     "reported_by": names.get(m["reported_by"]) if m["reported_by"] else None,
                     "confirmations": len(m["confirmations"]), "needed": _ffa_needed(len(m["players"])),
                     "civ_phase": m.get("civ_phase") or "done",
+                    "claims": [{**names.get(u, {}), "place": int(pl_), "me": u == uid}
+                               for u, pl_ in sorted(json_obj_safe(m.get("claims")).items(), key=lambda kv: int(kv[1])) if u in m["players"]],
+                    "my_place": int(json_obj_safe(m.get("claims")).get(uid) or 0) if uid else 0,
+                    "dnf": [names.get(u, {}) for u in (m.get("dnf") or [])],
                     "thread_url": f"https://discord.com/channels/{guild}/{m['thread_id']}" if guild and m.get("thread_id") else None,
                     "bans_done": len(json_obj_safe(m.get("bans"))), "picks_done": len(json_obj_safe(m.get("picks"))),
                     "my_ban": json_obj_safe(m.get("bans")).get(uid) if uid else None,
@@ -3510,6 +3517,79 @@ async def ffa_civ_action(t: dict, mid: int, uid: str, action: str, civ: str) -> 
             return "Civ locked in. Everyone's civs are revealed when all players have picked." if not done else "Civ locked in. All civs are revealed!"
 
 
+async def ffa_claim_place(t: dict, mid: int, uid: str, place: int) -> str:
+    """A player takes (or changes, or clears with place 0) their own finishing place.
+    When every player has a place, the lobby waits for an admin to confirm.
+    The Discord bot applies the same rules."""
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            m = await conn.fetchrow("SELECT * FROM tournament_ffa_matches WHERE id=$1 FOR UPDATE", mid)
+            if not m or uid not in m["players"]:
+                raise HTTPException(status_code=403, detail="You're not in this lobby.")
+            if m["status"] not in ("playing", "reported") or m["civ_phase"] in ("ban", "pick"):
+                raise HTTPException(status_code=400, detail="Places can be reported once everyone is ready and civs are revealed.")
+            claims = {u: int(p) for u, p in json_obj_safe(m["claims"]).items() if u in m["players"]}
+            n = len(m["players"])
+            if place == 0:
+                claims.pop(uid, None)
+            else:
+                if not 1 <= place <= n:
+                    raise HTTPException(status_code=400, detail=f"Pick a place from 1 to {n}.")
+                taken = next((u for u, p in claims.items() if p == place and u != uid), None)
+                if taken:
+                    raise HTTPException(status_code=400, detail=f"#{place} is already taken. Pick another place.")
+                claims[uid] = place
+            full = len(claims) == n
+            await conn.execute("""UPDATE tournament_ffa_matches SET claims=$2, status=$3, placements=CASE WHEN $4 THEN $2::jsonb ELSE NULL END,
+                                  updated_at=NOW() WHERE id=$1""", mid, json.dumps(claims), "reported" if full else "playing", full)
+    if full:
+        for a in ADMIN_IDS:
+            await _tnotify(a, "tournament", f"🏁 All places are in: {t['name']}", "Confirm the placements (or change them) on the tournament page.",
+                           t["id"], f"ffa{mid}-claims-{int(time.time())}")
+        return "Place saved. Everyone has reported: an admin will confirm the result."
+    return "Place cleared." if place == 0 else f"You're #{place}. Waiting for the others."
+
+
+async def ffa_remove_player(t: dict, mid: int, uid: str):
+    """Take a player out of a lobby (AFK). They 'did not play' this round (0 points);
+    the others carry on straight away."""
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            m = await conn.fetchrow("SELECT * FROM tournament_ffa_matches WHERE id=$1 FOR UPDATE", mid)
+            if not m or uid not in m["players"]:
+                raise HTTPException(status_code=400, detail="That player isn't in this lobby.")
+            if m["status"] == "done":
+                raise HTTPException(status_code=400, detail="This lobby is already finished: change the placements instead.")
+            players = [u for u in m["players"] if u != uid]
+            drop = lambda d: {k: v for k, v in json_obj_safe(d).items() if k != uid}
+            bans, picks, claims = drop(m["bans"]), drop(m["picks"]), drop(m["claims"])
+            phase = m["civ_phase"]
+            if phase == "ban" and players and len(bans) >= len(players):
+                phase = "pick"
+            if phase == "pick" and players and len(picks) >= len(players):
+                phase = "done"
+            claims = {k: v for k, v in claims.items() if int(v) <= len(players)}
+            status = m["status"]
+            if status in ("playing", "reported"):
+                status = "reported" if players and len(claims) == len(players) and len(set(claims.values())) == len(players) else "playing"
+            await conn.execute("""UPDATE tournament_ffa_matches SET players=$2, ready_ids=array_remove(ready_ids,$3), bans=$4, picks=$5,
+                                  claims=$6, civ_phase=$7, civs=CASE WHEN $7='done' THEN $5::jsonb ELSE civs END, status=$8,
+                                  placements=CASE WHEN $8='reported' THEN $6::jsonb ELSE NULL END,
+                                  dnf=array_append(dnf,$3), updated_at=NOW() WHERE id=$1""",
+                               mid, players, uid, json.dumps(bans), json.dumps(picks), json.dumps(claims), phase, status)
+    await _tnotify(uid, "tournament", f"You were removed from the lobby in {t['name']}", "An admin removed you from this round (did not play).",
+                   t["id"], f"ffa{mid}-dnf-{uid}")
+
+
+@app.post("/api/tournaments/{tid}/ffa-place")
+async def api_ffa_place(request: Request, tid: int):
+    user = require_login(request)
+    require_same_site(request)
+    b = await request.json()
+    t = await _tournament_or_404(tid)
+    return {"message": await ffa_claim_place(t, int(b.get("match_id") or 0), user["uid"], int(b.get("place") or 0))}
+
+
 @app.post("/api/tournaments/{tid}/ffa-civ")
 async def api_ffa_civ(request: Request, tid: int):
     user = require_login(request)
@@ -3546,6 +3626,7 @@ async def api_ffa_report(request: Request, tid: int):
         m = await _ffa_match(tid, int(b.get("match_id") or 0))
         if user["uid"] not in m["players"]:
             raise HTTPException(status_code=403, detail="Only players in this match can report the result.")
+        raise HTTPException(status_code=400, detail="Report your own place instead: pick your finishing position on the tournament page.")
         if m["status"] not in ("playing", "reported"):
             raise HTTPException(status_code=400, detail="This match can't be reported right now.")
         if m.get("civ_phase") in ("ban", "pick"):
@@ -3634,6 +3715,19 @@ async def api_tournament_admin(request: Request, tid: int):
                 _match_cache["rows"] = None
             await fetch("DELETE FROM tournaments WHERE id=$1", tid)
             return {"message": "Tournament deleted" + (f", along with its {removed} game{'s' if removed != 1 else ''} in match history." if b.get("delete_games") else "."), "deleted": True}
+        if t.get("format") == "ffa" and action in ("ffa_remove", "ffa_start_now"):
+            m = await _ffa_match(tid, int(b.get("match_id") or 0))
+            if action == "ffa_remove":
+                await ffa_remove_player(t, m["id"], from_public_id(str(b.get("user") or "")))
+                return {"message": "Player removed from this lobby. The others carry on."}
+            if m["status"] != "ready":
+                raise HTTPException(status_code=400, detail="This lobby has already started.")
+            missing = [u for u in m["players"] if u not in m["ready_ids"]]
+            if len(missing) == len(m["players"]):
+                raise HTTPException(status_code=400, detail="Nobody is ready yet.")
+            for u in missing:
+                await ffa_remove_player(t, m["id"], u)
+            return {"message": f"Starting with the ready players. Removed {len(missing)} player{'s' if len(missing) != 1 else ''} who {'weren' if len(missing) != 1 else 'wasn'}'t ready."}
         if t.get("format") == "ffa" and action in ("ffa_result", "ffa_approve", "ffa_civ_end"):
             m = await _ffa_match(tid, int(b.get("match_id") or 0))
             if action == "ffa_civ_end":

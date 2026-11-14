@@ -158,6 +158,14 @@ highlights.
   others confirm (at least half the lobby, minimum 2, including the reporter). A dispute goes to an
   admin, who can also set or correct placements at any time; standings recalculate.
 - FFA games are not added to match history or stats.
+- Flow: the lobby's Discord thread opens straight away (Ban / Pick / I'm ready / My place buttons; the
+  website has the same). Ready needs a locked-in civ. When everyone is ready, each player gets their own
+  voice channel ("Tournament - Player - Round N", only that player and staff can join); players in voice
+  are moved in. Each player reports their own place (taken places can't be picked; it can be changed);
+  when all have reported, an admin confirms or edits. 30 seconds after the result, players go back to
+  AOE IV General and the channels are deleted; the thread closes 30 minutes later.
+- AFK: an admin can remove a player from a lobby at any time (did not play, 0 points) or start without
+  the players who aren't ready.
 - Civ selection: every player picks a civ (website, or the buttons in the Discord thread), hidden until
   all have picked, then revealed in both places and saved with the result. Optional when creating:
   **civ bans** (each player bans one civ first) and **unique civs** (no duplicate picks). Admins can end

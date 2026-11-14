@@ -159,7 +159,15 @@ highlights.
   admin, who can also set or correct placements at any time; standings recalculate.
 - FFA games are not added to match history or stats.
 
-### Random Team 3v3
+### Rating divisions and match details
+- Any tournament can set a minimum and/or maximum AoE4World rating (community rating if a player has
+  none); sign-ups, team registrations and invite acceptances outside the range are refused.
+- The bot saves each match's final map and banned maps (`aoe_matches.map`, `map_bans`), shown in the
+  match pop-up. Every tournament game links to that pop-up, live while it's being played.
+- `/my-tournaments` (members): tournaments played, titles, podiums, tournament game record and recent
+  games, separate from queue stats.
+
+### All Random (2v2 / 3v3 / 4v4)
 - Players sign up alone. Each round the website makes new 3v3 teams: random, but balanced by rating
   (team averages within about 60) and avoiding repeated teammates (and, less strongly, opponents).
 - If the player count isn't a multiple of 6, the extra players sit out: whoever has sat out least goes

@@ -15,6 +15,7 @@ async function ccMemberInit(active){
     <nav aria-label="Member menu">
       ${item('dashboard','🏠','Dashboard','/dashboard')}
       ${item('stats','📊','Stats','/stats')}
+      ${item('tournaments','🏆','My tournaments','/my-tournaments')}
       <a href="/queue" class="${active==='queue'?'on':''}"${active==='queue'?' aria-current="page"':''}><span aria-hidden="true">⚔️</span>Queue<span class="pill" id="queuePill" hidden></span></a>
       ${me.hidden?`<span class="off" title="Your profile is hidden (see Settings)"><span aria-hidden="true">👤</span>My Profile<span class="pill">Hidden</span></span>`:item('profile','👤','My Profile',ccPlayerHref(me.user_id))}
       ${item('account','🔗','AoE4 Account','/account')}

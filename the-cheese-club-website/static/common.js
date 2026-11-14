@@ -119,7 +119,7 @@ function matchDetailHtml(m){
   const pool=Array.isArray(m.pool)?m.pool:[];
   const poolHtml=pool.length?`<div class="detail-team" style="margin-top:12px"><h3>Waiting to be drafted</h3>${pool.map(matchPlayer).join('')}</div>`:'';
   const team=n=>{const raw=n===1?m.team1:m.team2;const players=Array.isArray(raw)?raw:[];return `<div class="detail-team"><h3>${winner===n?'🏆 ':''}Team ${n}${winner===n?' · Winner':''}</h3>${players.length?players.map(matchPlayer).join(''):'<div class="empty">No players were saved for this team.</div>'}</div>`};
-  const html=`${liveHtml}<p class="detail-meta"><b>${ccEsc(matchResultText(m.result))}</b> · ${ccEsc(m.queue_type)}${m.tournament?' <span class="t-label">🏆 Tournament · not counted in club stats</span>':''} · ${ccDateTime(m.created_at)} · ${ccFmt(m.player_count)} players</p>${lineup||`<div class="detail-teams">${team(1)}${team(2)}</div>`}${poolHtml}<div class="detail-meta"><b>Civilization bans:</b> ${live&&live.bans&&live.bans.status==='choosing'?'Hidden until both sides lock in':live&&!live.bans?'Not decided yet':ccEsc(formatCivBans(m.civ_bans))}<br><b>Match ID:</b> #${ccEsc(m.id)}<br><b>Finished:</b> ${m.finished_at?ccDateTime(m.finished_at):'Not finished'}</div>`;
+  const html=`${liveHtml}<p class="detail-meta"><b>${ccEsc(matchResultText(m.result))}</b> · ${ccEsc(m.queue_type)}${m.tournament?' <span class="t-label">🏆 Tournament · not counted in club stats</span>':''} · ${ccDateTime(m.created_at)} · ${ccFmt(m.player_count)} players</p>${lineup||`<div class="detail-teams">${team(1)}${team(2)}</div>`}${poolHtml}<div class="detail-meta">${m.map?`<b>Map:</b> ${ccEsc(m.map)}${(m.map_bans||[]).length?` <span style="color:#8f8b82">(banned: ${m.map_bans.map(ccEsc).join(', ')})</span>`:''}<br>`:''}<b>Civilization bans:</b> ${live&&live.bans&&live.bans.status==='choosing'?'Hidden until both sides lock in':live&&!live.bans?'Not decided yet':ccEsc(formatCivBans(m.civ_bans))}<br><b>Match ID:</b> #${ccEsc(m.id)}<br><b>Finished:</b> ${m.finished_at?ccDateTime(m.finished_at):'Not finished'}</div>`;
   /* Running matches refresh themselves while their pop-up is open (see below). */
   return m.result==='pending'?`<div data-live-match="${Number(m.id)}">${html}</div>`:html;
 }
@@ -169,13 +169,14 @@ async function ccSetupAccountNav(){
   <div class="nav-menu" role="menu" hidden>
     <a role="menuitem" href="/dashboard">🏠 Dashboard</a>
     <a role="menuitem" href="/stats">📊 Stats</a>
+    <a role="menuitem" href="/my-tournaments">🏆 My tournaments</a>
     <a role="menuitem" href="/queue">⚔️ Queue</a>
     ${me.hidden?'':`<a role="menuitem" href="${ccPlayerHref(me.user_id)}">👤 My profile</a>`}
     <a role="menuitem" href="/account">🔗 AoE4 account</a>
     <a role="menuitem" href="/settings">⚙️ Settings</a>
-    <a role="menuitem" href="/auth/logout?next=${encodeURIComponent(['/account','/dashboard','/stats','/settings','/queue'].some(x=>here.startsWith(x))?'/':here)}">🚪 Log out</a>
+    <a role="menuitem" href="/auth/logout?next=${encodeURIComponent(['/account','/dashboard','/stats','/settings','/queue','/my-tournaments'].some(x=>here.startsWith(x))?'/':here)}">🚪 Log out</a>
   </div>`;
-  if(['/account','/dashboard','/stats','/settings','/queue'].includes(location.pathname))wrap.classList.add('active');
+  if(['/account','/dashboard','/stats','/settings','/queue','/my-tournaments'].includes(location.pathname))wrap.classList.add('active');
   /* The bell and account button live on the right of the header, next to (or
      instead of) "Join Discord", not in the row of links, so long names never
      push them onto a second line. Members already in the server don't need the

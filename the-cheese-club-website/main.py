@@ -89,6 +89,8 @@ TOURNAMENT_TABLES = [
         PRIMARY KEY (tournament_id, round, user_id)
     )""",
     "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS team_size INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS min_rating INTEGER",
+    "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS max_rating INTEGER",
     "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS ffa_points INTEGER[] NOT NULL DEFAULT '{8,6,4,3,2,1,0,0}'",
     "ALTER TABLE tournament_matches ADD COLUMN IF NOT EXISTS ready_ids TEXT[] NOT NULL DEFAULT '{}'",
     """CREATE TABLE IF NOT EXISTS tournament_teams (
@@ -114,6 +116,7 @@ TOURNAMENT_TABLES = [
         note TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         finished_at TIMESTAMPTZ, UNIQUE (tournament_id, round)
     )""",
+    "ALTER TABLE tournament_ffa_matches ADD COLUMN IF NOT EXISTS civs JSONB",
     """CREATE TABLE IF NOT EXISTS tournament_admin_log (
         id SERIAL PRIMARY KEY, tournament_id INTEGER, admin_id TEXT NOT NULL, action TEXT NOT NULL,
         detail JSONB, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -615,6 +618,7 @@ async def match_detail(match_id: int):
                CASE WHEN result = 'pending' THEN to_jsonb(aoe_matches)->'active_state' END AS active_state,
                to_jsonb(aoe_matches)->'elo_snapshot' AS elo_snapshot,
                COALESCE((to_jsonb(aoe_matches)->>'is_tournament')::boolean, FALSE) AS is_tournament,
+               to_jsonb(aoe_matches)->>'map' AS map, to_jsonb(aoe_matches)->'map_bans' AS map_bans,
                created_at, finished_at
         FROM aoe_matches WHERE id=$1 LIMIT 1
     """, match_id)
@@ -723,6 +727,8 @@ async def match_detail(match_id: int):
         "queue_type": row["queue_type"],
         "result": row["result"],
         "tournament": bool(row["is_tournament"]),
+        "map": row["map"] or (_json_obj(row["active_state"]).get("final_map") if row["active_state"] else None),
+        "map_bans": [str(x) for x in (json.loads(row["map_bans"]) if isinstance(row["map_bans"], str) else (row["map_bans"] or []))],
         "created_at": row["created_at"],
         "finished_at": row["finished_at"],
         "player_count": len(all_ids),
@@ -2286,7 +2292,7 @@ async def _start_tournament(t: dict) -> str:
     for r in rows:
         if r["user_id"] not in playing and r["status"] in ("registered", "waitlist"):
             await fetch("UPDATE tournament_players SET status='no_show' WHERE tournament_id=$1 AND user_id=$2", tid, r["user_id"])
-    need = 6 if t.get("format") == "random3v3" else 2
+    need = 2 * rt_size(t) if t.get("format") == "random3v3" else 2
     if t.get("format") == "ffa":
         playing = playing[:8]
     if len(playing) < need:
@@ -2473,33 +2479,34 @@ TEAM_BALANCE_TOLERANCE = 60
 
 
 def _rt_cost(teams, mates, opps, rating):
+    import itertools as _it
     c = 0.0
     for i in range(0, len(teams), 2):
         a, b = teams[i], teams[i + 1]
         for t in (a, b):
-            for x, y in ((t[0], t[1]), (t[0], t[2]), (t[1], t[2])):
+            for x, y in _it.combinations(t, 2):
                 c += 10 * mates.get(frozenset((x, y)), 0) ** 2
         for x in a:
             for y in b:
                 c += opps.get(frozenset((x, y)), 0)
-        gap = abs(sum(rating[p] for p in a) - sum(rating[p] for p in b)) / 3
+        gap = abs(sum(rating[p] for p in a) - sum(rating[p] for p in b)) / len(a)
         c += max(0, gap - TEAM_BALANCE_TOLERANCE) / 10
     return c
 
 
-def make_random_teams(players, mates, opps, rating, rng, iterations=4000):
+def make_random_teams(players, mates, opps, rating, rng, iterations=4000, size=3):
     """Shuffle, then try random swaps that lower the cost (several restarts).
-    Returns a list of teams of three; consecutive pairs play each other."""
+    Returns a list of teams of `size`; consecutive pairs play each other."""
     best, best_cost = None, float("inf")
     for _ in range(6):
         pl = list(players)
         rng.shuffle(pl)
-        teams = [pl[i:i + 3] for i in range(0, len(pl), 3)]
+        teams = [pl[i:i + size] for i in range(0, len(pl), size)]
         c = _rt_cost(teams, mates, opps, rating)
         if len(teams) > 1:
             for _ in range(iterations // 6):
                 i, j = rng.sample(range(len(teams)), 2)
-                a, b = rng.randrange(3), rng.randrange(3)
+                a, b = rng.randrange(size), rng.randrange(size)
                 teams[i][a], teams[j][b] = teams[j][b], teams[i][a]
                 nc = _rt_cost(teams, mates, opps, rating)
                 if nc <= c:
@@ -2516,6 +2523,12 @@ def pick_byes(players, bye_counts, last_round_byes, n, rng):
     return set(sorted(players, key=lambda p: (bye_counts.get(p, 0), p in last_round_byes, rng.random()))[:n])
 
 
+def rt_size(t: dict) -> int:
+    """Players per team in an All Random tournament (2, 3 or 4)."""
+    n = int(t.get("team_size") or 0)
+    return n if n in (2, 3, 4) else 3
+
+
 async def _log_admin(tid, admin_id, action, detail):
     await fetch("INSERT INTO tournament_admin_log (tournament_id, admin_id, action, detail) VALUES ($1,$2,$3,$4)",
                 tid, admin_id, action, json.dumps(detail, default=str))
@@ -2528,7 +2541,8 @@ async def _generate_round(t: dict, r: int) -> str:
     rows = await fetch("SELECT user_id, rating FROM tournament_players WHERE tournament_id=$1 AND status='playing'", tid)
     rating = {x["user_id"]: int(x["rating"] or 0) for x in rows}
     active = list(rating)
-    if len(active) < 6:
+    size = rt_size(t)
+    if len(active) < 2 * size:
         await _finish_random(t, note="Not enough players left for another round.")
         return "Not enough players left, so the tournament was finished."
     mates, opps = {}, {}
@@ -2546,8 +2560,8 @@ async def _generate_round(t: dict, r: int) -> str:
         bye_counts[b["user_id"]] = bye_counts.get(b["user_id"], 0) + 1
         if b["round"] == r - 1:
             last.add(b["user_id"])
-    byes = pick_byes(active, bye_counts, last, len(active) % 6, rng)
-    teams = make_random_teams([u for u in active if u not in byes], mates, opps, rating, rng)
+    byes = pick_byes(active, bye_counts, last, len(active) % (2 * size), rng)
+    teams = make_random_teams([u for u in active if u not in byes], mates, opps, rating, rng, size=size)
     maps = list(t.get("round_maps") or [])
     chosen = maps[r - 1] if len(maps) >= r and maps[r - 1] and maps[r - 1] != "random" else None
     map_name = chosen or rng.choice(list(t.get("map_pool") or []) or DEFAULT_MAPS)
@@ -2558,7 +2572,7 @@ async def _generate_round(t: dict, r: int) -> str:
         await fetch("""
             INSERT INTO tournament_team_matches (tournament_id, round, match_no, team1, team2, team1_avg, team2_avg, map)
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-        """, tid, r, n, a, b, round(sum(rating[u] for u in a) / 3), round(sum(rating[u] for u in b) / 3), map_name)
+        """, tid, r, n, a, b, round(sum(rating[u] for u in a) / size), round(sum(rating[u] for u in b) / size), map_name)
         for side, other in ((a, b), (b, a)):
             for uid in side:
                 mates_txt = " and ".join(names[u]["username"] for u in side if u != uid)
@@ -2674,7 +2688,7 @@ async def _tick_random(t: dict):
 def _t_public(t: dict) -> dict:
     keys = ("id", "name", "description", "mode", "format", "max_players", "starts_at", "checkin_minutes",
             "bo_default", "bo_semi", "bo_final", "rules", "prizes", "status", "started_at", "finished_at", "created_at",
-            "rounds", "current_round", "round_maps", "map_pool", "team_size", "ffa_points")
+            "rounds", "current_round", "round_maps", "map_pool", "team_size", "ffa_points", "min_rating", "max_rating")
     out = {k: t.get(k) for k in keys}
     out["points_win"] = float(t.get("points_win") or 1)
     out["points_bye"] = float(t.get("points_bye") or 0)
@@ -2724,7 +2738,7 @@ async def _tournament_or_404(tid: int) -> dict:
 
 @app.get("/api/tournaments/config/maps")
 async def api_tournament_maps():
-    return {"maps": DEFAULT_MAPS}
+    return {"maps": DEFAULT_MAPS, "civs": CIV_NAMES}
 
 
 @app.get("/api/tournaments/{tid}")
@@ -2738,7 +2752,8 @@ async def api_tournament(request: Request, tid: int):
     """, tid)]
     matches = [dict(r) for r in await fetch("SELECT * FROM tournament_matches WHERE tournament_id=$1 ORDER BY round, slot", tid)]
     games = [dict(r) for r in await fetch("""
-        SELECT g.tmatch_id, g.game_no, g.winner_id, g.status, g.aoe_match_id, a.civ_data
+        SELECT g.tmatch_id, g.game_no, g.winner_id, g.status, g.aoe_match_id, a.civ_data,
+               to_jsonb(a)->>'map' AS map, CASE WHEN a.result='pending' THEN to_jsonb(a)->'active_state'->>'final_map' END AS live_map
         FROM tournament_games g JOIN tournament_matches m ON m.id=g.tmatch_id
         LEFT JOIN aoe_matches a ON a.id = g.aoe_match_id WHERE m.tournament_id=$1 ORDER BY g.id
     """, tid)]
@@ -2764,6 +2779,8 @@ async def api_tournament(request: Request, tid: int):
         for g in gs:
             data = json_obj_safe(g["civ_data"])
             civs.append({"game": g["game_no"], "status": g["status"], "aoe_match_id": g["aoe_match_id"],
+                         "map": g["map"] or g["live_map"],
+                         "winner_side": (1 if g["winner_id"] == m["p1_id"] else 2) if g["winner_id"] else None,
                          "winner_me": g["winner_id"] == uid if uid else False,
                          "p1_civ": canonical_civ(data.get(m["p1_id"])) if m["p1_id"] else None,
                          "p2_civ": canonical_civ(data.get(m["p2_id"])) if m["p2_id"] else None})
@@ -2781,7 +2798,7 @@ async def api_tournament(request: Request, tid: int):
     random_data = None
     if t.get("format") == "random3v3":
         tms = [dict(r) for r in await fetch("""
-            SELECT tm.*, a.civ_data FROM tournament_team_matches tm LEFT JOIN aoe_matches a ON a.id = tm.aoe_match_id
+            SELECT tm.*, a.civ_data, to_jsonb(a)->'civ_bans' AS civ_bans FROM tournament_team_matches tm LEFT JOIN aoe_matches a ON a.id = tm.aoe_match_id
             WHERE tm.tournament_id=$1 ORDER BY round, match_no
         """, tid)]
         byes = [dict(r) for r in await fetch("SELECT * FROM tournament_round_byes WHERE tournament_id=$1 ORDER BY round", tid)]
@@ -2855,8 +2872,8 @@ async def api_create_tournament(request: Request):
     fmt = b.get("format") if b.get("format") in ("random3v3", "teamcup", "ffa") else "single"
     if fmt == "ffa" and not 2 <= num("max_players", 2, 64, 8) <= 8:
         raise HTTPException(status_code=400, detail="An FFA lobby holds 2 to 8 players.")
-    if fmt == "random3v3" and num("max_players", 2, 64, 8) < 6:
-        raise HTTPException(status_code=400, detail="Random Team 3v3 needs room for at least 6 players.")
+    if fmt == "random3v3" and num("max_players", 2, 64, 8) < 2 * num("team_size", 2, 4, 3):
+        raise HTTPException(status_code=400, detail="All Random needs room for at least two full teams.")
     def pts(k, lo, hi, d):
         try:
             v = float(b.get(k, d))
@@ -2878,8 +2895,19 @@ async def api_create_tournament(request: Request):
     """, tid, fmt, {"random3v3": "3v3", "ffa": "FFA"}.get(fmt, f"{num('team_size', 2, 4, 2)}v{num('team_size', 2, 4, 2)}" if fmt == "teamcup" else "1v1"),
         num("rounds", 1, 5, 1) if fmt == "ffa" else rounds, pts("points_win", 0.5, 5, 1.0),
         pts("points_bye", 0, 2, 0.5), round_maps, pool)
-    if fmt == "teamcup":
-        await fetch("UPDATE tournaments SET team_size=$2 WHERE id=$1", tid, num("team_size", 2, 4, 2))
+    if fmt in ("teamcup", "random3v3"):
+        size = num("team_size", 2, 4, 3 if fmt == "random3v3" else 2)
+        await fetch("UPDATE tournaments SET team_size=$2, mode=$3 WHERE id=$1", tid, size, f"{size}v{size}")
+    def rating_or_none(k):
+        try:
+            v = int(b.get(k)) if str(b.get(k) or "").strip() else None
+        except (TypeError, ValueError):
+            return None
+        return max(0, min(3000, v)) if v is not None else None
+    lo, hi = rating_or_none("min_rating"), rating_or_none("max_rating")
+    if lo is not None and hi is not None and lo > hi:
+        lo, hi = hi, lo
+    await fetch("UPDATE tournaments SET min_rating=$2, max_rating=$3 WHERE id=$1", tid, lo, hi)
     if fmt == "ffa":
         try:
             table = [max(0, min(100, int(x))) for x in str(b.get("ffa_points") or "8,6,4,3,2,1,0,0").replace(" ", "").split(",") if x != ""][:8]
@@ -2907,6 +2935,9 @@ async def api_tournament_signup(request: Request, tid: int):
             raise HTTPException(status_code=400, detail="Join The Cheese Club Discord server first.")
         if not (link and (link["profile_id"] or link["bypassed"])):
             raise HTTPException(status_code=400, detail="Link your AoE4 account first.")
+        problem = await _division_problem(t, uid)
+        if problem:
+            raise HTTPException(status_code=400, detail=problem)
         taken = await fetchval("SELECT COUNT(*) FROM tournament_players WHERE tournament_id=$1 AND status='registered'", tid, default=0)
         status = "registered" if taken < t["max_players"] else "waitlist"
         await fetch("""
@@ -3094,6 +3125,18 @@ async def _teams_out(t: dict, uid) -> dict:
     return {"size": int(t["team_size"]), "list": out, "mine": mine, "invites": invites}
 
 
+async def _division_problem(t: dict, uid: str, who: str = "Your") -> Optional[str]:
+    lo, hi = t.get("min_rating"), t.get("max_rating")
+    if lo is None and hi is None:
+        return None
+    r = await _player_rating(uid)
+    if lo is not None and r < lo:
+        return f"{who} rating ({r}) is below this tournament's minimum of {lo}."
+    if hi is not None and r > hi:
+        return f"{who} rating ({r}) is above this tournament's limit of {hi}."
+    return None
+
+
 async def _eligible(user: dict) -> Optional[str]:
     uid = user["uid"]
     present = await fetchval("SELECT COUNT(*) FROM discord_member_profiles WHERE user_id=$1 AND is_present", uid, default=0)
@@ -3151,7 +3194,7 @@ async def api_team_register(request: Request, tid: int):
             raise HTTPException(status_code=400, detail="This tournament doesn't use teams.")
         if t["status"] not in ("signup", "checkin"):
             raise HTTPException(status_code=400, detail="Sign-ups for this tournament are closed.")
-        problem = await _eligible(user)
+        problem = await _eligible(user) or await _division_problem(t, user["uid"])
         if problem:
             raise HTTPException(status_code=400, detail=problem)
         name = " ".join(str(b.get("name") or "").split())[:40]
@@ -3195,7 +3238,7 @@ async def api_team_respond(request: Request, tid: int):
         if t["status"] not in ("signup", "checkin"):
             raise HTTPException(status_code=400, detail="Sign-ups for this tournament are closed.")
         if accept:
-            problem = await _eligible(user)
+            problem = await _eligible(user) or await _division_problem(t, uid)
             if problem:
                 raise HTTPException(status_code=400, detail=problem)
             if await fetchval("""SELECT COUNT(*) FROM tournament_team_members m JOIN tournament_teams tt ON tt.id=m.team_id
@@ -3330,7 +3373,8 @@ async def _ffa_out(t: dict, uid) -> dict:
         out.append({"id": m["id"], "round": m["round"], "map": m["map"], "status": m["status"], "note": m["note"],
                     "players": [{**names.get(u, {}), "me": u == uid, "ready": u in m["ready_ids"]} for u in m["players"]],
                     "ready_count": len(set(m["ready_ids"]) & set(m["players"])),
-                    "results": [{**names.get(u, {}), "me": u == uid, "place": int(pl[u]), "points": _ffa_points(t, int(pl[u]))} for u in order],
+                    "results": [{**names.get(u, {}), "me": u == uid, "place": int(pl[u]), "points": _ffa_points(t, int(pl[u])),
+                                 "civ": (json_obj_safe(m["civs"]) if m.get("civs") else {}).get(u)} for u in order],
                     "reported_by": names.get(m["reported_by"]) if m["reported_by"] else None,
                     "confirmations": len(m["confirmations"]), "needed": _ffa_needed(len(m["players"])),
                     "me_in": bool(uid and uid in m["players"]), "me_ready": bool(uid and uid in m["ready_ids"]),
@@ -3347,6 +3391,15 @@ async def _ffa_match(tid: int, mid: int) -> dict:
     if not rows:
         raise HTTPException(status_code=404, detail="Match not found.")
     return dict(rows[0])
+
+
+def _parse_civs(m: dict, civs) -> dict:
+    out = {}
+    for k, v in (civs or {}).items():
+        u, c = from_public_id(str(k)), canonical_civ(v)
+        if u in m["players"] and c in CIV_NAMES:
+            out[u] = c
+    return out
 
 
 def _parse_order(m: dict, order) -> dict:
@@ -3384,8 +3437,9 @@ async def api_ffa_report(request: Request, tid: int):
         if m["status"] not in ("playing", "reported"):
             raise HTTPException(status_code=400, detail="This match can't be reported right now.")
         pl = _parse_order(m, b.get("order"))
-        await fetch("""UPDATE tournament_ffa_matches SET status='reported', placements=$2, reported_by=$3, confirmations=$4, disputes='{}', updated_at=NOW()
-                       WHERE id=$1""", m["id"], json.dumps(pl), user["uid"], [user["uid"]])
+        await fetch("""UPDATE tournament_ffa_matches SET status='reported', placements=$2, reported_by=$3, confirmations=$4, disputes='{}',
+                       civs=$5, updated_at=NOW() WHERE id=$1""", m["id"], json.dumps(pl), user["uid"], [user["uid"]],
+                    json.dumps(_parse_civs(m, b.get("civs"))))
         me = (await people([user["uid"]]))[user["uid"]]["username"]
         for u in m["players"]:
             if u != user["uid"]:
@@ -3464,6 +3518,8 @@ async def api_tournament_admin(request: Request, tid: int):
             if m["status"] in ("ready", "starting"):
                 await fetch("UPDATE tournament_ffa_matches SET status='playing' WHERE id=$1", m["id"])
             pl = _parse_order(m, b.get("order"))
+            if b.get("civs"):
+                await fetch("UPDATE tournament_ffa_matches SET civs=$2 WHERE id=$1", m["id"], json.dumps(_parse_civs(m, b.get("civs"))))
             await _ffa_finalize(t, m["id"], pl, note="Corrected by an admin" if m["status"] == "done" else "Set by an admin")
             return {"message": "Placements saved. Standings are updated."}
         if t.get("format") == "random3v3" and action in ("team_result", "substitute", "regenerate_round", "remove_player"):
@@ -3517,6 +3573,88 @@ async def api_tournament_admin(request: Request, tid: int):
     raise HTTPException(status_code=400, detail="Unknown action.")
 
 
+@app.get("/api/me/tournaments")
+async def api_my_tournaments(request: Request):
+    """A member's own tournament record: separate from queue stats."""
+    user = require_login(request)
+    uid = user["uid"]
+    empty = {"summary": {"tournaments": 0, "titles": 0, "podiums": 0, "wins": 0, "losses": 0, "ffa_rounds": 0, "ffa_firsts": 0},
+             "tournaments": [], "upcoming": [], "games": []}
+    if not await fetchval("SELECT to_regclass('tournaments') IS NOT NULL", default=False):
+        return empty
+    entries = {}
+    for r in await fetch("""SELECT t.*, p.status AS my_status FROM tournaments t JOIN tournament_players p ON p.tournament_id=t.id
+                            WHERE p.user_id=$1 AND p.status NOT IN ('withdrawn')""", uid):
+        entries[r["id"]] = (dict(r), uid, None)
+    for r in await fetch("""SELECT t.*, tt.id AS team_id, tt.name AS team_name, tt.status AS my_status FROM tournaments t
+                            JOIN tournament_teams tt ON tt.tournament_id=t.id JOIN tournament_team_members m ON m.team_id=tt.id
+                            WHERE m.user_id=$1 AND m.status='accepted' AND tt.status NOT IN ('withdrawn')""", uid):
+        entries[r["id"]] = (dict(r), f"T{r['team_id']}", r["team_name"])
+    s = dict(empty["summary"])
+    out, upcoming, games = [], [], []
+    for tid, (t, ent, team_name) in sorted(entries.items(), key=lambda kv: kv[1][0]["starts_at"], reverse=True):
+        base = {"id": tid, "name": t["name"], "format": t["format"], "mode": t["mode"], "status": t["status"],
+                "starts_at": t["starts_at"], "finished_at": t["finished_at"], "team": team_name}
+        if t["status"] in ("signup", "checkin"):
+            upcoming.append(base); continue
+        if t["status"] == "cancelled" or t["my_status"] in ("no_show",):
+            continue
+        s["tournaments"] += 1
+        place, label, w, l = None, "", 0, 0
+        if t["format"] in ("single", "teamcup"):
+            for g in await fetch("""SELECT g.winner_id, g.game_no, g.aoe_match_id, g.created_at, m.round_name, m.p1_id, m.p2_id
+                                    FROM tournament_games g JOIN tournament_matches m ON m.id=g.tmatch_id
+                                    WHERE m.tournament_id=$1 AND g.status='done' AND $2 IN (m.p1_id, m.p2_id) ORDER BY g.id""", tid, ent):
+                won = g["winner_id"] == ent
+                w += won; l += not won
+                games.append({"tournament_id": tid, "tournament": t["name"], "label": f"{g['round_name']} · game {g['game_no']}",
+                              "result": "W" if won else "L", "aoe_match_id": g["aoe_match_id"], "at": g["created_at"]})
+            if t["winner_id"] == ent:
+                place, label = 1, "Champion"
+            elif t["runner_up_id"] == ent:
+                place, label = 2, "Runner-up"
+            else:
+                last = await fetch("""SELECT round_name, round FROM tournament_matches WHERE tournament_id=$1 AND $2 IN (p1_id, p2_id)
+                                      AND winner_id IS NOT NULL AND winner_id <> $2 ORDER BY round DESC LIMIT 1""", tid, ent)
+                rounds_total = await fetchval("SELECT MAX(round) FROM tournament_matches WHERE tournament_id=$1", tid, default=0)
+                if last:
+                    label = f"Out in the {last[0]['round_name']}"
+                    if rounds_total and last[0]["round"] == rounds_total - 1:
+                        place = 3          # semifinalists share 3rd
+                elif t["status"] == "live":
+                    label = "Still in"
+        elif t["format"] == "random3v3":
+            st = next((r for r in await random_standings(t) if r["user_id"] == uid), None)
+            if st:
+                place, w, l = st["rank"], st["wins"], st["losses"]
+                label = f"#{st['rank']} · {st['points']:g} pts"
+            for m in await fetch("""SELECT round, match_no, team1, team2, winner_team, aoe_match_id, finished_at FROM tournament_team_matches
+                                    WHERE tournament_id=$1 AND status='done' AND $2 = ANY(team1 || team2) ORDER BY round""", tid, uid):
+                won = (uid in m["team1"]) == (m["winner_team"] == 1)
+                games.append({"tournament_id": tid, "tournament": t["name"], "label": f"Round {m['round']} · match {m['match_no']}",
+                              "result": "W" if won else "L", "aoe_match_id": m["aoe_match_id"], "at": m["finished_at"]})
+        elif t["format"] == "ffa":
+            st = next((r for r in await ffa_standings(t) if r["user_id"] == uid), None)
+            if st:
+                place = st["rank"]; label = f"#{st['rank']} · {st['points']} pts"
+                s["ffa_rounds"] += st["played"]; s["ffa_firsts"] += st["wins"]
+            for m in await fetch("SELECT round, placements, finished_at FROM tournament_ffa_matches WHERE tournament_id=$1 AND status='done' AND $2 = ANY(players) ORDER BY round", tid, uid):
+                pl = json_obj_safe(m["placements"]).get(uid)
+                if pl:
+                    games.append({"tournament_id": tid, "tournament": t["name"], "label": f"FFA round {m['round']}",
+                                  "result": f"#{pl}", "aoe_match_id": None, "at": m["finished_at"]})
+        if t["status"] == "live" and place and t["format"] in ("random3v3", "ffa"):
+            label += " (so far)"
+        s["wins"] += w; s["losses"] += l
+        if t["status"] == "finished" and place == 1:
+            s["titles"] += 1
+        if t["status"] == "finished" and place and place <= 3:
+            s["podiums"] += 1
+        out.append({**base, "place": place, "label": label, "wins": w, "losses": l})
+    games.sort(key=lambda g: g["at"] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+    return {"summary": s, "tournaments": out, "upcoming": upcoming, "games": games[:30]}
+
+
 @app.post("/api/me/privacy")
 async def api_privacy(request: Request):
     user = require_login(request)
@@ -3559,6 +3697,7 @@ PAGES = {
     "/stats": "stats.html",
     "/settings": "settings.html",
     "/queue": "queue.html",
+    "/my-tournaments": "my_tournaments.html",
 }
 
 

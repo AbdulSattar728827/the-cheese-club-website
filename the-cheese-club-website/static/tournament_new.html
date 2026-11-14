@@ -288,20 +288,21 @@ const boText=t=>t.bo_default===t.bo_semi&&t.bo_semi===t.bo_final?`Best of ${t.bo
 const STATUS={signup:'Sign-ups open',checkin:'Check-in open',live:'Live',finished:'Finished',cancelled:'Cancelled'};
 const initials=n=>esc((n||'?').trim().slice(0,1).toUpperCase());
 const isRT=t=>t.format==='random3v3',isTeam=t=>t.format==='teamcup',isFFA=t=>t.format==='ffa';
-const fmtName=t=>isRT(t)?'🎲 Random Team 3v3':isTeam(t)?`👥 ${t.mode} Team Cup`:isFFA(t)?'🏁 Free-for-all':'⚔️ 1v1 Cup';
+const divText=t=>t.min_rating!=null&&t.max_rating!=null?`📊 Rating ${ccFmt(t.min_rating)}–${ccFmt(t.max_rating)}`:t.max_rating!=null?`📊 Under ${ccFmt(t.max_rating+1)}`:t.min_rating!=null?`📊 ${ccFmt(t.min_rating)}+ rating`:'';
+const fmtName=t=>isRT(t)?`🎲 All Random ${t.mode||'3v3'}`:isTeam(t)?`👥 ${t.mode} Team Cup`:isFFA(t)?'🏁 Free-for-all':'⚔️ 1v1 Cup';
 const fmtIcon=t=>isRT(t)?'🎲':isTeam(t)?'👥':isFFA(t)?'🏁':'⚔️';
 
 const pad=n=>String(n).padStart(2,'0');
 function defaultStart(){const d=new Date();d.setDate(d.getDate()+((6-d.getDay()+7)%7||7));d.setHours(20,0,0,0);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T20:00`}
 let MAPS=[];
 const FMT=()=>document.querySelector('input[name=fmt]:checked').value;
-const MAXOPTS={single:[4,8,16,32],teamcup:[2,4,8,16,32],random3v3:[6,12,18,20,24,30,36,48],ffa:[2,3,4,5,6,7,8]};
+const MAXOPTS={single:[4,8,16,32],teamcup:[2,4,8,16,32],ffa:[2,3,4,5,6,7,8],get random3v3(){const g=2*+document.getElementById('tSize').value;return [1,2,3,4,5,6,8].map(k=>k*g).concat([20,30,36,48]).filter((v,i,a)=>v>=g&&a.indexOf(v)===i).sort((a,b)=>a-b)}};
 function fillMax(){const f=FMT(),cur=+$('tMax').value,opts=MAXOPTS[f],def={single:8,teamcup:8,random3v3:24,ffa:8}[f];
  $('tMax').innerHTML=opts.map(n=>`<option ${n===(opts.includes(cur)?cur:def)?'selected':''}>${n}</option>`).join('');
  $('tMaxLabel').textContent=f==='teamcup'?'Teams':'Players';$('tMaxHelp').textContent=f==='ffa'?'An FFA lobby holds 2 to 8 players. Extra sign-ups go on a waiting list.':f==='teamcup'?'How many teams can enter. Extra teams go on a waiting list.':'Extra sign-ups go on a waiting list.'}
 function hint6(){const n=+$('tMax').value,rt=FMT()==='random3v3',box=$('hint6');if(!rt){box.hidden=true;return}box.hidden=false;
- const out=n%6,m=Math.floor(n/6);box.className='hint6 '+(out?'warn':'ok');
- box.textContent=out?`${n} players → ${m} matches per round and ${out} sit${out===1?'s':''} out each round (they get the sit-out points and can be substitutes). Multiples of 6 mean nobody sits out.`:`${n} players → ${m} matches per round and nobody sits out. 👍`}
+ const g=2*+$('tSize').value,out=n%g,m=Math.floor(n/g);box.className='hint6 '+(out?'warn':'ok');
+ box.textContent=out?`${n} players → ${m} matches per round and ${out} sit${out===1?'s':''} out each round (they get the sit-out points and can be substitutes). Multiples of ${g} mean nobody sits out.`:`${n} players → ${m} matches per round and nobody sits out. 👍`}
 function roundMaps(){const n=FMT()==='ffa'?+$('tRoundsF').value:+$('tRounds').value,prev=[...document.querySelectorAll('.rmap')].map(x=>x.value);
  $('roundMaps').innerHTML=Array.from({length:n},(_,i)=>`<label style="margin:0"><small style="display:block;margin:0 0 4px;font-weight:700;color:#cfcac0">Round ${i+1}</small><select class="rmap"><option value="random">🎲 Random (pool)</option>${MAPS.map(m=>`<option ${prev[i]===m?'selected':''}>${esc(m)}</option>`).join('')}</select></label>`).join('')}
 function toggle(){const f=FMT();
@@ -315,9 +316,9 @@ function toggle(){const f=FMT();
   <div class="full"><label>Format</label><div class="fmt-pick">
    <label><input type="radio" name="fmt" id="f1v1" value="single" checked><b>⚔️ 1v1 Cup</b><small>Single elimination bracket. Best-of series, seeded by AoE4World rating.</small></label>
    <label><input type="radio" name="fmt" id="fTeam" value="teamcup"><b>👥 Team Cup (2v2 / 3v3 / 4v4)</b><small>A captain registers a fixed team and invites teammates, who accept. Single elimination bracket.</small></label>
-   <label><input type="radio" name="fmt" id="fRT" value="random3v3"><b>🎲 Random Team 3v3</b><small>Players sign up alone, get new random (balanced) teammates every round, and score individual points.</small></label>
+   <label><input type="radio" name="fmt" id="fRT" value="random3v3"><b>🎲 All Random (2v2 / 3v3 / 4v4)</b><small>Players sign up alone, get new random (balanced) teammates every round, and score individual points.</small></label>
    <label><input type="radio" name="fmt" id="fFFA" value="ffa"><b>🏁 Free-for-all</b><small>2–8 players in one FFA lobby, points by final placement. Optional extra rounds.</small></label></div></div>
-  <div data-for="teamcup" hidden><label for="tSize">Team size</label><select id="tSize"><option value="2">2v2</option><option value="3" selected>3v3</option><option value="4">4v4</option></select><small>Each team has this many players, including the captain.</small></div>
+  <div data-for="teamcup random3v3" hidden><label for="tSize">Team size</label><select id="tSize"><option value="2">2v2</option><option value="3" selected>3v3</option><option value="4">4v4</option></select><small>Each team has this many players, including the captain.</small></div>
   <div class="full"><label for="tName">Name</label><input id="tName" maxlength="80" required placeholder="Weekly Cheese Cup #1"></div>
   <div class="full"><label for="tDesc">Short description</label><input id="tDesc" maxlength="600" placeholder="Our Saturday cup."></div>
   <div><label for="tStart">Starts</label><input id="tStart" type="datetime-local" required value="${defaultStart()}"><small>In your time zone (${esc(Intl.DateTimeFormat().resolvedOptions().timeZone)}). Everyone sees it in theirs.</small></div>
@@ -330,14 +331,15 @@ function toggle(){const f=FMT();
   <div class="full" data-for="random3v3 ffa" hidden><label>Map pool (for random rounds)</label><div class="pool">${MAPS.map(m=>`<label><input type="checkbox" class="pmap" value="${esc(m)}" checked>${esc(m)}</label>`).join('')}</div></div>
   <div data-for="ffa" hidden><label for="tRoundsF">Rounds</label><select id="tRoundsF">${[1,2,3,4,5].map(n=>`<option ${n===1?'selected':''}>${n}</option>`).join('')}</select><small>1 = a single FFA match. More rounds: points add up.</small></div>
   <div data-for="ffa" hidden><label for="tPts">Points for 1st to 8th place</label><input id="tPts" value="8,6,4,3,2,1,0,0"><small>Comma-separated. Smaller lobbies use the first places only.</small></div>
+  <div><label>Rating division (optional)</label><div style="display:flex;gap:8px"><input id="tMinR" type="number" min="0" max="3000" step="50" placeholder="Min rating"><input id="tMaxR" type="number" min="0" max="3000" step="50" placeholder="Max rating"></div><small>Only players within this AoE4World rating can sign up, e.g. max 1199 for an "Under 1,200" cup. Leave empty for open.</small></div>
   <div class="full"><label for="tPrize">Prizes (optional)</label><input id="tPrize" maxlength="500" placeholder="Champion role, trophy badge and 500 Cheese Coins"></div>
   <div class="full"><label for="tRules">Rules (optional)</label><textarea id="tRules" maxlength="3000" placeholder="10 minutes late = forfeit. Civ bans are run by the bot. Disputes go to an admin."></textarea></div>
   <div class="full" style="display:flex;gap:10px"><button class="btn primary" type="submit">Create tournament</button><a class="btn secondary" href="/tournament">Cancel</a></div></form></section>`;
  toggle();
  document.querySelectorAll('input[name=fmt]').forEach(r=>r.addEventListener('change',toggle));
- $('tMax').addEventListener('change',hint6);$('tRounds').addEventListener('change',roundMaps);$('tRoundsF').addEventListener('change',roundMaps);
+ $('tMax').addEventListener('change',hint6);$('tSize').addEventListener('change',()=>{if(FMT()==='random3v3'){fillMax();hint6()}});$('tRounds').addEventListener('change',roundMaps);$('tRoundsF').addEventListener('change',roundMaps);
  $('tf').addEventListener('submit',async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;const f=FMT();
-  try{const r=await call('POST','/api/tournaments',{format:f,team_size:+$('tSize').value,ffa_points:$('tPts').value,name:$('tName').value,description:$('tDesc').value,starts_at:new Date($('tStart').value).toISOString(),
+  try{const r=await call('POST','/api/tournaments',{format:f,team_size:+$('tSize').value,min_rating:$('tMinR').value,max_rating:$('tMaxR').value,ffa_points:$('tPts').value,name:$('tName').value,description:$('tDesc').value,starts_at:new Date($('tStart').value).toISOString(),
    max_players:+$('tMax').value,checkin_minutes:+$('tCheck').value,bo_default:+$('tBo1').value,bo_semi:+$('tBo2').value,bo_final:+$('tBo3').value,
    rounds:f==='ffa'?+$('tRoundsF').value:+$('tRounds').value,points_win:+$('tPw').value,points_bye:+$('tPb').value,round_maps:[...document.querySelectorAll('.rmap')].map(x=>x.value),
    map_pool:[...document.querySelectorAll('.pmap:checked')].map(x=>x.value),prizes:$('tPrize').value,rules:$('tRules').value});

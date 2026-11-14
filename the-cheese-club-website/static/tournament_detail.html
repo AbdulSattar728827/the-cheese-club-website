@@ -288,7 +288,8 @@ const boText=t=>t.bo_default===t.bo_semi&&t.bo_semi===t.bo_final?`Best of ${t.bo
 const STATUS={signup:'Sign-ups open',checkin:'Check-in open',live:'Live',finished:'Finished',cancelled:'Cancelled'};
 const initials=n=>esc((n||'?').trim().slice(0,1).toUpperCase());
 const isRT=t=>t.format==='random3v3',isTeam=t=>t.format==='teamcup',isFFA=t=>t.format==='ffa';
-const fmtName=t=>isRT(t)?'🎲 Random Team 3v3':isTeam(t)?`👥 ${t.mode} Team Cup`:isFFA(t)?'🏁 Free-for-all':'⚔️ 1v1 Cup';
+const divText=t=>t.min_rating!=null&&t.max_rating!=null?`📊 Rating ${ccFmt(t.min_rating)}–${ccFmt(t.max_rating)}`:t.max_rating!=null?`📊 Under ${ccFmt(t.max_rating+1)}`:t.min_rating!=null?`📊 ${ccFmt(t.min_rating)}+ rating`:'';
+const fmtName=t=>isRT(t)?`🎲 All Random ${t.mode||'3v3'}`:isTeam(t)?`👥 ${t.mode} Team Cup`:isFFA(t)?'🏁 Free-for-all':'⚔️ 1v1 Cup';
 const fmtIcon=t=>isRT(t)?'🎲':isTeam(t)?'👥':isFFA(t)?'🏁':'⚔️';
 
 function closeMatchDetail(){$('detailBackdrop').style.display='none';document.body.style.overflow=''}
@@ -334,8 +335,11 @@ function myCard(){
  }
  return '';
 }
-function gamesLine(m){const g=m.games.filter(x=>x.status==='done'&&(x.p1_civ||x.p2_civ));if(!g.length)return '';
- return `<div class="civs">${g.map(x=>`G${x.game}: <b>${esc(x.p1_civ||'?')}</b> vs <b>${esc(x.p2_civ||'?')}</b>${x.aoe_match_id?` <a href="#" data-match="${x.aoe_match_id}" style="color:var(--gold)">#${x.aoe_match_id}</a>`:''}`).join(' · ')}</div>`}
+function gamesLine(m){const g=m.games.filter(x=>x.status==='done'||x.status==='playing');if(!g.length)return '';
+ return `<div class="civs">${g.map(x=>{const link=x.aoe_match_id?` <a href="#" data-match="${x.aoe_match_id}" style="color:var(--gold);font-weight:700">${x.status==='playing'?'▶ Watch live':'Details ↗'}</a>`:'';
+  if(x.status==='playing')return `G${x.game} <b style="color:#8fe0b2">● live</b>${x.map?' · 🗺️ '+esc(x.map):''}${link}`;
+  const who=x.p1_civ||x.p2_civ?`<b>${esc(x.p1_civ||'?')}</b> vs <b>${esc(x.p2_civ||'?')}</b>`:x.winner_side?`${esc((x.winner_side===1?m.p1:m.p2)?.username||'')} won`:'';
+  return `G${x.game}: ${who}${x.map?' · 🗺️ '+esc(x.map):''}${link}`}).join('<br>')}</div>`}
 function box(m){
  const me=D.me,isMine=me.match&&me.match.id===m.id,live=m.status==='playing'||m.status==='starting';
  const head=m.status==='done'?(m.note||'Result'):live?`Game ${m.p1_score+m.p2_score+1} live`:m.status==='ready'?`Bo${m.best_of} · waiting for ready`:(m.p1||m.p2)?`Bo${m.best_of} · waiting`:`Bo${m.best_of}`;
@@ -417,8 +421,9 @@ function teamRules(){const t=D.tournament;return `<div class="info-body" style="
  <li>Tournament games appear in match history but don't change club stats or community ratings.</li></ul>
  ${t.prizes?`<p style="margin-top:12px"><b>Prizes:</b> ${esc(t.prizes)}</p>`:''}${t.rules?`<p style="margin-top:12px"><b>Rules</b></p><p class="rules-text">${esc(t.rules)}</p>`:''}</div>`}
 const ffaCur=()=>{const F=D.ffa;return F&&F.matches.length?F.matches[F.matches.length-1]:null};
-function orderForm(m){return `<div class="order" data-orderfor="${m.id}">${m.players.map((_,i)=>`<label>#${i+1}<select class="ordsel" aria-label="Place ${i+1}">${m.players.map((p,j)=>`<option value="${p.user_id}" ${(m.results[i]?m.results[i].user_id===p.user_id:j===i)?'selected':''}>${esc(p.username)}</option>`).join('')}</select></label>`).join('')}</div>`}
-function resultsTable(m){return `<table class="ffa-res">${m.results.map(r=>`<tr ${r.me?'style="background:#1c1f3a"':''}><td class="p">${r.place<=3?['🥇','🥈','🥉'][r.place-1]:'#'+r.place}</td><td>${r.user_id?`<a href="${ccPlayerHref(r.user_id)}" style="color:inherit">${esc(r.username)}</a>`:esc(r.username)}${r.me?' (you)':''}</td><td class="r">+${r.points} pts</td></tr>`).join('')}</table>`}
+let CIVS=[];call('GET','/api/tournaments/config/maps').then(d=>{CIVS=d.civs||[]}).catch(()=>{});
+function orderForm(m){return `<div class="order" data-orderfor="${m.id}" style="max-width:560px">${m.players.map((_,i)=>`<label style="grid-template-columns:40px 1fr 1fr">#${i+1}<select class="ordsel" aria-label="Place ${i+1}">${m.players.map((p,j)=>`<option value="${p.user_id}" ${(m.results[i]?m.results[i].user_id===p.user_id:j===i)?'selected':''}>${esc(p.username)}</option>`).join('')}</select><select class="ordciv" aria-label="Civ played by place ${i+1}"><option value="">Civ (optional)</option>${CIVS.map(c=>`<option ${m.results[i]&&m.results[i].civ===c?'selected':''}>${esc(c)}</option>`).join('')}</select></label>`).join('')}</div>`}
+function resultsTable(m){return `<table class="ffa-res">${m.results.map(r=>`<tr ${r.me?'style="background:#1c1f3a"':''}><td class="p">${r.place<=3?['🥇','🥈','🥉'][r.place-1]:'#'+r.place}</td><td>${r.user_id?`<a href="${ccPlayerHref(r.user_id)}" style="color:inherit">${esc(r.username)}</a>`:esc(r.username)}${r.me?' (you)':''}${r.civ?` <span style="color:#8f8b82">· ${civFlag(r.civ)} ${esc(r.civ)}</span>`:''}</td><td class="r">+${r.points} pts</td></tr>`).join('')}</table>`}
 function ffaCard(){
  const t=D.tournament;if(t.status!=='live')return '';const m=ffaCur();
  if(!m||!m.me_in)return D.me.status==='removed'?'<div class="t-msg err">You were removed from the remaining rounds.</div>':'';
@@ -458,8 +463,8 @@ function rtCard(){
  if(m){const mine=m.my_team,us=mine===1?m.team1:m.team2,them=mine===1?m.team2:m.team1,usAvg=mine===1?m.team1_avg:m.team2_avg,themAvg=mine===1?m.team2_avg:m.team1_avg,playing=m.status==='playing'||m.status==='starting';
   return `<div class="mine"><div style="min-width:0"><div class="vs">Round ${m.round} · Match ${m.match_no}</div>
    <small>Your team: <b style="color:#fff">${us.map(p=>p.me?'You':esc(p.username)).join(', ')}</b> (avg ${fmt(usAvg)}) vs ${them.map(p=>esc(p.username)).join(', ')} (avg ${fmt(themAvg)})${m.map?` · Map: <b style="color:#fff">${esc(m.map)}</b>`:''}.<br>
-   ${playing?'Your match is on in Discord: head to the match thread for civ bans and picks.':m.me_ready?'You\'re ready. The match starts in Discord as soon as all six players are ready.':'Join a voice channel in Discord, then press I\'m ready.'}</small>
-   ${playing?'':`<div class="ready-row"><span class="rdy ${m.me_ready?'yes':''}">${m.me_ready?'✓':'○'} You</span><span class="rdy ${m.ready_count===6?'yes':''}">${m.ready_count} of 6 ready</span></div>`}</div>
+   ${playing?'Your match is on in Discord: head to the match thread for civ bans and picks.':m.me_ready?`You're ready. The match starts in Discord as soon as all ${m.team1.length*2} players are ready.`:'Join a voice channel in Discord, then press I\'m ready.'}</small>
+   ${playing?'':`<div class="ready-row"><span class="rdy ${m.me_ready?'yes':''}">${m.me_ready?'✓':'○'} You</span><span class="rdy ${m.ready_count===m.team1.length*2?'yes':''}">${m.ready_count} of ${m.team1.length*2} ready</span></div>`}</div>
    ${playing?'<a class="btn primary" href="https://discord.com/channels/@me" target="_blank" rel="noopener noreferrer">Open Discord ↗</a>':m.me_ready?`<button class="btn danger" type="button" data-tready="${m.id}" data-on="0">Not ready</button>`:`<button class="btn primary" type="button" data-tready="${m.id}" data-on="1">✅ I'm ready</button>`}</div>`}
  if(R.my_bye)return `<div class="you"><i class="pulse"></i><div><b>You're sitting out round ${t.current_round}</b><small>You get ${t.points_bye} point${t.points_bye===1?'':'s'}, and you won't sit out again until everyone else has. Stay nearby: an admin may call you in as a substitute.</small></div></div>`;
  if(me.status==='removed')return '<div class="t-msg err">You were removed from the remaining rounds. Your points so far still count.</div>';
@@ -470,7 +475,7 @@ function rtSide(team,avg,cls,right,m){
  return `<div class="rt-side ${cls} ${right?'rt-r':''}">${team.map(p=>`<span class="${p.me?'rt-me':''}">${p.user_id?`<a href="${ccPlayerHref(p.user_id)}">${esc(p.username)}</a>`:esc(p.username)}${p.me?' (you)':''}${p.civ?` <em>· ${esc(p.civ)}</em>`:''}${m.status==='ready'&&p.ready?' <em>✓</em>':''}</span>`).join('')}<small>avg ${fmt(avg)}${cls==='rt-win'?` · +${D.tournament.points_win} each`:''}</small></div>`}
 function rtMatch(m,round){
  const live=m.status==='playing'||m.status==='starting';
- const [stxt,scol]=m.status==='done'?['✓ Finished','#8fe0b2']:m.status==='void'?['No result','#8f8b82']:live?['● Game live','#8fe0b2']:[`Waiting for ready · ${m.ready_count}/6`,'#b9bde8'];
+ const [stxt,scol]=m.status==='done'?['✓ Finished','#8fe0b2']:m.status==='void'?['No result','#8f8b82']:live?['● Game live','#8fe0b2']:[`Waiting for ready · ${m.ready_count}/${m.team1.length*2}`,'#b9bde8'];
  const c1=m.winner_team===1?'rt-win':m.winner_team===2?'rt-lose':'',c2=m.winner_team===2?'rt-win':m.winner_team===1?'rt-lose':'';
  let admin='';
  if(D.is_admin&&D.tournament.status==='live'){
@@ -480,7 +485,7 @@ function rtMatch(m,round){
  }
  return `<div class="rt-mc ${m.me_in?'rt-mine':live?'rt-on':''}"><div class="rt-mh"><b>Match ${m.match_no}</b><span class="rt-st" style="color:${scol}">${stxt}</span></div>
   <div class="rt-mb">${rtSide(m.team1,m.team1_avg,c1,false,m)}<div class="rt-vs">${m.winner_team?`<b>${m.winner_team===1?'1–0':'0–1'}</b>Team ${m.winner_team}`:'vs'}</div>${rtSide(m.team2,m.team2_avg,c2,true,m)}</div>
-  <div class="rt-foot">${m.map?`🗺️ ${esc(m.map)}`:''}${m.aoe_match_id?` · <a href="#" data-match="${m.aoe_match_id}">Game #${m.aoe_match_id}</a>`:''}${m.note?` · ${esc(m.note)}`:''}${admin}</div></div>`}
+  <div class="rt-foot">${m.map?`🗺️ ${esc(m.map)}`:''}${m.aoe_match_id?` · <a href="#" data-match="${m.aoe_match_id}">${live?'▶ Watch live':'Details ↗'}</a>`:''}${m.note?` · ${esc(m.note)}`:''}${admin}</div></div>`}
 function rtStandings(){
  const R=D.random,t=D.tournament,rows=R.standings;
  if(!rows.length)return '<div class="t-empty">Standings appear after the first round.</div>';
@@ -502,12 +507,12 @@ function rtMain(){
   <section class="panel"><div class="panel-head"><h3>${t.status==='finished'?'Final standings':'Standings'}</h3><small style="color:var(--muted);font-size:11px">${t.status==='finished'?'':'After round '+Math.max(0,t.current_round-(R.rounds.length&&R.rounds[R.rounds.length-1].matches.some(m=>m.status!=='done'&&m.status!=='void')?1:0))+' of '+t.rounds}</small></div>${rtStandings()}</section></div>`}
 function rtRules(){const t=D.tournament;
  return `<div class="info-body" style="padding:18px 20px"><ul>
-  <li><b>Format:</b> everyone signs up alone. Each round, the website makes new random 3v3 teams, balanced by AoE4World rating, and avoids giving you the same teammates twice.</li>
+  <li><b>Format:</b> everyone signs up alone. Each round, the website makes new random ${esc(t.mode)} teams, balanced by AoE4World rating, and avoids giving you the same teammates twice.</li>
   <li><b>Rounds:</b> ${t.rounds}. Each round, every team plays one match.</li>
   <li><b>Points (individual):</b> win = ${t.points_win}, loss = 0, sitting out = ${t.points_bye}. Your points are yours, even though you play in a team.</li>
-  <li><b>Sitting out:</b> if the number of players isn't a multiple of 6, a few players sit out each round. Whoever has sat out the least goes first, and nobody sits out twice in a row if it can be avoided. Players sitting out can be called in as substitutes.</li>
+  <li><b>Sitting out:</b> if the number of players isn't a multiple of ${(t.team_size||3)*2}, a few players sit out each round. Whoever has sat out the least goes first, and nobody sits out twice in a row if it can be avoided. Players sitting out can be called in as substitutes.</li>
   <li><b>Ties:</b> opponents' points (beating strong players counts more), then fewer sit-outs, then rating.</li>
-  <li><b>Playing:</b> when your teams are out, all six players press <b>I'm ready</b>. The bot starts the match in Discord with your teams already set, runs civ bans and picks, and both sides confirm the result.</li>
+  <li><b>Playing:</b> when your teams are out, every player in the match presses <b>I'm ready</b>. The bot starts the match in Discord with your teams already set, runs civ bans and picks, and both sides confirm the result.</li>
   <li><b>Maps:</b> ${(t.round_maps||[]).length?(t.round_maps.map((m,i)=>`round ${i+1}: ${m==='random'?'random from the pool':esc(m)}`).join(', ')):'random from the pool each round'}.</li>
   <li>Tournament games appear in match history but don't change club stats or community ratings.</li></ul>
   ${t.prizes?`<p style="margin-top:12px"><b>Prizes:</b> ${esc(t.prizes)}</p>`:''}${t.rules?`<p style="margin-top:12px"><b>Rules</b></p><p class="rules-text">${esc(t.rules)}</p>`:''}</div>`}
@@ -520,8 +525,8 @@ function render(){
  const team=isTeam(t),ffa=isFFA(t);
  const count=team?D.teams.list.filter(x=>['registered','playing','eliminated','champion'].includes(x.status)).length:D.players.filter(p=>!['waitlist','no_show','withdrawn'].includes(p.status)).length;
  const rt=isRT(t);
- $('tour').innerHTML=`<div class="t-top"><div>${st==='live'?`<span class="livepill"><i></i>Live${rt||(ffa&&t.rounds>1)?' · Round '+t.current_round+' of '+t.rounds:cur&&!ffa?' · '+esc(cur.round_name):''}</span>`:`<span class="t-kicker">${STATUS[st]}</span>`}${rt||team||ffa?`<span class="fmtchip">${fmtName(t)}</span>`:''}
-  <h1>${esc(t.name)}</h1><p>${rt?`3v3 · ${t.rounds} rounds · new random teammates every round · individual points`:ffa?`Free-for-all · ${t.rounds} round${t.rounds===1?'':'s'} · points by placement`:team?`${esc(t.mode)} teams · Single elimination`:`${esc(t.mode)} · Single elimination`} · ${count} of ${t.max_players} ${team?'teams':'players'} · ${st==='live'||st==='finished'?'Started':'Starts'} ${esc(when(t.started_at||t.starts_at))} your time</p>${t.description?`<p style="margin-top:6px;color:#c8c3ba">${esc(t.description)}</p>`:''}</div>
+ $('tour').innerHTML=`<div class="t-top"><div>${st==='live'?`<span class="livepill"><i></i>Live${rt||(ffa&&t.rounds>1)?' · Round '+t.current_round+' of '+t.rounds:cur&&!ffa?' · '+esc(cur.round_name):''}</span>`:`<span class="t-kicker">${STATUS[st]}</span>`}${rt||team||ffa?`<span class="fmtchip">${fmtName(t)}</span>`:''}${divText(t)?`<span class="fmtchip">${divText(t)}</span>`:''}
+  <h1>${esc(t.name)}</h1><p>${rt?`${esc(t.mode)} · ${t.rounds} rounds · new random teammates every round · individual points`:ffa?`Free-for-all · ${t.rounds} round${t.rounds===1?'':'s'} · points by placement`:team?`${esc(t.mode)} teams · Single elimination`:`${esc(t.mode)} · Single elimination`} · ${count} of ${t.max_players} ${team?'teams':'players'} · ${st==='live'||st==='finished'?'Started':'Starts'} ${esc(when(t.started_at||t.starts_at))} your time</p>${t.description?`<p style="margin-top:6px;color:#c8c3ba">${esc(t.description)}</p>`:''}</div>
   <div style="display:flex;gap:8px"><a class="btn secondary" href="/tournament">All tournaments</a><button class="btn secondary" type="button" id="shareBtn">Copy link</button></div></div>
   ${msg?`<div class="t-msg ${msg.ok?'ok':'err'}" role="status">${esc(msg.text)}</div>`:''}
   ${rt&&started?rtCard():team&&(st==='signup'||st==='checkin')?teamCard():team&&st==='live'?teamLiveCard():ffa&&st==='live'?ffaCard():myCard()}
@@ -539,12 +544,13 @@ document.addEventListener('click',async e=>{
   rp.disabled=true;await act(`/api/tournaments/${TID}/team-replace`,{team_id:+rp.dataset.repl,old_user:$('replOld').value,new_user:nid},'Invite sent.');return}
  const fr=e.target.closest('[data-fready]');if(fr){fr.disabled=true;await act(`/api/tournaments/${TID}/ffa-ready`,{match_id:+fr.dataset.fready,ready:fr.dataset.on==='1'},fr.dataset.on==='1'?"You're ready! The lobby opens in Discord when everyone is ready.":'Marked as not ready.');return}
  const orderOf=id=>[...document.querySelector(`[data-orderfor="${id}"]`).querySelectorAll('.ordsel')].map(x=>x.value);
+ const civsOf=id=>{const box=document.querySelector(`[data-orderfor="${id}"]`),o={};box.querySelectorAll('label').forEach(l=>{const c=l.querySelector('.ordciv').value;if(c)o[l.querySelector('.ordsel').value]=c});return o};
  const fp=e.target.closest('[data-freport]');if(fp){const o=orderOf(fp.dataset.freport);if(new Set(o).size!==o.length){msg={ok:false,text:'Each player can only be in one place.'};render();return}
-  if(!confirm('Submit these placements? The other players will be asked to confirm.'))return;fp.disabled=true;await act(`/api/tournaments/${TID}/ffa-report`,{match_id:+fp.dataset.freport,order:o},'Placements submitted. Waiting for the others to confirm.');return}
+  if(!confirm('Submit these placements? The other players will be asked to confirm.'))return;fp.disabled=true;await act(`/api/tournaments/${TID}/ffa-report`,{match_id:+fp.dataset.freport,order:o,civs:civsOf(fp.dataset.freport)},'Placements submitted. Waiting for the others to confirm.');return}
  const fc=e.target.closest('[data-fconf]');if(fc){if(fc.dataset.agree!=='1'&&!confirm('Dispute these placements? An admin will set the result.'))return;fc.disabled=true;
   await act(`/api/tournaments/${TID}/ffa-confirm`,{match_id:+fc.dataset.fconf,agree:fc.dataset.agree==='1'},fc.dataset.agree==='1'?'Confirmed. Thanks!':'Disputed. An admin will decide.');return}
  const fs=e.target.closest('[data-fset]');if(fs){const o=orderOf(fs.dataset.fset);if(new Set(o).size!==o.length){msg={ok:false,text:'Each player can only be in one place.'};render();return}
-  if(!confirm('Save these placements as final?'))return;fs.disabled=true;await act(`/api/tournaments/${TID}/admin`,{action:'ffa_result',match_id:+fs.dataset.fset,order:o});return}
+  if(!confirm('Save these placements as final?'))return;fs.disabled=true;await act(`/api/tournaments/${TID}/admin`,{action:'ffa_result',match_id:+fs.dataset.fset,order:o,civs:civsOf(fs.dataset.fset)});return}
  const fa=e.target.closest('[data-fapprove]');if(fa){fa.disabled=true;await act(`/api/tournaments/${TID}/admin`,{action:'ffa_approve',match_id:+fa.dataset.fapprove});return}
  const rr=e.target.closest('[data-rround]');if(rr){rtRound=+rr.dataset.rround;render();return}
  const tr=e.target.closest('[data-tready]');if(tr){tr.disabled=true;await act(`/api/tournaments/${TID}/team-ready`,{match_id:+tr.dataset.tready,ready:tr.dataset.on==='1'},tr.dataset.on==='1'?"You're ready! The match starts in Discord when all six players are ready.":'Marked as not ready.');return}

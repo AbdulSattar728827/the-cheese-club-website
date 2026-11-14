@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/png" sizes="128x128" href="/static/favicon.png?v=3">
+<link rel="shortcut icon" type="image/x-icon" href="/static/favicon.ico?v=3">
+<link rel="apple-touch-icon" href="/static/favicon.png?v=3">
+
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>%%OG_TITLE%%</title>
+<meta name="description" content="%%OG_DESCRIPTION%%">
+<meta name="theme-color" content="#f0b82f">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="The Cheese Club">
+<meta property="og:title" content="%%OG_TITLE%%">
+<meta property="og:description" content="%%OG_DESCRIPTION%%">
+<meta property="og:url" content="%%SITE_URL%%%%OG_PATH%%">
+<meta property="og:image" content="%%SITE_URL%%/static/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The Cheese Club, an Age of Empires IV community">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c0c0e;--panel:#151518;--panel2:#1b1b20;--line:#2b2925;--gold:#f0b82f;--gold2:#ffda70;--muted:#98969a;--white:#f6f3eb;--green:#69d49a}
+*{box-sizing:border-box}body{margin:0;background:#080809;color:var(--white);font-family:Inter,Arial,sans-serif;position:relative;isolation:isolate}body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(rgba(7,7,8,.68),rgba(7,7,8,.82)),url("/static/home-hero-medieval.jpg") center center/cover no-repeat}a{color:inherit;text-decoration:none}.shell{max-width:1400px;margin:auto;padding:0 34px}.topbar{height:88px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff12}.brand{display:flex;align-items:center;gap:14px}.brand img{width:155px;height:68px;object-fit:contain;object-position:left center}.brand small{display:block;color:var(--muted);font-size:10px;letter-spacing:2px;text-transform:uppercase}.brand .brand-title{display:block;color:var(--white);font:800 19px/1.05 'Barlow Condensed',sans-serif;letter-spacing:1.1px;white-space:nowrap}.brand .brand-sub{font-size:9px;letter-spacing:2.5px;margin-top:4px;color:var(--gold)}.nav{display:flex;gap:17px;align-items:center;flex-wrap:wrap;color:#c8c4bc;font-size:12px}.nav a:hover{color:var(--gold)}.discord{background:linear-gradient(135deg,#f5c64c,#c98713);color:#201707;padding:12px 18px;border-radius:9px;font-weight:800;font-size:12px;letter-spacing:.4px;box-shadow:0 5px 24px #e5a61b25}.hero{padding:62px 28px 36px;margin:22px 0 26px;display:grid;grid-template-columns:1.25fr .75fr;gap:34px;align-items:center;border:1px solid #8a682b55;border-radius:18px;overflow:hidden;background:linear-gradient(145deg,#1b1b20,#121214);box-shadow:0 18px 55px #0008}.eyebrow{color:var(--gold);font-weight:800;letter-spacing:2.4px;text-transform:uppercase;font-size:11px}.hero h1{font:800 clamp(44px,6vw,76px)/.94 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;margin:16px 0}.hero h1 span{color:var(--gold)}.hero p{color:#aaa7a0;max-width:610px;line-height:1.8;font-size:14px}.actions{display:flex;gap:12px;margin-top:25px}.btn{padding:14px 19px;border-radius:8px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase}.btn.primary{background:var(--gold);color:#211808}.btn.secondary{border:1px solid #4a4335;color:#eee}.hero-card{background:linear-gradient(145deg,#1b1b20,#121214);border:1px solid #6e5424;border-radius:18px;padding:23px;box-shadow:0 18px 60px #0008;position:relative;overflow:hidden}.hero-card:after{content:"";position:absolute;width:220px;height:220px;border:1px solid #dba62b25;border-radius:50%;right:-75px;top:-95px;box-shadow:0 0 0 25px #dba62b08,0 0 0 55px #dba62b06}.card-top{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1.5px}.live{color:var(--green)}.hero-stat{display:flex;align-items:end;gap:12px;margin:28px 0 12px}.hero-stat strong{font:800 56px 'Barlow Condensed';color:var(--gold)}.hero-stat span{font-size:12px;color:#c7c0b1;margin-bottom:9px}.mini-bars{display:flex;gap:6px;height:45px;align-items:end;margin-top:20px}.mini-bars i{display:block;flex:1;background:linear-gradient(#f8ce61,#98600c);border-radius:3px 3px 0 0;opacity:.8}.section-head{display:flex;align-items:end;justify-content:space-between;margin:28px 0 15px}.section-head h2{font:700 26px 'Barlow Condensed';text-transform:uppercase;letter-spacing:1px;margin:0}.section-head p{color:var(--muted);font-size:11px;margin:5px 0 0}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.stat{background:linear-gradient(145deg,#19191d,#121214);border:1px solid var(--line);border-radius:12px;padding:19px}.stat label{color:var(--muted);font-size:10px;letter-spacing:1.3px;text-transform:uppercase}.stat strong{display:block;font:700 34px 'Barlow Condensed';margin-top:8px;color:var(--gold2)}.stat small{color:#777;font-size:10px}.columns{display:grid;grid-template-columns:1.1fr .9fr;gap:16px;margin:18px 0 50px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:13px;overflow:hidden;display:flex;flex-direction:column}.panel > .table-wrap,.panel > .match-list{flex:1}.panel-footer{margin-top:auto;padding:12px 18px;display:flex;justify-content:flex-end;align-items:center;min-height:62px;border-top:1px solid var(--line);background:#151518}.members-more{display:flex;justify-content:center;margin:8px 0 30px}.members-more button{cursor:pointer;background:#17171b}.panel-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}.panel-head h3{font:700 20px 'Barlow Condensed';text-transform:uppercase;letter-spacing:1px;margin:0}.tag{font-size:9px;letter-spacing:1px;text-transform:uppercase;border:1px solid #69511e;color:var(--gold);padding:6px 9px;border-radius:20px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:420px}th{text-align:left;color:#777;font-size:9px;letter-spacing:1px;text-transform:uppercase;font-weight:700;padding:13px 17px}td{padding:13px 17px;border-top:1px solid #ffffff0b;font-size:12px;color:#dedbd4}tr:hover td{background:#ffffff05}.rank{font:700 18px 'Barlow Condensed';color:var(--gold)}.player{font-weight:700}.sub{display:block;color:#777;font-size:10px;margin-top:3px}.elo{color:var(--gold2);font-weight:800}.queue-tabs{display:flex;gap:5px}.queue-tabs button{background:#222226;border:1px solid #333;color:#aaa;padding:6px 9px;border-radius:6px;font-size:10px;cursor:pointer}.queue-tabs button.active{background:#5b4212;color:#ffdb78;border-color:#99701e}.match-list{padding:5px 18px}.match{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid #ffffff0c;gap:15px}.match:last-child{border:0}.match strong{font-size:12px}.match small{display:block;color:#777;margin-top:4px;font-size:10px}.result{font-size:9px;text-transform:uppercase;color:var(--green);border:1px solid #285a40;padding:6px 8px;border-radius:5px}.result.pending{color:var(--gold);border-color:#6e5424}.empty{padding:28px 20px;color:#777;font-size:12px;text-align:center}.footer{border-top:1px solid #ffffff12;padding:24px 0 35px;color:#777;font-size:10px;display:flex;justify-content:space-between}.toast{position:fixed;bottom:18px;right:18px;background:#251d0f;border:1px solid #72551c;color:#f1d28a;padding:10px 14px;border-radius:8px;font-size:11px;display:none}
+@media(max-width:850px){.shell{padding:0 18px}.nav{display:flex;gap:10px;flex-wrap:wrap;font-size:11px}.hero{grid-template-columns:1fr;padding:42px 18px 26px;background-position:center;background-size:cover}.hero-card{max-width:100%}.columns{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.brand img{width:130px}.footer{gap:10px;flex-direction:column}}
+@media(max-width:460px){.stats{gap:8px}.stat{padding:13px}.stat strong{font-size:28px}.hero h1{font-size:48px}.actions{flex-wrap:wrap}}
+.section-head h1{font:700 30px 'Barlow Condensed';text-transform:uppercase;letter-spacing:1px;margin:0}
+.match{cursor:pointer;border:1px solid transparent;border-radius:8px;padding-left:10px;padding-right:10px;transition:.15s}.match:hover,.match:focus{background:#242126;border-color:#70551e;outline:none}.match-hint{display:block;color:#b08b39;font-size:9px;margin-top:4px}.detail-backdrop{position:fixed;inset:0;background:#000c;display:none;align-items:center;justify-content:center;padding:16px;z-index:100;overflow-y:auto}.detail-modal{width:min(760px,100%);max-height:90vh;overflow:auto;background:#19191e;border:1px solid #72551f;border-radius:14px;padding:22px}.detail-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.detail-head h2{font:700 25px 'Barlow Condensed';margin:0}.detail-close{background:#292930;border:1px solid #494951;color:#fff;border-radius:7px;padding:8px 12px;cursor:pointer}.detail-teams{display:grid;grid-template-columns:1fr 1fr;gap:12px}.detail-team{background:#222228;border:1px solid #33333a;border-radius:10px;padding:13px}.detail-team h3{margin:0 0 12px;font:700 19px 'Barlow Condensed'}.detail-player{display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid #ffffff12}.detail-player img{width:36px;height:36px;border-radius:50%;object-fit:cover}.detail-player b{font-size:12px;display:block}.detail-player small{color:#aaa;font-size:10px;display:block;margin-top:4px}.detail-meta{margin-top:14px;padding:12px;background:#222228;border-radius:9px;color:#aaa;font-size:11px;line-height:1.7}@media(max-width:600px){.detail-teams{grid-template-columns:1fr}}
+</style>
+<style>
+.t-wrap{margin:28px 0 50px}
+.t-hero{position:relative;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,.7fr);gap:24px;padding:30px 32px;border-radius:18px;border:1px solid #8a682b;background:radial-gradient(120% 140% at 0% 0%,#3a2a0e 0%,#17150f 45%,#121214 100%);box-shadow:0 22px 60px #0008;overflow:hidden}
+.t-hero::after{content:"🏆";position:absolute;right:28px;top:-6px;font-size:150px;opacity:.07;transform:rotate(12deg)}
+.t-kicker{color:var(--gold);font-size:10.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase}
+.t-hero h1{font:800 clamp(38px,4.6vw,60px)/.95 'Barlow Condensed',sans-serif;text-transform:uppercase;margin:10px 0 12px}
+.t-hero p{color:#c8c3ba;font-size:14px;line-height:1.7;margin:0 0 18px;max-width:58ch}
+.t-facts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
+.t-facts span{padding:8px 12px;border-radius:20px;background:#ffffff0d;border:1px solid #ffffff1a;font-size:12px;color:#ddd8cf}
+.t-cta{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.t-cta .btn{padding:14px 22px;font-size:12px}
+.t-cta small{color:#a29e95;font-size:12px}
+.t-side{display:flex;flex-direction:column;gap:12px;position:relative;z-index:1}
+.t-box{padding:16px 18px;border-radius:14px;background:#0f0f12cc;border:1px solid #3a3327}
+.t-box label{display:block;color:#8f8b82;font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:8px}
+.count{display:flex;gap:10px}.count div{flex:1;text-align:center;padding:8px 0;border-radius:10px;background:#1b1a17;border:1px solid #2c2a26}
+.count b{display:block;font:800 30px/1 'Barlow Condensed';color:var(--gold2)}.count small{color:#8f8b82;font-size:10px}
+.spots{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:8px}.spots b{color:var(--white)}
+.spotbar{height:9px;border-radius:6px;background:#26262b;overflow:hidden}.spotbar i{display:block;height:100%;background:linear-gradient(90deg,#98600c,#f0b82f)}
+.avs{display:flex;margin-top:12px}.avs span{width:28px;height:28px;margin-right:-7px;border-radius:50%;border:2px solid #121214;background:#29251d;color:var(--gold);display:grid;place-items:center;font-size:11px;font-weight:800}
+.prize{display:flex;gap:10px;align-items:center;font-size:12.5px;color:#ddd8cf;padding:4px 0}.prize b{color:var(--gold)}
+.sec{margin:34px 0 14px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.sec h2{font:700 28px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.8px;margin:0}.sec p{margin:4px 0 0;color:var(--muted);font-size:12px}
+.t-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.t-card{padding:18px;border-radius:14px;background:linear-gradient(150deg,#1b1b20,#121214);border:1px solid #2c2a26;display:flex;flex-direction:column;gap:10px}
+.t-card.now-on{border-color:#285a40;background:linear-gradient(150deg,#16251c,#121214)}
+.t-card .tag{align-self:flex-start;padding:4px 9px;border-radius:20px;font:800 9.5px Inter;letter-spacing:.6px;text-transform:uppercase;border:1px solid #6e5424;color:var(--gold);background:#2a2213}
+.t-card.now-on .tag{border-color:#285a40;color:#8fe0b2;background:#13241b}
+.t-card h3{font:700 24px/1.05 'Barlow Condensed';text-transform:uppercase;margin:0}
+.t-card p{margin:0;color:#9d998f;font-size:12px;line-height:1.6}
+.t-card .meta{display:flex;flex-wrap:wrap;gap:6px}.t-card .meta span{font-size:11px;color:#cfcac0;padding:5px 9px;border-radius:8px;background:#ffffff0a}
+.t-card .btn{margin-top:auto;text-align:center}
+.hall{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.champ{display:grid;grid-template-columns:52px 1fr;gap:12px;align-items:center;padding:14px;border-radius:14px;background:#141417;border:1px solid #3a3327}
+.champ .av{width:52px;height:52px;border-radius:50%;border:2px solid var(--gold);display:grid;place-items:center;background:#2a2213;color:var(--gold);font:800 20px 'Barlow Condensed';position:relative}
+.champ .av::after{content:"🏆";position:absolute;right:-6px;bottom:-4px;font-size:16px}
+.champ b{display:block;font:700 18px 'Barlow Condensed';text-transform:uppercase}.champ small{display:block;color:#8f8b82;font-size:11px;line-height:1.5}
+/* live tournament page */
+.t-top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.t-top h1{font:800 clamp(34px,4vw,50px)/1 'Barlow Condensed';text-transform:uppercase;margin:6px 0 6px}
+.t-top p{margin:0;color:#a29e95;font-size:13px}
+.livepill{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:20px;background:#13241b;border:1px solid #285a40;color:#8fe0b2;font:800 10px Inter;letter-spacing:.8px;text-transform:uppercase}
+.livepill i{width:7px;height:7px;border-radius:50%;background:#69d49a;box-shadow:0 0 0 0 #69d49a80;animation:lp 2s infinite}
+@keyframes lp{0%{box-shadow:0 0 0 0 #69d49a80}70%{box-shadow:0 0 0 7px #69d49a00}100%{box-shadow:0 0 0 0 #69d49a00}}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;overflow-x:auto}
+.tabs span{padding:11px 16px;font-size:13px;font-weight:700;color:#9d998f;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs span.on{color:var(--gold);border-color:var(--gold)}
+.mine{display:flex;align-items:center;gap:18px;padding:18px 20px;margin-bottom:18px;border-radius:14px;border:1px solid #5865f2;background:linear-gradient(135deg,#1c1f3a,#121214)}
+.mine .vs{display:flex;align-items:center;gap:12px;font:700 22px 'Barlow Condensed';text-transform:uppercase}
+.mine .vs em{font-style:normal;color:#8f8b82;font-size:14px}
+.mine small{display:block;color:#b9bde8;font-size:12px;margin-top:3px}
+.mine .btn{margin-left:auto;white-space:nowrap}
+.t-main{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+.bracket-wrap{overflow-x:auto;padding:6px 2px 10px}
+.bracket{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:34px;min-width:740px}
+.round h4{margin:0 0 10px;font:700 15px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.8px;color:#a29e95;display:flex;justify-content:space-between}
+.round h4 small{font:600 10.5px Inter;color:#6f6c66;text-transform:none;letter-spacing:0}
+.round .col{display:flex;flex-direction:column;justify-content:space-around;height:520px}
+.m{position:relative;border-radius:10px;background:#141417;border:1px solid #2c2a26;overflow:hidden}
+.m.live{border-color:#285a40;box-shadow:0 0 0 1px #285a4088}
+.m.my-m{border-color:#5865f2;box-shadow:0 0 0 1px #5865f288}
+.m .p{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 10px;font-size:12.5px}
+.m .p+.p{border-top:1px solid #ffffff0a}
+.m .seed{color:#6f6c66;font-size:10.5px;font-weight:800;text-align:center}
+.m .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:#cfcac0}
+.m .s{font:800 15px 'Barlow Condensed';color:#8f8b82;min-width:16px;text-align:right}
+.m .p.w .n{color:var(--white)}.m .p.w .s{color:var(--gold2)}
+.m .p.l .n{color:#6f6c66;text-decoration:line-through;text-decoration-color:#6f6c6688}
+.m .p.tbd .n{color:#5f5c57;font-style:italic;font-weight:500}
+.m .mh{display:flex;justify-content:space-between;padding:4px 10px;background:#ffffff06;font-size:10px;color:#8f8b82}
+.m.live .mh{color:#8fe0b2}.m.my-m .mh{color:#b9bde8}
+.round:not(:last-child) .m::after{content:"";position:absolute;right:-35px;top:50%;width:34px;height:1px;background:#3a3327}
+.champ-slot{margin-top:14px;padding:14px;border-radius:12px;border:1px dashed #6e5424;text-align:center;color:#a29e95;font-size:12px}
+.champ-slot b{display:block;font:800 18px 'Barlow Condensed';color:var(--gold);text-transform:uppercase}
+.info{display:flex;flex-direction:column;gap:14px}
+.info .panel{padding:0}
+.info-body{padding:14px 18px 16px;font-size:12.5px;color:#b3afa7;line-height:1.7}
+.info-body ul{margin:0;padding-left:18px}.info-body li::marker{color:var(--gold)}
+.maps{display:flex;flex-wrap:wrap;gap:6px}.maps span{padding:6px 10px;border-radius:8px;background:#1b1a17;border:1px solid #2c2a26;font-size:11.5px;color:#cfcac0}
+.sched div{display:flex;justify-content:space-between;padding:7px 0;border-top:1px solid #ffffff0a}.sched div:first-child{border-top:0}
+.sched b{color:var(--white);font-weight:600}.sched .done{color:#6f6c66}.sched .now b{color:#8fe0b2}
+/* sign-up / check-in */
+.steps3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}
+.st{padding:16px;border-radius:14px;background:#141417;border:1px solid #2c2a26}
+.st.done{border-color:#285a40;background:#13241b}.st.now{border-color:#8a682b;background:#221c10}
+.st span{font:800 11px Inter;letter-spacing:1px;text-transform:uppercase;color:#8f8b82}
+.st.done span{color:#8fe0b2}.st.now span{color:var(--gold)}
+.st b{display:block;font:700 20px 'Barlow Condensed';text-transform:uppercase;margin:6px 0 4px}.st p{margin:0;color:#9d998f;font-size:12px;line-height:1.55}
+.checkin{display:flex;align-items:center;gap:18px;padding:20px 22px;border-radius:16px;border:1px solid #8a682b;background:linear-gradient(135deg,#2a2213,#121214);margin-bottom:18px}
+.checkin .big{font:800 44px/1 'Barlow Condensed';color:var(--gold2)}
+.checkin b{display:block;font:700 22px 'Barlow Condensed';text-transform:uppercase}.checkin small{color:#c9bfa8;font-size:12.5px}
+.checkin .btn{margin-left:auto;padding:15px 24px;white-space:nowrap}
+.plist{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:14px 18px 18px}
+.pl{display:grid;grid-template-columns:28px 1fr auto;gap:9px;align-items:center;padding:9px 10px;border-radius:10px;background:#141417;border:1px solid #2c2a26;font-size:12.5px}
+.pl .av{width:28px;height:28px;border-radius:50%;background:#29251d;color:var(--gold);display:grid;place-items:center;font-weight:800;font-size:11px}
+.pl small{color:#8f8b82;font-size:10.5px}.pl .ok{color:#8fe0b2;font-size:11px;font-weight:800}.pl .wait{color:#8f8b82;font-size:11px}
+@media(max-width:1000px){.t-hero,.t-main{grid-template-columns:1fr}.t-cards{grid-template-columns:1fr 1fr}.hall{grid-template-columns:1fr 1fr}.plist{grid-template-columns:1fr 1fr}.steps3{grid-template-columns:1fr}}
+@media(max-width:600px){.t-cards,.hall,.plist{grid-template-columns:1fr}.mine,.checkin{flex-wrap:wrap}.mine .btn,.checkin .btn{margin-left:0;width:100%;text-align:center}.t-hero{padding:22px 18px}}
+
+.you{display:flex;align-items:center;gap:16px;padding:16px 20px;margin-bottom:18px;border-radius:14px;border:1px solid #2f6146;background:linear-gradient(135deg,#13241b,#121214)}
+.you .pulse{flex:0 0 12px;width:12px;height:12px;border-radius:50%;background:#69d49a;box-shadow:0 0 0 6px #69d49a22}
+.you b{display:block;font:700 20px/1.1 'Barlow Condensed';text-transform:uppercase}.you small{color:#a9c9b6;font-size:12px}
+.you .btn,.need .btn{margin-left:auto;white-space:nowrap}
+.need{display:flex;align-items:center;gap:16px;padding:16px 20px;margin-bottom:18px;border-radius:14px;border:1px solid #6e5424;background:linear-gradient(135deg,#2a2213,#121214)}
+.need .ic{font-size:26px}.need b{display:block;font:700 20px/1.1 'Barlow Condensed';text-transform:uppercase}.need small{color:#c9bfa8;font-size:12px}
+@media(max-width:600px){.you,.need{flex-wrap:wrap}.you .btn,.need .btn{margin-left:0;width:100%;text-align:center}}
+.btn{font-family:inherit;cursor:pointer}
+button.btn.secondary{background:transparent;color:var(--white)}
+.t-msg{padding:11px 14px;border-radius:10px;font-size:12.5px;margin:0 0 14px}
+.t-msg.ok{border:1px solid #285a40;background:#13241b;color:#cfe9d9}.t-msg.err{border:1px solid #6a3329;background:#3a201c;color:#f3b4a6}
+.t-empty{padding:40px 20px;text-align:center;color:#9d998f;font-size:13px;line-height:1.7;border:1px dashed #3a3327;border-radius:14px}
+.civs{padding:5px 10px 7px;font-size:10.5px;color:#8f8b82;border-top:1px solid #ffffff08;line-height:1.5}
+.civs b{color:#cfcac0;font-weight:600}
+.m .n a{color:inherit}.m .n a:hover{color:var(--gold)}
+.m .admin-set{display:flex;gap:6px;padding:6px 10px 8px;border-top:1px dashed #3a3327}
+.m .admin-set select{flex:1;min-width:0;padding:5px 6px;border-radius:6px;border:1px solid #3a3327;background:#111114;color:var(--white);font:inherit;font-size:11px}
+.m .admin-set button{padding:5px 9px;border-radius:6px;border:1px solid #6e5424;background:#2a2213;color:var(--gold);font:700 10.5px Inter;cursor:pointer}
+.rtabs{display:none;gap:6px;margin-bottom:12px;overflow-x:auto}
+.rtabs button{padding:8px 12px;border-radius:20px;border:1px solid #3a3327;background:transparent;color:#cfcac0;font:700 11.5px Inter;white-space:nowrap;cursor:pointer}
+.rtabs button.on{border-color:var(--gold);color:var(--gold);background:#2a2213}
+.ready-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.rdy{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:20px;font-size:11.5px;border:1px solid #3a3327;color:#a29e95}
+.rdy.yes{border-color:#285a40;color:#8fe0b2;background:#13241b}
+.admin{margin-top:18px;border-color:#6a3329!important}
+.admin .info-body{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.admin select{padding:9px 10px;border-radius:8px;border:1px solid #3a3327;background:#111114;color:var(--white);font:inherit;font-size:12px}
+.btn.danger{background:transparent;border:1px solid #6a3329;color:#f0a090}
+.rules-text{white-space:pre-wrap}
+.status-chip{font-size:10.5px;font-weight:800}
+.st-out{color:#8f8b82}.st-champ{color:var(--gold)}
+.tform{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:20px 22px}
+.tform .full{grid-column:1/-1}
+.tform label{display:block;font-size:12px;font-weight:700;color:#cfcac0;margin-bottom:6px}
+.tform small{display:block;color:#8f8b82;font-size:11px;margin-top:5px}
+.tform input,.tform select,.tform textarea{width:100%;padding:11px 12px;border-radius:9px;border:1px solid #3a3327;background:#111114;color:var(--white);font:inherit;font-size:13px}
+.tform textarea{min-height:110px;resize:vertical}
+.tform input:focus,.tform select:focus,.tform textarea:focus{outline:none;border-color:var(--gold)}
+@media(max-width:760px){.rtabs{display:flex}.bracket{grid-template-columns:1fr!important;min-width:0!important}.round{display:none}.round.active{display:block}.round .col{height:auto!important;gap:12px}.round:not(:last-child) .m::after{display:none}.tform{grid-template-columns:1fr}}
+</style>
+<link rel="stylesheet" href="/static/common.css">
+<script src="/static/common.js"></script>
+</head>
+<body>
+<div class="shell">
+<header class="topbar">
+ <a class="brand" href="/"><img src="/static/cheese-club-logo.png" alt="The Cheese Club"><span><small>Age of Empires IV</small><b class="brand-title">THE CHEESE CLUB</b><small class="brand-sub">COMMUNITY HUB</small></span></a>
+ <nav class="nav"><a href="/">Home</a><a href="/leaderboard">Leaderboard</a><a href="/matches">Matches</a><a href="/civs">Civ Stats</a><a href="/community">Community</a><a href="/voice-activity">Voice Activity</a><a href="/tournament">Tournament</a><a href="/about">About</a><a href="/contact">Contact Us</a><a href="/login">Log in</a></nav>
+ <a class="discord" id="discordLink" href="https://discord.gg/thecheeseclub" target="_blank" rel="noreferrer">JOIN DISCORD ↗</a>
+</header>
+<div class="t-wrap" id="tour"><div class="t-empty">Loading tournament…</div></div>
+<footer class="footer"><span>© <span id="year"></span> THE CHEESE CLUB</span><span>Play Together. Laugh Together. Win Together.</span></footer>
+</div>
+<div class="detail-backdrop" id="detailBackdrop" onclick="if(event.target===this)closeMatchDetail()"><section class="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailTitle"><div class="detail-head"><h2 id="detailTitle">Match Details</h2><button class="detail-close" onclick="closeMatchDetail()">Close ✕</button></div><div id="detailContent"><div class="empty">Loading match details…</div></div></section></div>
+<script>
+const $=id=>document.getElementById(id);
+const esc=ccEsc,fmt=ccFmt;
+$('year').textContent=new Date().getFullYear();
+
+async function call(method,url,body){
+ const r=await fetch(url,{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,credentials:'same-origin'});
+ const data=await r.json().catch(()=>({}));
+ if(!r.ok)throw new Error(data.detail||'Something went wrong. Please try again.');
+ return data;
+}
+const when=d=>new Date(d).toLocaleString(undefined,{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
+function until(d){let s=Math.max(0,Math.floor((new Date(d)-Date.now())/1000));const D=Math.floor(s/86400);s%=86400;const H=Math.floor(s/3600);s%=3600;const M=Math.floor(s/60),S=s%60;return {D,H,M,S}}
+function untilText(d){const u=until(d);return u.D?`${u.D}d ${u.H}h`:u.H?`${u.H}h ${u.M}m`:`${String(u.M).padStart(2,'0')}:${String(u.S).padStart(2,'0')}`}
+setInterval(()=>document.querySelectorAll('[data-until]').forEach(el=>{el.textContent=untilText(el.dataset.until)}),1000);
+const boText=t=>t.bo_default===t.bo_semi&&t.bo_semi===t.bo_final?`Best of ${t.bo_final} every round`:`Best of ${t.bo_default} early rounds, ${t.bo_semi} semis, ${t.bo_final} final`;
+const STATUS={signup:'Sign-ups open',checkin:'Check-in open',live:'Live',finished:'Finished',cancelled:'Cancelled'};
+const initials=n=>esc((n||'?').trim().slice(0,1).toUpperCase());
+
+function closeMatchDetail(){$('detailBackdrop').style.display='none';document.body.style.overflow=''}
+async function openMatchDetail(id){$('detailBackdrop').style.display='flex';document.body.style.overflow='hidden';$('detailTitle').textContent='Match #'+id;const box=$('detailContent');box.innerHTML='<div class="empty">Loading match details…</div>';try{box.innerHTML=matchDetailHtml(await fetchMatchDetail(id))}catch(e){box.innerHTML=`<div class="empty">${esc(e.message)}. Please try again.</div>`}}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMatchDetail()});
+
+const TID=location.pathname.split('/')[2];
+let D=null,tab=null,msg=null,busy=false,roundSel=null;
+async function act(url,body,okText){if(busy)return;busy=true;try{const r=await call('POST',url,body||{});msg={ok:true,text:okText||r.message||'Done.'}}catch(e){msg={ok:false,text:e.message}}busy=false;await load()}
+const name=p=>p?`<a href="${ccPlayerHref(p.user_id)}">${esc(p.username)}</a>`:'';
+function myCard(){
+ const t=D.tournament,me=D.me,st=t.status;
+ if(st==='finished')return D.winner?`<div class="checkin" style="border-color:#8a682b"><div class="big">🏆</div><div><b>${esc(D.winner.username)} is the champion!</b><small>${D.runner_up?'Beat '+esc(D.runner_up.username)+' in the final. ':''}GG to everyone who played.</small></div></div>`:'';
+ if(st==='cancelled')return '<div class="t-msg err">This tournament was cancelled.</div>';
+ if(!me.logged_in)return (st==='signup'||st==='checkin')?`<div class="mine"><div><div class="vs">Want to play?</div><small>Log in with Discord to sign up. It takes a few seconds.</small></div><a class="btn primary" href="/auth/login?next=${encodeURIComponent(location.pathname)}">Log in to sign up</a></div>`:'';
+ if(st==='signup'||st==='checkin'){
+  const e=me.eligible||{};
+  if(!me.status||me.status==='withdrawn'||me.status==='no_show'){
+   if(!e.in_server)return `<div class="need"><span class="ic">💬</span><div><b>Join the Discord to sign up</b><small>Tournament matches are played in The Cheese Club Discord.</small></div><a class="btn primary" href="https://discord.gg/thecheeseclub" target="_blank" rel="noopener noreferrer">Join Discord ↗</a></div>`;
+   if(!e.linked)return `<div class="need"><span class="ic">🔗</span><div><b>Link your AoE4 account to sign up</b><small>Seeds are set by your AoE4World rating.</small></div><a class="btn primary" href="/account">Link AoE4 account</a></div>`;
+   const full=D.players.filter(p=>p.status==='registered').length>=t.max_players;
+   return `<div class="mine"><div><div class="vs">${full?'Tournament full':'Spots available'}</div><small>${full?'Sign up to join the waiting list. You get a spot if someone drops out.':'Sign up now. Check-in opens '+t.checkin_minutes+' minutes before it starts.'}</small></div><button class="btn primary" type="button" data-act="signup">${full?'Join the waiting list':'✍️ Sign up'}</button></div>`;
+  }
+  const wl=me.status==='waitlist';
+  if(st==='signup')return `<div class="you"><i class="pulse"></i><div><b>${wl?"You're on the waiting list":"You're signed up!"}</b><small>Check-in opens ${esc(when(t.checkin_opens_at))} (in <span data-until="${t.checkin_opens_at}">${untilText(t.checkin_opens_at)}</span>). We'll notify you.</small></div><button class="btn danger" type="button" data-act="withdraw">Withdraw</button></div>`;
+  return `<div class="steps3"><div class="st done"><span>✓ Step 1</span><b>${wl?'On the waiting list':'Signed up'}</b><p>${wl?'If a player doesn\'t check in, the first checked-in player on the waiting list takes the spot.':'Seeds are set by AoE4World rating when it starts.'}</p></div>
+   <div class="st ${me.checked_in?'done':'now'}"><span>${me.checked_in?'✓':'●'} Step 2${me.checked_in?'':' · Now'}</span><b>${me.checked_in?'Checked in':'Check in'}</b><p>${me.checked_in?'You\'re all set.':'Confirm you\'re here before it starts.'}</p></div>
+   <div class="st"><span>Step 3</span><b>Play</b><p>At ${esc(when(t.starts_at))} the bracket is made and your first match is set up.</p></div></div>
+   ${me.checked_in?`<div class="you"><i class="pulse"></i><div><b>Checked in. See you at the start!</b><small>Starts in <span data-until="${t.starts_at}">${untilText(t.starts_at)}</span>. Your first match is announced here, in the bell and by Discord DM.</small></div><button class="btn danger" type="button" data-act="withdraw">Withdraw</button></div>`
+   :`<div class="checkin"><div class="big" data-until="${t.starts_at}">${untilText(t.starts_at)}</div><div><b>Check in before it starts</b><small>Players who aren't checked in when it starts lose their spot.</small></div><button class="btn primary" type="button" data-act="checkin">✅ Check in now</button></div>`}`;
+ }
+ if(st==='live'){
+  const m=me.match;
+  if(m){const mine=me.my_slot,opp=mine===1?m.p2:m.p1,myReady=mine===1?m.p1_ready:m.p2_ready,oppReady=mine===1?m.p2_ready:m.p1_ready,ms=mine===1?m.p1_score:m.p2_score,os=mine===1?m.p2_score:m.p1_score;
+   const playing=m.status==='playing'||m.status==='starting';
+   return `<div class="mine"><div style="min-width:0"><div class="vs">You <em>vs</em> ${esc(opp.username)}</div>
+    <small>${esc(m.round_name)} · best of ${m.best_of}${m.p1_score+m.p2_score?` · score ${ms}–${os}`:''}. ${playing?`Game ${m.p1_score+m.p2_score+1} is on in Discord: head to the match thread for the map veto and civ picks.`:myReady?`You're ready. The game starts in Discord as soon as ${esc(opp.username)} is ready too.`:'Join a voice channel in Discord, then press I\'m ready.'}</small>
+    ${playing?'':`<div class="ready-row"><span class="rdy ${myReady?'yes':''}">${myReady?'✓':'○'} You</span><span class="rdy ${oppReady?'yes':''}">${oppReady?'✓':'○'} ${esc(opp.username)}</span></div>`}</div>
+    ${playing?'<a class="btn primary" href="https://discord.com/channels/@me" target="_blank" rel="noopener noreferrer">Open Discord ↗</a>':myReady?`<button class="btn danger" type="button" data-ready="${m.id}" data-on="0">Not ready</button>`:`<button class="btn primary" type="button" data-ready="${m.id}" data-on="1">✅ I'm ready</button>`}</div>`}
+  if(me.status==='eliminated')return '<div class="t-msg" style="border:1px solid #3a3327;background:#17171b;color:#cfcac0">You\'re out of this one. Thanks for playing, and GG! Follow the rest of the bracket below.</div>';
+  if(me.status==='playing')return '<div class="t-msg ok">You\'re through! Your next match appears here when your opponent is decided.</div>';
+ }
+ return '';
+}
+function gamesLine(m){const g=m.games.filter(x=>x.status==='done'&&(x.p1_civ||x.p2_civ));if(!g.length)return '';
+ return `<div class="civs">${g.map(x=>`G${x.game}: <b>${esc(x.p1_civ||'?')}</b> vs <b>${esc(x.p2_civ||'?')}</b>${x.aoe_match_id?` <a href="#" data-match="${x.aoe_match_id}" style="color:var(--gold)">#${x.aoe_match_id}</a>`:''}`).join(' · ')}</div>`}
+function box(m){
+ const me=D.me,isMine=me.match&&me.match.id===m.id,live=m.status==='playing'||m.status==='starting';
+ const head=m.status==='done'?(m.note||'Result'):live?`Game ${m.p1_score+m.p2_score+1} live`:m.status==='ready'?`Bo${m.best_of} · waiting for ready`:(m.p1||m.p2)?`Bo${m.best_of} · waiting`:`Bo${m.best_of}`;
+ const row=(p,seed,score,slot)=>{const cls=!p?'tbd':m.winner_slot?(m.winner_slot===slot?'w':'l'):'';
+  return `<div class="p ${cls}"><span class="seed">${seed||''}</span><span class="n">${p?name(p):(m.status==='done'?'Bye':'To be decided')}</span><span class="s">${p&&m.note!=='Bye'&&(m.status!=='pending'||score)?score:''}</span></div>`};
+ let admin='';
+ if(D.is_admin&&m.status!=='done'&&m.p1&&m.p2&&D.tournament.status==='live')admin=`<div class="admin-set"><select aria-label="Winner"><option value="${m.p1.user_id}">${esc(m.p1.username)}</option><option value="${m.p2.user_id}">${esc(m.p2.username)}</option></select><button type="button" data-setwin="${m.id}">Set winner</button></div>`;
+ return `<div class="m ${isMine?'my-m':live?'live':''}"><div class="mh"><span>${esc(m.round_name)} ${m.slot}</span><span>${esc(head)}</span></div>${row(m.p1,m.p1_seed,m.p1_score,1)}${row(m.p2,m.p2_seed,m.p2_score,2)}${gamesLine(m)}${admin}</div>`}
+function bracket(){
+ const rounds=[...new Set(D.matches.map(m=>m.round))].sort((a,b)=>a-b);if(!rounds.length)return '<div class="t-empty">The bracket is created when the tournament starts.</div>';
+ const h=Math.max(260,D.matches.filter(m=>m.round===1).length*104);
+ const cur=D.matches.find(m=>m.status!=='done');if(roundSel===null)roundSel=cur?cur.round:rounds[rounds.length-1];
+ return `<div class="rtabs">${rounds.map(r=>`<button type="button" class="${r===roundSel?'on':''}" data-round="${r}">${esc(D.matches.find(m=>m.round===r).round_name)}</button>`).join('')}</div>
+  <div class="bracket-wrap"><div class="bracket" style="grid-template-columns:repeat(${rounds.length},minmax(210px,1fr));min-width:${rounds.length*245}px">${rounds.map(r=>{const ms=D.matches.filter(m=>m.round===r);
+   return `<div class="round ${r===roundSel?'active':''}"><h4>${esc(ms[0].round_name)}<small>Bo${ms[0].best_of}</small></h4><div class="col" style="height:${h}px">${ms.map(box).join('')}${r===rounds[rounds.length-1]?`<div class="champ-slot">🏆<b>${D.winner?esc(D.winner.username):'Champion'}</b>${D.winner?'Champion':'Crowned after the final'}</div>`:''}</div></div>`}).join('')}</div></div>`}
+function playersTab(){
+ if(!D.players.length)return '<div class="t-empty">No one has signed up yet. Be the first!</div>';
+ const lbl=p=>({registered:p.checked_in?'<span class="ok">✓ Checked in</span>':(D.tournament.status==='checkin'?'<span class="wait">Not yet</span>':'<span class="wait">Signed up</span>'),waitlist:'<span class="wait">Waiting list</span>',playing:'<span class="ok">In</span>',eliminated:'<span class="st-out">Out</span>',champion:'<span class="st-champ">🏆 Champion</span>',no_show:'<span class="st-out">No-show</span>'})[p.status]||'';
+ return `<div class="plist">${D.players.map(p=>`<div class="pl" ${p.me?'style="border-color:#8a682b"':''}><span class="av">${initials(p.username)}</span><div style="min-width:0"><b>${p.user_id?name(p):esc(p.username)}${p.me?' (you)':''}</b><br><small>${p.seed?'Seed '+p.seed+(p.rating?' · '+fmt(p.rating):''):''}</small></div>${lbl(p)}</div>`).join('')}</div>`}
+function rulesTab(){const t=D.tournament;
+ return `<div class="info-body" style="padding:18px 20px"><ul><li><b>Format:</b> 1v1, single elimination. Seeds by AoE4World rating, so the top seeds meet last.</li><li><b>Games:</b> ${esc(boText(t))}.</li><li><b>Check-in:</b> opens ${t.checkin_minutes} minutes before the start. Players who aren't checked in lose their spot to the waiting list.</li><li><b>Playing:</b> when your match is ready, both players press <b>I'm ready</b>. The bot starts the game in Discord, with the usual map veto and civ bans, and both players confirm the result.</li><li>Tournament games also count as normal 1v1 club matches.</li></ul>
+  ${t.prizes?`<p style="margin-top:12px"><b>Prizes:</b> ${esc(t.prizes)}</p>`:''}${t.rules?`<p style="margin-top:12px"><b>Rules</b></p><p class="rules-text">${esc(t.rules)}</p>`:''}</div>`}
+function adminPanel(){
+ if(!D.is_admin)return '';const st=D.tournament.status;if(st==='finished'||st==='cancelled')return '';
+ const removable=D.players.filter(p=>p.user_id&&['registered','waitlist','playing'].includes(p.status));
+ return `<section class="panel admin"><div class="panel-head"><h3>Admin</h3><small style="color:#f0a090;font-size:11px">Only admins see this</small></div><div class="info-body">
+  ${st==='signup'?'<button class="btn secondary" type="button" data-admin="open_checkin">Open check-in now</button>':''}
+  ${st!=='live'?'<button class="btn primary" type="button" data-admin="start" data-confirm="Start now? Players who haven\'t checked in will lose their spot.">Start now</button>':''}
+  ${removable.length?`<select id="rmSel" aria-label="Player">${removable.map(p=>`<option value="${p.user_id}">${esc(p.username)}</option>`).join('')}</select><button class="btn danger" type="button" data-admin="remove_player" data-confirm="Remove this player?${st==='live'?' Their opponent advances.':''}">Remove player</button>`:''}
+  <button class="btn danger" type="button" data-admin="cancel" data-confirm="Cancel the whole tournament?">Cancel tournament</button></div></section>`}
+function render(){
+ const t=D.tournament,st=t.status,cur=D.matches.find(m=>m.status!=='done');
+ document.title=`${t.name} — The Cheese Club`;
+ if(!tab)tab=D.matches.length?'bracket':'players';
+ const count=D.players.filter(p=>!['waitlist','no_show','withdrawn'].includes(p.status)).length;
+ $('tour').innerHTML=`<div class="t-top"><div>${st==='live'?`<span class="livepill"><i></i>Live${cur?' · '+esc(cur.round_name):''}</span>`:`<span class="t-kicker">${STATUS[st]}</span>`}
+  <h1>${esc(t.name)}</h1><p>${esc(t.mode)} · Single elimination · ${count} of ${t.max_players} players · ${st==='live'||st==='finished'?'Started':'Starts'} ${esc(when(t.started_at||t.starts_at))} your time</p>${t.description?`<p style="margin-top:6px;color:#c8c3ba">${esc(t.description)}</p>`:''}</div>
+  <div style="display:flex;gap:8px"><a class="btn secondary" href="/tournament">All tournaments</a><button class="btn secondary" type="button" id="shareBtn">Copy link</button></div></div>
+  ${msg?`<div class="t-msg ${msg.ok?'ok':'err'}" role="status">${esc(msg.text)}</div>`:''}
+  ${myCard()}
+  <div class="tabs" role="tablist">${D.matches.length?`<span class="${tab==='bracket'?'on':''}" data-tab="bracket" role="tab" tabindex="0">Bracket</span>`:''}<span class="${tab==='players'?'on':''}" data-tab="players" role="tab" tabindex="0">Players (${D.players.filter(p=>p.status!=='no_show').length})</span><span class="${tab==='rules'?'on':''}" data-tab="rules" role="tab" tabindex="0">Rules & prizes</span></div>
+  <section class="panel">${tab==='bracket'?`<div class="panel-head"><h3>Bracket</h3><small style="color:var(--muted);font-size:11px">${st==='live'?'Updates live':''}</small></div><div style="padding:16px 18px">${bracket()}</div>`:tab==='players'?`<div class="panel-head"><h3>Players</h3></div>${playersTab()}`:`<div class="panel-head"><h3>Rules & prizes</h3></div>${rulesTab()}`}</section>
+  ${adminPanel()}`;
+}
+async function load(){try{D=await call('GET','/api/tournaments/'+TID)}catch(e){$('tour').innerHTML=`<div class="t-empty">${esc(e.message)} <a href="/tournament" style="color:var(--gold)">See all tournaments</a></div>`;return}render()}
+document.addEventListener('click',async e=>{
+ const tb=e.target.closest('[data-tab]');if(tb){tab=tb.dataset.tab;render();return}
+ const rb=e.target.closest('[data-round]');if(rb){roundSel=+rb.dataset.round;render();return}
+ const mm=e.target.closest('[data-match]');if(mm){e.preventDefault();openMatchDetail(mm.dataset.match);return}
+ if(e.target.id==='shareBtn'){try{await navigator.clipboard.writeText(location.href);e.target.textContent='Link copied ✓'}catch(_){};return}
+ const a=e.target.closest('[data-act]');if(a){const k=a.dataset.act;a.disabled=true;
+  await act(`/api/tournaments/${TID}/${k}`,{},{signup:"You're signed up! Check-in opens before the start.",withdraw:'You withdrew from the tournament.',checkin:"Checked in. You're all set!"}[k]);return}
+ const r=e.target.closest('[data-ready]');if(r){r.disabled=true;await act(`/api/tournaments/${TID}/ready`,{match_id:+r.dataset.ready,ready:r.dataset.on==='1'},r.dataset.on==='1'?"You're ready! The game starts in Discord when your opponent is ready too.":"Marked as not ready.");return}
+ const ad=e.target.closest('[data-admin]');if(ad){if(ad.dataset.confirm&&!confirm(ad.dataset.confirm))return;ad.disabled=true;
+  await act(`/api/tournaments/${TID}/admin`,{action:ad.dataset.admin,user:ad.dataset.admin==='remove_player'?$('rmSel').value:undefined});return}
+ const sw=e.target.closest('[data-setwin]');if(sw){const sel=sw.parentElement.querySelector('select');if(!confirm('Set '+sel.options[sel.selectedIndex].text+' as the winner of this match?'))return;sw.disabled=true;
+  await act(`/api/tournaments/${TID}/admin`,{action:'set_winner',match_id:+sw.dataset.setwin,winner:sel.value});return}
+});
+load();setInterval(()=>{if(!document.hidden&&!busy&&D&&['checkin','live','signup'].includes(D.tournament.status))load()},10000);
+
+</script>
+<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "2b0d231e55714801ba9356211021134c"}'></script><!-- End Cloudflare Web Analytics -->
+</body></html>

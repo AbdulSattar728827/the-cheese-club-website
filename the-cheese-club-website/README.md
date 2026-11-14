@@ -123,6 +123,23 @@ Needs the bot version with website queueing (it creates `aoe_queue_live` and `ao
 - Tables: `member_alert_settings`, `member_notifications` (created by both bot and website),
   `website_users` and `member_achievements_seen` (website).
 
+## Tournaments
+Version 1: 1v1, single elimination.
+- **Admins** create tournaments at `/tournament/new`. Set `ADMIN_DISCORD_IDS` on the **website** service
+  (comma-separated Discord IDs) to choose who can create, start, cancel, set winners and remove players.
+- **Lifecycle:** sign-ups open as soon as a tournament is created. Check-in opens automatically before the
+  start (15–60 minutes, chosen by the admin). At the start time the website drops players who didn't check
+  in, fills free spots from checked-in players on the waiting list, seeds everyone by AoE4World rating
+  (community rating if they have none) and builds the bracket, giving byes to the top seeds. Admins can also
+  start early.
+- **Playing:** when a match is ready, the bot DMs both players and the website shows an **I'm ready** button.
+  Once both are ready, the bot starts the game in Discord (thread, map veto, civ bans) with a tournament
+  heading. Results come from the normal match result. In best-of series the next game starts automatically.
+  A game cancelled in Discord doesn't count, and both players press Ready again.
+- Tournament games also count as normal 1v1 club matches.
+- Champions and runners-up appear in the Hall of Champions and as trophies on their player pages.
+- Tables: `tournaments`, `tournament_players`, `tournament_matches`, `tournament_games` (created by the website).
+
 ## Voice time
 A member's voice time is their `vc_stats` total. Members with no `vc_stats` rows fall back to the
 sum of their `vc_logs` sessions. Every page and endpoint uses this same rule.

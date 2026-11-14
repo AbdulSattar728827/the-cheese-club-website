@@ -137,7 +137,7 @@ setInterval(async()=>{
 },15000);
 
 /* Navigation: highlight the current page and grey out pages that are not live yet. */
-const CC_COMING_SOON=['/tournament','/contact'];
+const CC_COMING_SOON=['/contact'];
 document.addEventListener('DOMContentLoaded',()=>{
   const clean=p=>{p=(p||'/').replace(/\/+$/,'');return p||'/'};
   const path=clean(location.pathname);

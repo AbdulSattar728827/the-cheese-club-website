@@ -88,6 +88,32 @@ TOURNAMENT_TABLES = [
         round INTEGER NOT NULL, user_id TEXT NOT NULL, substituted_into INTEGER,
         PRIMARY KEY (tournament_id, round, user_id)
     )""",
+    "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS team_size INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS ffa_points INTEGER[] NOT NULL DEFAULT '{8,6,4,3,2,1,0,0}'",
+    "ALTER TABLE tournament_matches ADD COLUMN IF NOT EXISTS ready_ids TEXT[] NOT NULL DEFAULT '{}'",
+    """CREATE TABLE IF NOT EXISTS tournament_teams (
+        id SERIAL PRIMARY KEY,
+        tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+        name TEXT NOT NULL, captain_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'forming',
+        checked_in_at TIMESTAMPTZ, seed INTEGER, rating INTEGER,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    """CREATE TABLE IF NOT EXISTS tournament_team_members (
+        team_id INTEGER NOT NULL REFERENCES tournament_teams(id) ON DELETE CASCADE,
+        tournament_id INTEGER NOT NULL, user_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'invited',
+        invited_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), responded_at TIMESTAMPTZ,
+        PRIMARY KEY (team_id, user_id)
+    )""",
+    """CREATE TABLE IF NOT EXISTS tournament_ffa_matches (
+        id SERIAL PRIMARY KEY,
+        tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+        round INTEGER NOT NULL, players TEXT[] NOT NULL, map TEXT,
+        status TEXT NOT NULL DEFAULT 'ready', ready_ids TEXT[] NOT NULL DEFAULT '{}',
+        announced BOOLEAN NOT NULL DEFAULT FALSE, thread_id TEXT,
+        placements JSONB, reported_by TEXT, confirmations TEXT[] NOT NULL DEFAULT '{}', disputes TEXT[] NOT NULL DEFAULT '{}',
+        note TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        finished_at TIMESTAMPTZ, UNIQUE (tournament_id, round)
+    )""",
     """CREATE TABLE IF NOT EXISTS tournament_admin_log (
         id SERIAL PRIMARY KEY, tournament_id INTEGER, admin_id TEXT NOT NULL, action TEXT NOT NULL,
         detail JSONB, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -1130,8 +1156,13 @@ async def player_insights(player_id: str):
     data["trophies"] = []
     if await fetchval("SELECT to_regclass('tournaments') IS NOT NULL", default=False):
         data["trophies"] = [dict(r) for r in await fetch("""
-            SELECT id, name, finished_at, format, winner_id=$1 AS champion, third_id=$1 AS third FROM tournaments
-            WHERE status='finished' AND (winner_id=$1 OR runner_up_id=$1 OR third_id=$1) ORDER BY finished_at DESC
+            WITH mine AS (SELECT 'T' || team_id AS eid FROM tournament_team_members WHERE user_id=$1 AND status='accepted')
+            SELECT id, name, finished_at, format,
+                   (winner_id=$1 OR winner_id IN (SELECT eid FROM mine)) AS champion,
+                   (third_id=$1 OR third_id IN (SELECT eid FROM mine)) AS third FROM tournaments
+            WHERE status='finished' AND (winner_id=$1 OR runner_up_id=$1 OR third_id=$1
+                  OR winner_id IN (SELECT eid FROM mine) OR runner_up_id IN (SELECT eid FROM mine))
+            ORDER BY finished_at DESC
         """, user_id)]
     return data
 
@@ -2166,9 +2197,87 @@ async def _tnotify(uid, kind, title, body, tid, ref):
         log.exception("Tournament notification failed")
 
 
+def is_team_fmt(t: dict) -> bool:
+    return t.get("format") == "teamcup"
+
+
+async def entrant_members(eid) -> list:
+    """Discord IDs behind a bracket entrant: a player ID, or "T<team id>" for a team."""
+    if not eid:
+        return []
+    if str(eid).startswith("T"):
+        rows = await fetch("SELECT user_id FROM tournament_team_members WHERE team_id=$1 AND status='accepted'", int(str(eid)[1:]))
+        return [r["user_id"] for r in rows]
+    return [eid]
+
+
+async def entrant_info(eids, uid=None) -> dict:
+    """Display info for entrants: players as people(), teams as name + members."""
+    eids = [e for e in eids if e]
+    team_ids = [int(e[1:]) for e in eids if str(e).startswith("T")]
+    teams, members = {}, {}
+    if team_ids:
+        for r in await fetch("SELECT id, name FROM tournament_teams WHERE id = ANY($1::int[])", team_ids):
+            teams[r["id"]] = r["name"]
+        for r in await fetch("SELECT team_id, user_id FROM tournament_team_members WHERE team_id = ANY($1::int[]) AND status='accepted'", team_ids):
+            members.setdefault(r["team_id"], []).append(r["user_id"])
+    ppl = await people([e for e in eids if not str(e).startswith("T")] + [u for v in members.values() for u in v])
+    out = {}
+    for e in eids:
+        if str(e).startswith("T"):
+            tid_ = int(e[1:]); ms = members.get(tid_, [])
+            out[e] = {"username": teams.get(tid_, "Team"), "user_id": None, "team": True,
+                      "members": [{**ppl[u], "me": u == uid} for u in ms if u in ppl], "me": bool(uid and uid in ms)}
+        elif e in ppl:
+            out[e] = {**ppl[e], "team": False, "me": e == uid}
+    return out
+
+
+async def _set_entrant_status(t: dict, eid, status: str):
+    if str(eid).startswith("T"):
+        await fetch("UPDATE tournament_teams SET status=$2 WHERE id=$1", int(str(eid)[1:]), status)
+    else:
+        await fetch("UPDATE tournament_players SET status=$3 WHERE tournament_id=$1 AND user_id=$2", t["id"], eid, status)
+
+
+async def _notify_entrant(t: dict, eid, title: str, body: str, ref: str):
+    for uid in await entrant_members(eid):
+        await _tnotify(uid, "tournament", title, body, t["id"], ref)
+
+
+async def _start_team_cup(t: dict) -> str:
+    tid, size = t["id"], int(t["team_size"])
+    teams = [dict(r) for r in await fetch("""
+        SELECT tt.*, (SELECT COUNT(*) FROM tournament_team_members m WHERE m.team_id=tt.id AND m.status='accepted') AS accepted
+        FROM tournament_teams tt WHERE tournament_id=$1 AND status IN ('registered','waitlist')
+        ORDER BY (status='registered') DESC, created_at
+    """, tid)]
+    ok = [tm for tm in teams if tm["checked_in_at"] and tm["accepted"] == size][:t["max_players"]]
+    for tm in teams:
+        if tm not in ok:
+            await fetch("UPDATE tournament_teams SET status='no_show' WHERE id=$1", tm["id"])
+    if len(ok) < 2:
+        await fetch("UPDATE tournaments SET status='cancelled', finished_at=NOW() WHERE id=$1", tid)
+        for tm in ok:
+            await _notify_entrant(t, f"T{tm['id']}", f"{t['name']} was cancelled", "Not enough teams checked in.", f"t{tid}-cancel")
+        return "Fewer than 2 teams checked in, so the tournament was cancelled."
+    ratings = {}
+    for tm in ok:
+        ms = await entrant_members(f"T{tm['id']}")
+        rs = [await _player_rating(u) for u in ms]
+        ratings[f"T{tm['id']}"] = round(sum(rs) / len(rs)) if rs else 0
+    order = {f"T{tm['id']}": i for i, tm in enumerate(ok)}
+    seeded = sorted(ratings, key=lambda e: (-ratings[e], order[e]))
+    for i, e in enumerate(seeded, 1):
+        await fetch("UPDATE tournament_teams SET status='playing', seed=$2, rating=$3 WHERE id=$1", int(e[1:]), i, ratings[e])
+    return await _build_bracket(t, seeded, "teams")
+
+
 async def _start_tournament(t: dict) -> str:
     """Seed and build the bracket. Returns a short message."""
     tid = t["id"]
+    if t.get("format") == "teamcup":
+        return await _start_team_cup(t)
     rows = await fetch("""
         SELECT user_id, status, checked_in_at FROM tournament_players WHERE tournament_id=$1
         ORDER BY (status='registered') DESC, signed_up_at
@@ -2178,6 +2287,8 @@ async def _start_tournament(t: dict) -> str:
         if r["user_id"] not in playing and r["status"] in ("registered", "waitlist"):
             await fetch("UPDATE tournament_players SET status='no_show' WHERE tournament_id=$1 AND user_id=$2", tid, r["user_id"])
     need = 6 if t.get("format") == "random3v3" else 2
+    if t.get("format") == "ffa":
+        playing = playing[:8]
     if len(playing) < need:
         await fetch("UPDATE tournaments SET status='cancelled', finished_at=NOW() WHERE id=$1", tid)
         for uid in playing:
@@ -2192,6 +2303,15 @@ async def _start_tournament(t: dict) -> str:
     if t.get("format") == "random3v3":
         await fetch("UPDATE tournaments SET status='live', started_at=NOW(), current_round=0 WHERE id=$1", tid)
         return f"Started with {len(seeded)} players. " + await _generate_round(t, 1)
+    if t.get("format") == "ffa":
+        await fetch("UPDATE tournaments SET status='live', started_at=NOW(), current_round=0 WHERE id=$1", tid)
+        return f"Started with {len(seeded)} players. " + await _ffa_round(t, 1)
+    return await _build_bracket(t, seeded, "players")
+
+
+async def _build_bracket(t: dict, seeded: list, unit: str) -> str:
+    """Single-elimination bracket for players or teams (entrant IDs), top seeds get byes."""
+    tid = t["id"]
     size = 2
     while size < len(seeded):
         size *= 2
@@ -2217,7 +2337,7 @@ async def _start_tournament(t: dict) -> str:
             await _make_ready(ids[(1, s)], t)
         elif pa or pb:
             await _finish_match(ids[(1, s)], pa or pb, t, note="Bye")
-    return f"Started with {len(seeded)} players."
+    return f"Started with {len(seeded)} {unit}."
 
 
 async def _make_ready(mid: int, t: dict):
@@ -2228,10 +2348,10 @@ async def _make_ready(mid: int, t: dict):
     if not rows:
         return
     m = rows[0]
-    names = await people([m["p1_id"], m["p2_id"]])
-    for uid, other in ((m["p1_id"], m["p2_id"]), (m["p2_id"], m["p1_id"])):
-        await _tnotify(uid, "tournament", f"🏆 Your {m['round_name']} is ready vs {names[other]['username']}",
-                       f"{t['name']} · best of {m['best_of']}. Press I'm ready on the tournament page.", t["id"], f"m{mid}-ready")
+    names = await entrant_info([m["p1_id"], m["p2_id"]])
+    for eid, other in ((m["p1_id"], m["p2_id"]), (m["p2_id"], m["p1_id"])):
+        await _notify_entrant(t, eid, f"🏆 Your {m['round_name']} is ready vs {names.get(other, {}).get('username', 'your opponent')}",
+                              f"{t['name']} · best of {m['best_of']}. Press I'm ready on the tournament page.", f"m{mid}-ready")
 
 
 async def _finish_match(mid: int, winner: str, t: dict, note: str = None):
@@ -2246,11 +2366,10 @@ async def _finish_match(mid: int, winner: str, t: dict, note: str = None):
     loser = m["p2_id"] if winner == m["p1_id"] else m["p1_id"]
     seed = m["p1_seed"] if winner == m["p1_id"] else m["p2_seed"]
     if loser:
-        await fetch("UPDATE tournament_players SET status='eliminated' WHERE tournament_id=$1 AND user_id=$2", t["id"], loser)
+        await _set_entrant_status(t, loser, "eliminated")
     if m["next_match_id"]:
         if loser:
-            await _tnotify(loser, "tournament", f"Out of {t['name']}", f"You were knocked out in the {m['round_name']}. Thanks for playing, GG!",
-                           t["id"], f"m{mid}-out")
+            await _notify_entrant(t, loser, f"Out of {t['name']}", f"Knocked out in the {m['round_name']}. Thanks for playing, GG!", f"m{mid}-out")
         col = "p1" if m["next_slot"] == 1 else "p2"
         nxt = await fetch(f"""
             UPDATE tournament_matches SET {col}_id=$2, {col}_seed=$3, updated_at=NOW() WHERE id=$1 RETURNING p1_id, p2_id
@@ -2261,10 +2380,10 @@ async def _finish_match(mid: int, winner: str, t: dict, note: str = None):
         await fetch("""
             UPDATE tournaments SET status='finished', winner_id=$2, runner_up_id=$3, finished_at=NOW() WHERE id=$1
         """, t["id"], winner, loser)
-        await fetch("UPDATE tournament_players SET status='champion' WHERE tournament_id=$1 AND user_id=$2", t["id"], winner)
-        await _tnotify(winner, "tournament", f"🏆 You won {t['name']}!", "Champion! You're in the Hall of Champions.", t["id"], f"t{t['id']}-champ")
+        await _set_entrant_status(t, winner, "champion")
+        await _notify_entrant(t, winner, f"🏆 You won {t['name']}!", "Champion! You're in the Hall of Fame.", f"t{t['id']}-champ")
         if loser:
-            await _tnotify(loser, "tournament", f"🥈 Runner-up in {t['name']}", "So close! A great run. GG!", t["id"], f"t{t['id']}-second")
+            await _notify_entrant(t, loser, f"🥈 Runner-up in {t['name']}", "So close! A great run. GG!", f"t{t['id']}-second")
 
 
 async def tournament_tick():
@@ -2289,6 +2408,10 @@ async def tournament_tick():
             if t.get("format") == "random3v3":
                 await _tick_random(t)
                 continue
+            if t.get("format") == "ffa":
+                await fetch("""UPDATE tournament_ffa_matches SET status='ready' WHERE tournament_id=$1 AND status='starting'
+                               AND updated_at < NOW() - INTERVAL '2 minutes'""", t["id"])
+                continue
             # Games played in Discord: read their results
             games = await fetch("""
                 SELECT g.id, g.tmatch_id, m.result, m.team1_ids, m.team2_ids
@@ -2299,10 +2422,11 @@ async def tournament_tick():
             for g in games:
                 tm = (await fetch("SELECT * FROM tournament_matches WHERE id=$1", g["tmatch_id"]))[0]
                 if g["result"] in ("team1", "team2"):
-                    side = g["team1_ids"] if g["result"] == "team1" else g["team2_ids"]
-                    winner = str((side or [None])[0])
-                    if winner not in (tm["p1_id"], tm["p2_id"]):
+                    side = {str(x) for x in ((g["team1_ids"] if g["result"] == "team1" else g["team2_ids"]) or [])}
+                    m1, m2 = set(await entrant_members(tm["p1_id"])), set(await entrant_members(tm["p2_id"]))
+                    if not side & (m1 | m2):
                         continue
+                    winner = tm["p1_id"] if len(side & m1) >= len(side & m2) else tm["p2_id"]
                     await fetch("UPDATE tournament_games SET status='done', winner_id=$2 WHERE id=$1", g["id"], winner)
                     col = "p1_score" if winner == tm["p1_id"] else "p2_score"
                     upd = (await fetch(f"""
@@ -2316,7 +2440,7 @@ async def tournament_tick():
                 else:       # cancelled in Discord: the game doesn't count; both press Ready again
                     await fetch("UPDATE tournament_games SET status='cancelled' WHERE id=$1", g["id"])
                     await fetch("""
-                        UPDATE tournament_matches SET status='ready', p1_ready_at=NULL, p2_ready_at=NULL, updated_at=NOW()
+                        UPDATE tournament_matches SET status='ready', p1_ready_at=NULL, p2_ready_at=NULL, ready_ids='{}', updated_at=NOW()
                         WHERE id=$1 AND status='playing'
                     """, tm["id"])
             # A start the bot claimed but never finished (e.g. it restarted): try again
@@ -2550,7 +2674,7 @@ async def _tick_random(t: dict):
 def _t_public(t: dict) -> dict:
     keys = ("id", "name", "description", "mode", "format", "max_players", "starts_at", "checkin_minutes",
             "bo_default", "bo_semi", "bo_final", "rules", "prizes", "status", "started_at", "finished_at", "created_at",
-            "rounds", "current_round", "round_maps", "map_pool")
+            "rounds", "current_round", "round_maps", "map_pool", "team_size", "ffa_points")
     out = {k: t.get(k) for k in keys}
     out["points_win"] = float(t.get("points_win") or 1)
     out["points_bye"] = float(t.get("points_bye") or 0)
@@ -2561,7 +2685,9 @@ def _t_public(t: dict) -> dict:
 @app.get("/api/tournaments")
 async def api_tournaments(request: Request):
     rows = [dict(r) for r in await fetch("""
-        SELECT t.*, (SELECT COUNT(*) FROM tournament_players p WHERE p.tournament_id=t.id AND p.status IN ('registered','playing','eliminated','champion')) AS players,
+        SELECT t.*, CASE WHEN t.format='teamcup'
+                    THEN (SELECT COUNT(*) FROM tournament_teams tt WHERE tt.tournament_id=t.id AND tt.status IN ('registered','playing','eliminated','champion'))
+                    ELSE (SELECT COUNT(*) FROM tournament_players p WHERE p.tournament_id=t.id AND p.status IN ('registered','playing','eliminated','champion')) END AS players,
                (SELECT COUNT(*) FROM tournament_players p WHERE p.tournament_id=t.id AND p.status='waitlist') AS waitlist
         FROM tournaments t WHERE t.status <> 'cancelled' OR t.finished_at > NOW() - INTERVAL '2 days'
         ORDER BY t.starts_at DESC LIMIT 60
@@ -2569,7 +2695,8 @@ async def api_tournaments(request: Request):
     ids = [r[k] for r in rows for k in ("winner_id", "runner_up_id", "third_id") if r.get(k)]
     avatars = [r["user_id"] for t in rows if t["status"] in ("signup", "checkin")
                for r in await fetch("SELECT user_id FROM tournament_players WHERE tournament_id=$1 AND status IN ('registered','waitlist') ORDER BY signed_up_at LIMIT 8", t["id"])]
-    names = await people(ids + avatars)
+    names = await people([i for i in ids if not str(i).startswith("T")] + avatars)
+    names.update(await entrant_info([i for i in ids if str(i).startswith("T")]))
     out = []
     for t in rows:
         item = {**_t_public(t), "players": t["players"], "waitlist": t["waitlist"],
@@ -2618,9 +2745,14 @@ async def api_tournament(request: Request, tid: int):
     ids = [p["user_id"] for p in players] + [m[k] for m in matches for k in ("p1_id", "p2_id") if m[k]]
     names = await people(ids)
     pub = lambda u: {**names[u], "me": u == uid} if u and u in names else None
+    ent_ids = list({m[k] for m in matches for k in ("p1_id", "p2_id", "winner_id") if m[k]}
+                   | {t[k] for k in ("winner_id", "runner_up_id", "third_id") if t.get(k)})
+    ents = await entrant_info(ent_ids, uid)
+    pe = lambda e: ents.get(e) if e else None
+    mem = {e: await entrant_members(e) for e in ent_ids}
     my = next((p for p in players if p["user_id"] == uid), None)
-    my_match = next((m for m in matches if uid and uid in (m["p1_id"], m["p2_id"]) and m["status"] != "done"
-                     and m["p1_id"] and m["p2_id"]), None)
+    my_match = next((m for m in matches if uid and (uid in mem.get(m["p1_id"], []) or uid in mem.get(m["p2_id"], []))
+                     and m["status"] != "done" and m["p1_id"] and m["p2_id"]), None)
     eligible = None
     if user:
         link = await _link_row(uid)
@@ -2636,8 +2768,13 @@ async def api_tournament(request: Request, tid: int):
                          "p1_civ": canonical_civ(data.get(m["p1_id"])) if m["p1_id"] else None,
                          "p2_civ": canonical_civ(data.get(m["p2_id"])) if m["p2_id"] else None})
         return {"id": m["id"], "round": m["round"], "slot": m["slot"], "round_name": m["round_name"], "best_of": m["best_of"],
-                "p1": pub(m["p1_id"]), "p2": pub(m["p2_id"]), "p1_seed": m["p1_seed"], "p2_seed": m["p2_seed"],
-                "p1_score": m["p1_score"], "p2_score": m["p2_score"], "winner": pub(m["winner_id"]),
+                "p1": pe(m["p1_id"]), "p2": pe(m["p2_id"]), "p1_seed": m["p1_seed"], "p2_seed": m["p2_seed"],
+                "p1_entrant": m["p1_id"] if is_team_fmt(t) else None, "p2_entrant": m["p2_id"] if is_team_fmt(t) else None,
+                "p1_score": m["p1_score"], "p2_score": m["p2_score"], "winner": pe(m["winner_id"]),
+                "p1_ready_n": len(set(m["ready_ids"]) & set(mem.get(m["p1_id"], []))) if m["p1_id"] else 0,
+                "p2_ready_n": len(set(m["ready_ids"]) & set(mem.get(m["p2_id"], []))) if m["p2_id"] else 0,
+                "p1_size": len(mem.get(m["p1_id"], [])), "p2_size": len(mem.get(m["p2_id"], [])),
+                "me_ready": bool(uid and uid in m["ready_ids"]),
                 "winner_slot": 1 if m["winner_id"] and m["winner_id"] == m["p1_id"] else 2 if m["winner_id"] else None,
                 "status": m["status"], "note": m["note"], "p1_ready": bool(m["p1_ready_at"]), "p2_ready": bool(m["p2_ready_at"]),
                 "games": civs}
@@ -2674,18 +2811,21 @@ async def api_tournament(request: Request, tid: int):
             "rounds": rounds, "my_match": mine, "my_bye": my_bye,
             "standings": [{**(pub(s["user_id"]) or {}), **{k: s[k] for k in ("rank", "points", "played", "wins", "losses",
                           "byes", "win_rate", "form", "opp_points", "status")}} for s in standings],
-            "third": pub(t.get("third_id")),
+            "third": pe(t.get("third_id")) or pub(t.get("third_id")),
         }
     return {
         "random": random_data,
         "tournament": _t_public(t),
-        "winner": pub(t["winner_id"]), "runner_up": pub(t["runner_up_id"]),
+        "teams": await _teams_out(t, uid) if is_team_fmt(t) else None,
+        "ffa": await _ffa_out(t, uid) if t.get("format") == "ffa" else None,
+        "winner": pe(t["winner_id"]) or pub(t["winner_id"]), "runner_up": pe(t["runner_up_id"]) or pub(t["runner_up_id"]),
+        "third": pe(t.get("third_id")) or pub(t.get("third_id")),
         "players": [{**(pub(p["user_id"]) or {}), "status": p["status"], "seed": p["seed"], "rating": p["rating"],
                      "checked_in": bool(p["checked_in_at"])} for p in players],
         "matches": [match_out(m) for m in matches],
         "me": {"logged_in": bool(user), "status": my["status"] if my else None, "checked_in": bool(my and my["checked_in_at"]),
                "match": match_out(my_match) if my_match else None,
-               "my_slot": (1 if my_match and my_match["p1_id"] == uid else 2) if my_match else None,
+               "my_slot": (1 if uid in mem.get(my_match["p1_id"], []) else 2) if my_match else None,
                "eligible": eligible},
         "is_admin": is_admin(user), "now": datetime.now(timezone.utc),
     }
@@ -2712,7 +2852,9 @@ async def api_create_tournament(request: Request):
         except (TypeError, ValueError):
             return d
     bo = lambda k, d: num(k, 1, 7, d) if num(k, 1, 7, d) % 2 else d
-    fmt = "random3v3" if b.get("format") == "random3v3" else "single"
+    fmt = b.get("format") if b.get("format") in ("random3v3", "teamcup", "ffa") else "single"
+    if fmt == "ffa" and not 2 <= num("max_players", 2, 64, 8) <= 8:
+        raise HTTPException(status_code=400, detail="An FFA lobby holds 2 to 8 players.")
     if fmt == "random3v3" and num("max_players", 2, 64, 8) < 6:
         raise HTTPException(status_code=400, detail="Random Team 3v3 needs room for at least 6 players.")
     def pts(k, lo, hi, d):
@@ -2733,8 +2875,17 @@ async def api_create_tournament(request: Request):
         str(b.get("rules") or "")[:3000], str(b.get("prizes") or "")[:500], user["uid"])
     await fetch("""
         UPDATE tournaments SET format=$2, mode=$3, rounds=$4, points_win=$5, points_bye=$6, round_maps=$7, map_pool=$8 WHERE id=$1
-    """, tid, fmt, "3v3" if fmt == "random3v3" else "1v1", rounds, pts("points_win", 0.5, 5, 1.0),
+    """, tid, fmt, {"random3v3": "3v3", "ffa": "FFA"}.get(fmt, f"{num('team_size', 2, 4, 2)}v{num('team_size', 2, 4, 2)}" if fmt == "teamcup" else "1v1"),
+        num("rounds", 1, 5, 1) if fmt == "ffa" else rounds, pts("points_win", 0.5, 5, 1.0),
         pts("points_bye", 0, 2, 0.5), round_maps, pool)
+    if fmt == "teamcup":
+        await fetch("UPDATE tournaments SET team_size=$2 WHERE id=$1", tid, num("team_size", 2, 4, 2))
+    if fmt == "ffa":
+        try:
+            table = [max(0, min(100, int(x))) for x in str(b.get("ffa_points") or "8,6,4,3,2,1,0,0").replace(" ", "").split(",") if x != ""][:8]
+        except ValueError:
+            table = [8, 6, 4, 3, 2, 1, 0, 0]
+        await fetch("UPDATE tournaments SET ffa_points=$2 WHERE id=$1", tid, (table + [0] * 8)[:8])
     await _log_admin(tid, user["uid"], "create", {k: v for k, v in b.items()})
     return {"id": tid}
 
@@ -2747,6 +2898,8 @@ async def api_tournament_signup(request: Request, tid: int):
         t = await _tournament_or_404(tid)
         if t["status"] not in ("signup", "checkin"):
             raise HTTPException(status_code=400, detail="Sign-ups for this tournament are closed.")
+        if is_team_fmt(t):
+            raise HTTPException(status_code=400, detail="This is a team tournament: register a team instead.")
         uid = user["uid"]
         link = await _link_row(uid)
         present = await fetchval("SELECT COUNT(*) FROM discord_member_profiles WHERE user_id=$1 AND is_present", uid, default=0)
@@ -2772,6 +2925,25 @@ async def api_tournament_withdraw(request: Request, tid: int):
         t = await _tournament_or_404(tid)
         if t["status"] not in ("signup", "checkin"):
             raise HTTPException(status_code=400, detail="You can't withdraw once the tournament has started.")
+        if is_team_fmt(t):
+            uid = user["uid"]
+            tm = await fetch("""SELECT tt.* FROM tournament_teams tt JOIN tournament_team_members m ON m.team_id=tt.id
+                                WHERE tt.tournament_id=$1 AND m.user_id=$2 AND m.status='accepted'
+                                  AND tt.status IN ('forming','registered','waitlist') LIMIT 1""", tid, uid)
+            if not tm:
+                raise HTTPException(status_code=400, detail="You're not in a team for this tournament.")
+            tm = tm[0]
+            if tm["captain_id"] == uid:
+                await fetch("UPDATE tournament_teams SET status='withdrawn' WHERE id=$1", tm["id"])
+                await _notify_entrant(t, f"T{tm['id']}", f"{tm['name']} withdrew from {t['name']}", "Your captain withdrew the team.", f"team{tm['id']}-withdrawn")
+                await _promote_waitlist_team(t)
+                return {"ok": True}
+            await fetch("UPDATE tournament_team_members SET status='declined', responded_at=NOW() WHERE team_id=$1 AND user_id=$2", tm["id"], uid)
+            await fetch("UPDATE tournament_teams SET status='forming', checked_in_at=NULL WHERE id=$1", tm["id"])
+            me = (await people([uid]))[uid]["username"]
+            await _tnotify(tm["captain_id"], "tournament", f"{me} left {tm['name']}", "Invite someone else on the tournament page.", tid, f"team{tm['id']}-{uid}-left")
+            await _promote_waitlist_team(t)
+            return {"ok": True}
         was = await fetchval("""
             UPDATE tournament_players SET status='withdrawn' WHERE tournament_id=$1 AND user_id=$2
               AND status IN ('registered','waitlist') RETURNING 'x'
@@ -2794,6 +2966,12 @@ async def api_tournament_checkin(request: Request, tid: int):
     t = await _tournament_or_404(tid)
     if t["status"] != "checkin":
         raise HTTPException(status_code=400, detail="Check-in isn't open right now.")
+    if is_team_fmt(t):
+        tm = await fetch("SELECT * FROM tournament_teams WHERE tournament_id=$1 AND captain_id=$2 AND status IN ('registered','waitlist')", tid, user["uid"])
+        if not tm:
+            raise HTTPException(status_code=400, detail="Only the captain of a complete team can check in.")
+        await fetch("UPDATE tournament_teams SET checked_in_at=NOW() WHERE id=$1", tm[0]["id"])
+        return {"ok": True}
     done = await fetchval("""
         UPDATE tournament_players SET checked_in_at=NOW() WHERE tournament_id=$1 AND user_id=$2
           AND status IN ('registered','waitlist') RETURNING 'x'
@@ -2810,14 +2988,19 @@ async def api_tournament_ready(request: Request, tid: int):
     b = await request.json()
     ready = bool(b.get("ready", True))
     rows = await fetch("SELECT * FROM tournament_matches WHERE tournament_id=$1 AND id=$2", tid, int(b.get("match_id") or 0))
-    if not rows or user["uid"] not in (rows[0]["p1_id"], rows[0]["p2_id"]):
+    if not rows or user["uid"] not in (await entrant_members(rows[0]["p1_id"])) + (await entrant_members(rows[0]["p2_id"])):
         raise HTTPException(status_code=404, detail="That isn't your match.")
     m = rows[0]
     if m["status"] != "ready":
         raise HTTPException(status_code=400, detail="This match isn't waiting for players right now.")
-    col = "p1_ready_at" if user["uid"] == m["p1_id"] else "p2_ready_at"
-    await fetch(f"UPDATE tournament_matches SET {col}=$2, updated_at=NOW() WHERE id=$1",
-                m["id"], datetime.now(timezone.utc) if ready else None)
+    uid = user["uid"]
+    ids = [x for x in m["ready_ids"] if x != uid] + ([uid] if ready else [])
+    m1, m2 = await entrant_members(m["p1_id"]), await entrant_members(m["p2_id"])
+    # A side is ready when every one of its players is ready (one player in a 1v1 Cup)
+    r1 = datetime.now(timezone.utc) if m1 and set(m1) <= set(ids) else None
+    r2 = datetime.now(timezone.utc) if m2 and set(m2) <= set(ids) else None
+    await fetch("UPDATE tournament_matches SET ready_ids=$2, p1_ready_at=$3, p2_ready_at=$4, updated_at=NOW() WHERE id=$1 AND status='ready'",
+                m["id"], ids, r1, r2)
     return {"ok": True}
 
 
@@ -2886,6 +3069,356 @@ async def _random_admin(t: dict, action: str, b: dict) -> dict:
     raise HTTPException(status_code=400, detail="Unknown action.")
 
 
+async def _teams_out(t: dict, uid) -> dict:
+    teams = [dict(r) for r in await fetch("""
+        SELECT * FROM tournament_teams WHERE tournament_id=$1 AND status NOT IN ('withdrawn')
+        ORDER BY seed NULLS LAST, (status='waitlist'), created_at
+    """, t["id"])]
+    members = [dict(r) for r in await fetch("""
+        SELECT * FROM tournament_team_members WHERE tournament_id=$1 AND status <> 'removed' ORDER BY invited_at
+    """, t["id"])]
+    names = await people(list({m["user_id"] for m in members} | {tm["captain_id"] for tm in teams}))
+    out, mine, invites = [], None, []
+    for tm in teams:
+        ms = [m for m in members if m["team_id"] == tm["id"]]
+        item = {"id": tm["id"], "name": tm["name"], "status": tm["status"], "checked_in": bool(tm["checked_in_at"]),
+                "seed": tm["seed"], "rating": tm["rating"],
+                "captain": {**names.get(tm["captain_id"], {}), "me": tm["captain_id"] == uid},
+                "members": [{**names.get(m["user_id"], {}), "status": m["status"], "me": m["user_id"] == uid,
+                             "captain": m["user_id"] == tm["captain_id"]} for m in ms]}
+        out.append(item)
+        if uid and any(m["user_id"] == uid and m["status"] == "accepted" for m in ms) and tm["status"] not in ("no_show",):
+            mine = item
+        if uid and any(m["user_id"] == uid and m["status"] == "invited" for m in ms) and tm["status"] in ("forming", "registered", "waitlist"):
+            invites.append(item)
+    return {"size": int(t["team_size"]), "list": out, "mine": mine, "invites": invites}
+
+
+async def _eligible(user: dict) -> Optional[str]:
+    uid = user["uid"]
+    present = await fetchval("SELECT COUNT(*) FROM discord_member_profiles WHERE user_id=$1 AND is_present", uid, default=0)
+    if not (present or user.get("g")):
+        return "Join The Cheese Club Discord server first."
+    link = await _link_row(uid)
+    if not (link and (link["profile_id"] or link["bypassed"])):
+        return "Link your AoE4 account first."
+    return None
+
+
+async def _team_busy(tid: int, uid: str) -> bool:
+    return bool(await fetchval("""
+        SELECT COUNT(*) FROM tournament_team_members m JOIN tournament_teams tt ON tt.id = m.team_id
+        WHERE m.tournament_id=$1 AND m.user_id=$2 AND m.status IN ('accepted','invited')
+          AND tt.status NOT IN ('withdrawn','no_show')
+    """, tid, uid, default=0))
+
+
+async def _team_complete_check(t: dict, team_id: int):
+    """When every member has accepted, the team is registered (or waitlisted if full)."""
+    tm = (await fetch("SELECT * FROM tournament_teams WHERE id=$1", team_id))[0]
+    if tm["status"] != "forming":
+        return
+    accepted = await fetchval("SELECT COUNT(*) FROM tournament_team_members WHERE team_id=$1 AND status='accepted'", team_id, default=0)
+    if accepted < int(t["team_size"]):
+        return
+    taken = await fetchval("SELECT COUNT(*) FROM tournament_teams WHERE tournament_id=$1 AND status='registered'", t["id"], default=0)
+    status = "registered" if taken < t["max_players"] else "waitlist"
+    await fetch("UPDATE tournament_teams SET status=$2 WHERE id=$1", team_id, status)
+    await _tnotify(tm["captain_id"], "tournament", f"✅ {tm['name']} is complete!",
+                   "Everyone accepted. " + ("You're in the tournament." if status == "registered" else "You're on the waiting list."),
+                   t["id"], f"team{team_id}-complete")
+
+
+async def _promote_waitlist_team(t: dict):
+    taken = await fetchval("SELECT COUNT(*) FROM tournament_teams WHERE tournament_id=$1 AND status='registered'", t["id"], default=0)
+    if taken >= t["max_players"]:
+        return
+    nxt = await fetch("SELECT id, name FROM tournament_teams WHERE tournament_id=$1 AND status='waitlist' ORDER BY created_at LIMIT 1", t["id"])
+    if nxt:
+        await fetch("UPDATE tournament_teams SET status='registered' WHERE id=$1", nxt[0]["id"])
+        await _notify_entrant(t, f"T{nxt[0]['id']}", f"🎉 {nxt[0]['name']} is in {t['name']}!", "A spot opened up and your team moved off the waiting list.",
+                              f"team{nxt[0]['id']}-promoted")
+
+
+@app.post("/api/tournaments/{tid}/team")
+async def api_team_register(request: Request, tid: int):
+    user = require_login(request)
+    require_same_site(request)
+    b = await request.json()
+    async with _tournament_lock:
+        t = await _tournament_or_404(tid)
+        if not is_team_fmt(t):
+            raise HTTPException(status_code=400, detail="This tournament doesn't use teams.")
+        if t["status"] not in ("signup", "checkin"):
+            raise HTTPException(status_code=400, detail="Sign-ups for this tournament are closed.")
+        problem = await _eligible(user)
+        if problem:
+            raise HTTPException(status_code=400, detail=problem)
+        name = " ".join(str(b.get("name") or "").split())[:40]
+        if len(name) < 2:
+            raise HTTPException(status_code=400, detail="Give your team a name.")
+        if await fetchval("SELECT COUNT(*) FROM tournament_teams WHERE tournament_id=$1 AND LOWER(name)=LOWER($2) AND status NOT IN ('withdrawn','no_show')", tid, name, default=0):
+            raise HTTPException(status_code=400, detail="Another team already has that name.")
+        uid = user["uid"]
+        mates = []
+        for pid in (b.get("members") or []):
+            m = from_public_id(str(pid))
+            if m and m != uid and m not in mates:
+                mates.append(m)
+        if len(mates) != int(t["team_size"]) - 1:
+            raise HTTPException(status_code=400, detail=f"Pick {int(t['team_size']) - 1} teammate{'s' if int(t['team_size']) > 2 else ''}.")
+        for m in [uid] + mates:
+            if await _team_busy(tid, m):
+                who = "You're" if m == uid else f"{(await people([m]))[m]['username']} is"
+                raise HTTPException(status_code=400, detail=f"{who} already in a team for this tournament.")
+        team_id = await fetchval("INSERT INTO tournament_teams (tournament_id, name, captain_id) VALUES ($1,$2,$3) RETURNING id", tid, name, uid)
+        await fetch("INSERT INTO tournament_team_members (team_id, tournament_id, user_id, status, responded_at) VALUES ($1,$2,$3,'accepted',NOW())", team_id, tid, uid)
+        cap = (await people([uid]))[uid]["username"]
+        for m in mates:
+            await fetch("INSERT INTO tournament_team_members (team_id, tournament_id, user_id) VALUES ($1,$2,$3)", team_id, tid, m)
+            await _tnotify(m, "tournament", f"👥 {cap} invited you to {name}", f"For {t['name']}. Accept or decline on the tournament page.", tid, f"team{team_id}-invite")
+        return {"team_id": team_id}
+
+
+@app.post("/api/tournaments/{tid}/team-respond")
+async def api_team_respond(request: Request, tid: int):
+    user = require_login(request)
+    require_same_site(request)
+    b = await request.json()
+    accept, team_id, uid = bool(b.get("accept")), int(b.get("team_id") or 0), user["uid"]
+    async with _tournament_lock:
+        t = await _tournament_or_404(tid)
+        row = await fetch("SELECT * FROM tournament_team_members WHERE team_id=$1 AND user_id=$2 AND status='invited'", team_id, uid)
+        tm = await fetch("SELECT * FROM tournament_teams WHERE id=$1 AND tournament_id=$2", team_id, tid)
+        if not row or not tm:
+            raise HTTPException(status_code=404, detail="That invite isn't open any more.")
+        if t["status"] not in ("signup", "checkin"):
+            raise HTTPException(status_code=400, detail="Sign-ups for this tournament are closed.")
+        if accept:
+            problem = await _eligible(user)
+            if problem:
+                raise HTTPException(status_code=400, detail=problem)
+            if await fetchval("""SELECT COUNT(*) FROM tournament_team_members m JOIN tournament_teams tt ON tt.id=m.team_id
+                                  WHERE m.tournament_id=$1 AND m.user_id=$2 AND m.status='accepted' AND tt.status NOT IN ('withdrawn','no_show')""",
+                              tid, uid, default=0):
+                raise HTTPException(status_code=400, detail="You're already in another team for this tournament.")
+        await fetch("UPDATE tournament_team_members SET status=$3, responded_at=NOW() WHERE team_id=$1 AND user_id=$2",
+                    team_id, uid, "accepted" if accept else "declined")
+        if accept:   # decline every other invite in this tournament
+            await fetch("""UPDATE tournament_team_members SET status='declined', responded_at=NOW()
+                           WHERE tournament_id=$1 AND user_id=$2 AND status='invited' AND team_id<>$3""", tid, uid, team_id)
+        me = (await people([uid]))[uid]["username"]
+        await _tnotify(tm[0]["captain_id"], "tournament", f"{'✅' if accept else '❌'} {me} {'joined' if accept else 'declined'} {tm[0]['name']}",
+                       "" if accept else "Pick someone else on the tournament page.", tid, f"team{team_id}-{uid}-{'yes' if accept else 'no'}")
+        await _team_complete_check(t, team_id)
+        return {"ok": True}
+
+
+@app.post("/api/tournaments/{tid}/team-replace")
+async def api_team_replace(request: Request, tid: int):
+    user = require_login(request)
+    require_same_site(request)
+    b = await request.json()
+    async with _tournament_lock:
+        t = await _tournament_or_404(tid)
+        tm = await fetch("SELECT * FROM tournament_teams WHERE id=$1 AND tournament_id=$2", int(b.get("team_id") or 0), tid)
+        if not tm or tm[0]["captain_id"] != user["uid"]:
+            raise HTTPException(status_code=403, detail="Only the team captain can change the team.")
+        if t["status"] not in ("signup", "checkin") or tm[0]["status"] != "forming":
+            raise HTTPException(status_code=400, detail="This team can't be changed now.")
+        old, new = from_public_id(str(b.get("old_user") or "")), from_public_id(str(b.get("new_user") or ""))
+        row = await fetch("SELECT status FROM tournament_team_members WHERE team_id=$1 AND user_id=$2", tm[0]["id"], old)
+        if not row or row[0]["status"] not in ("invited", "declined"):
+            raise HTTPException(status_code=400, detail="Pick a teammate who hasn't accepted (or who declined).")
+        if not new or await _team_busy(tid, new):
+            raise HTTPException(status_code=400, detail="That player is already in a team for this tournament.")
+        await fetch("UPDATE tournament_team_members SET status='removed' WHERE team_id=$1 AND user_id=$2", tm[0]["id"], old)
+        await fetch("""INSERT INTO tournament_team_members (team_id, tournament_id, user_id) VALUES ($1,$2,$3)
+                       ON CONFLICT (team_id, user_id) DO UPDATE SET status='invited', invited_at=NOW(), responded_at=NULL""", tm[0]["id"], tid, new)
+        cap = (await people([user["uid"]]))[user["uid"]]["username"]
+        await _tnotify(new, "tournament", f"👥 {cap} invited you to {tm[0]['name']}", f"For {t['name']}. Accept or decline on the tournament page.",
+                       tid, f"team{tm[0]['id']}-invite-{new}")
+        return {"ok": True}
+
+
+# ---------------- FFA ----------------
+async def _ffa_round(t: dict, r: int) -> str:
+    import random as _random
+    tid = t["id"]
+    players = [x["user_id"] for x in await fetch("SELECT user_id FROM tournament_players WHERE tournament_id=$1 AND status='playing'", tid)]
+    maps = list(t.get("round_maps") or [])
+    chosen = maps[r - 1] if len(maps) >= r and maps[r - 1] and maps[r - 1] != "random" else None
+    map_name = chosen or _random.choice(list(t.get("map_pool") or []) or DEFAULT_MAPS)
+    await fetch("INSERT INTO tournament_ffa_matches (tournament_id, round, players, map) VALUES ($1,$2,$3,$4)", tid, r, players, map_name)
+    await fetch("UPDATE tournaments SET current_round=$2 WHERE id=$1", tid, r)
+    rounds = int(t.get("rounds") or 1)
+    for uid in players:
+        await _tnotify(uid, "tournament", f"🏁 {'Round ' + str(r) + ' lobby' if rounds > 1 else 'Your FFA match'} is ready",
+                       f"{t['name']} · {len(players)} players · Map: {map_name}. Press I'm ready on the tournament page.", tid, f"ffa{r}-ready")
+    return f"Round {r}: {len(players)} players on {map_name}."
+
+
+def _ffa_points(t: dict, place: int) -> int:
+    pts = list(t.get("ffa_points") or [8, 6, 4, 3, 2, 1, 0, 0])
+    return int(pts[place - 1]) if 1 <= place <= len(pts) else 0
+
+
+async def ffa_standings(t: dict) -> list:
+    players = await fetch("""SELECT user_id, rating, status FROM tournament_players WHERE tournament_id=$1
+                             AND status IN ('playing','removed','champion','eliminated')""", t["id"])
+    st = {p["user_id"]: {"user_id": p["user_id"], "rating": int(p["rating"] or 0), "status": p["status"], "points": 0, "played": 0,
+                         "wins": 0, "podiums": 0, "places": []} for p in players}
+    for m in await fetch("SELECT round, placements FROM tournament_ffa_matches WHERE tournament_id=$1 AND status='done' ORDER BY round", t["id"]):
+        for uid, place in json_obj_safe(m["placements"]).items():
+            if uid in st:
+                s = st[uid]; place = int(place)
+                s["points"] += _ffa_points(t, place); s["played"] += 1; s["places"].append(place)
+                s["wins"] += place == 1; s["podiums"] += place <= 3
+    rows = sorted(st.values(), key=lambda s: (-s["points"], -s["wins"], -s["podiums"],
+                                              (sum(s["places"]) / len(s["places"])) if s["places"] else 99, -s["rating"]))
+    for i, s in enumerate(rows, 1):
+        s["rank"] = i
+        s["avg_place"] = round(sum(s["places"]) / len(s["places"]), 1) if s["places"] else None
+    return rows
+
+
+async def _ffa_finalize(t: dict, mid: int, placements: dict, note: str = None):
+    rows = await fetch("""UPDATE tournament_ffa_matches SET status='done', placements=$2, note=COALESCE($3, note), finished_at=NOW(), updated_at=NOW()
+                          WHERE id=$1 RETURNING round""", mid, json.dumps(placements), note)
+    if not rows:
+        return
+    r = rows[0]["round"]
+    for uid, place in placements.items():
+        await _tnotify(uid, "tournament", f"🏁 You finished #{place}: +{_ffa_points(t, int(place))} points", t["name"], t["id"], f"ffa{r}-place")
+    t = await _tournament_or_404(t["id"])
+    if t["status"] == "finished":
+        await _finish_ffa(t, quiet=True)          # a corrected result: recalculate the podium
+    elif r >= int(t.get("rounds") or 1):
+        await _finish_ffa(t)
+    elif int(t["current_round"]) == r:
+        await _ffa_round(t, r + 1)
+
+
+async def _finish_ffa(t: dict, quiet: bool = False):
+    rows = await ffa_standings(t)
+    top = [r["user_id"] for r in rows[:3]]
+    await fetch("""UPDATE tournaments SET status='finished', finished_at=COALESCE(finished_at, NOW()), winner_id=$2, runner_up_id=$3, third_id=$4
+                   WHERE id=$1""", t["id"], top[0] if top else None, top[1] if len(top) > 1 else None, top[2] if len(top) > 2 else None)
+    await fetch("UPDATE tournament_players SET status='playing' WHERE tournament_id=$1 AND status='champion'", t["id"])
+    if top:
+        await fetch("UPDATE tournament_players SET status='champion' WHERE tournament_id=$1 AND user_id=$2", t["id"], top[0])
+    if quiet:
+        return
+    medals = ["🏆 You won", "🥈 Runner-up in", "🥉 Third place in"]
+    for r in rows:
+        title = f"{medals[r['rank'] - 1]} {t['name']}!" if r["rank"] <= 3 else f"{t['name']} is over: you finished #{r['rank']}"
+        await _tnotify(r["user_id"], "tournament", title, f"{r['points']} points. GG!", t["id"], f"t{t['id']}-place")
+
+
+def _ffa_needed(n: int) -> int:
+    """Confirmations needed (the reporter counts as one): both players in a 2-player FFA, otherwise half, at least 2."""
+    return max(2, -(-n // 2))
+
+
+async def _ffa_out(t: dict, uid) -> dict:
+    ms = [dict(r) for r in await fetch("SELECT * FROM tournament_ffa_matches WHERE tournament_id=$1 ORDER BY round", t["id"])]
+    names = await people(list({u for m in ms for u in m["players"]}))
+    out = []
+    for m in ms:
+        pl = json_obj_safe(m["placements"]) if m["placements"] else {}
+        order = sorted(pl, key=lambda u: int(pl[u])) if pl else []
+        out.append({"id": m["id"], "round": m["round"], "map": m["map"], "status": m["status"], "note": m["note"],
+                    "players": [{**names.get(u, {}), "me": u == uid, "ready": u in m["ready_ids"]} for u in m["players"]],
+                    "ready_count": len(set(m["ready_ids"]) & set(m["players"])),
+                    "results": [{**names.get(u, {}), "me": u == uid, "place": int(pl[u]), "points": _ffa_points(t, int(pl[u]))} for u in order],
+                    "reported_by": names.get(m["reported_by"]) if m["reported_by"] else None,
+                    "confirmations": len(m["confirmations"]), "needed": _ffa_needed(len(m["players"])),
+                    "me_in": bool(uid and uid in m["players"]), "me_ready": bool(uid and uid in m["ready_ids"]),
+                    "me_confirmed": bool(uid and uid in m["confirmations"]), "me_disputed": bool(uid and uid in m["disputes"])})
+    standings = await ffa_standings(t)
+    sn = await people([s["user_id"] for s in standings])
+    return {"matches": out, "points": list(t.get("ffa_points") or []),
+            "standings": [{**sn.get(s["user_id"], {}), "me": s["user_id"] == uid,
+                           **{k: s[k] for k in ("rank", "points", "played", "wins", "podiums", "avg_place", "status")}} for s in standings]}
+
+
+async def _ffa_match(tid: int, mid: int) -> dict:
+    rows = await fetch("SELECT * FROM tournament_ffa_matches WHERE tournament_id=$1 AND id=$2", tid, mid)
+    if not rows:
+        raise HTTPException(status_code=404, detail="Match not found.")
+    return dict(rows[0])
+
+
+def _parse_order(m: dict, order) -> dict:
+    ids = [from_public_id(str(x)) for x in (order or [])]
+    if sorted(ids) != sorted(m["players"]) or len(set(ids)) != len(ids):
+        raise HTTPException(status_code=400, detail="Put every player in exactly one place.")
+    return {u: i for i, u in enumerate(ids, 1)}
+
+
+@app.post("/api/tournaments/{tid}/ffa-ready")
+async def api_ffa_ready(request: Request, tid: int):
+    user = require_login(request)
+    require_same_site(request)
+    b = await request.json()
+    m = await _ffa_match(tid, int(b.get("match_id") or 0))
+    if user["uid"] not in m["players"] or m["status"] != "ready":
+        raise HTTPException(status_code=400, detail="This lobby isn't waiting for you right now.")
+    if b.get("ready", True):
+        await fetch("UPDATE tournament_ffa_matches SET ready_ids=array_append(array_remove(ready_ids,$2),$2), updated_at=NOW() WHERE id=$1 AND status='ready'", m["id"], user["uid"])
+    else:
+        await fetch("UPDATE tournament_ffa_matches SET ready_ids=array_remove(ready_ids,$2), updated_at=NOW() WHERE id=$1", m["id"], user["uid"])
+    return {"ok": True}
+
+
+@app.post("/api/tournaments/{tid}/ffa-report")
+async def api_ffa_report(request: Request, tid: int):
+    user = require_login(request)
+    require_same_site(request)
+    b = await request.json()
+    async with _tournament_lock:
+        t = await _tournament_or_404(tid)
+        m = await _ffa_match(tid, int(b.get("match_id") or 0))
+        if user["uid"] not in m["players"]:
+            raise HTTPException(status_code=403, detail="Only players in this match can report the result.")
+        if m["status"] not in ("playing", "reported"):
+            raise HTTPException(status_code=400, detail="This match can't be reported right now.")
+        pl = _parse_order(m, b.get("order"))
+        await fetch("""UPDATE tournament_ffa_matches SET status='reported', placements=$2, reported_by=$3, confirmations=$4, disputes='{}', updated_at=NOW()
+                       WHERE id=$1""", m["id"], json.dumps(pl), user["uid"], [user["uid"]])
+        me = (await people([user["uid"]]))[user["uid"]]["username"]
+        for u in m["players"]:
+            if u != user["uid"]:
+                await _tnotify(u, "tournament", f"🏁 {me} reported the placements", "Please confirm or dispute them on the tournament page.",
+                               tid, f"ffa{m['id']}-report-{int(time.time())}")
+        if _ffa_needed(len(m["players"])) <= 1:
+            await _ffa_finalize(t, m["id"], pl)
+        return {"ok": True}
+
+
+@app.post("/api/tournaments/{tid}/ffa-confirm")
+async def api_ffa_confirm(request: Request, tid: int):
+    user = require_login(request)
+    require_same_site(request)
+    b = await request.json()
+    async with _tournament_lock:
+        t = await _tournament_or_404(tid)
+        m = await _ffa_match(tid, int(b.get("match_id") or 0))
+        uid = user["uid"]
+        if uid not in m["players"] or m["status"] != "reported":
+            raise HTTPException(status_code=400, detail="There's nothing to confirm right now.")
+        if b.get("agree"):
+            confs = list(dict.fromkeys(list(m["confirmations"]) + [uid]))
+            await fetch("UPDATE tournament_ffa_matches SET confirmations=$2, updated_at=NOW() WHERE id=$1", m["id"], confs)
+            if len(confs) >= _ffa_needed(len(m["players"])) and not m["disputes"]:
+                await _ffa_finalize(t, m["id"], json_obj_safe(m["placements"]), note="Confirmed by players")
+            return {"ok": True}
+        await fetch("UPDATE tournament_ffa_matches SET status='disputed', disputes=array_append(disputes,$2), updated_at=NOW() WHERE id=$1", m["id"], uid)
+        for a in ADMIN_IDS:
+            await _tnotify(a, "tournament", f"⚠️ FFA result disputed in {t['name']}", "An admin needs to set the placements.", tid, f"ffa{m['id']}-dispute")
+        return {"ok": True}
+
+
 @app.post("/api/tournaments/{tid}/team-ready")
 async def api_team_ready(request: Request, tid: int):
     user = require_login(request)
@@ -2915,6 +3448,24 @@ async def api_tournament_admin(request: Request, tid: int):
     async with _tournament_lock:
         t = await _tournament_or_404(tid)
         await _log_admin(tid, admin["uid"], action or "?", {k: v for k, v in b.items() if k != "action"})
+        if action == "delete":
+            if " ".join(str(b.get("confirm_name") or "").split()).lower() != " ".join(t["name"].split()).lower():
+                raise HTTPException(status_code=400, detail="Type the tournament's exact name to delete it.")
+            await fetch("DELETE FROM member_notifications WHERE link=$1", f"/tournament/{tid}")
+            await fetch("DELETE FROM tournaments WHERE id=$1", tid)
+            return {"message": "Tournament deleted.", "deleted": True}
+        if t.get("format") == "ffa" and action in ("ffa_result", "ffa_approve"):
+            m = await _ffa_match(tid, int(b.get("match_id") or 0))
+            if action == "ffa_approve":
+                if m["status"] not in ("reported", "disputed") or not m["placements"]:
+                    raise HTTPException(status_code=400, detail="There's no reported result to approve.")
+                await _ffa_finalize(t, m["id"], json_obj_safe(m["placements"]), note="Approved by an admin")
+                return {"message": "Result approved."}
+            if m["status"] in ("ready", "starting"):
+                await fetch("UPDATE tournament_ffa_matches SET status='playing' WHERE id=$1", m["id"])
+            pl = _parse_order(m, b.get("order"))
+            await _ffa_finalize(t, m["id"], pl, note="Corrected by an admin" if m["status"] == "done" else "Set by an admin")
+            return {"message": "Placements saved. Standings are updated."}
         if t.get("format") == "random3v3" and action in ("team_result", "substitute", "regenerate_round", "remove_player"):
             return await _random_admin(t, action, b)
         if action == "start":
@@ -2937,16 +3488,23 @@ async def api_tournament_admin(request: Request, tid: int):
             return {"message": "Tournament cancelled."}
         if action == "set_winner":
             m = await fetch("SELECT * FROM tournament_matches WHERE tournament_id=$1 AND id=$2", tid, int(b.get("match_id") or 0))
-            win = from_public_id(str(b.get("winner") or ""))
+            win = str(b.get("winner") or "") if is_team_fmt(t) else from_public_id(str(b.get("winner") or ""))
             if not m or m[0]["status"] == "done" or win not in (m[0]["p1_id"], m[0]["p2_id"]):
                 raise HTTPException(status_code=400, detail="Pick one of the two players in an unfinished match.")
             await _finish_match(m[0]["id"], win, t, note="Decided by an admin")
             return {"message": "Winner set."}
         if action == "remove_player":
-            uid = from_public_id(str(b.get("user") or ""))
+            uid = str(b.get("user") or "") if is_team_fmt(t) else from_public_id(str(b.get("user") or ""))
             if t["status"] in ("signup", "checkin"):
+                if is_team_fmt(t):
+                    await fetch("UPDATE tournament_teams SET status='withdrawn' WHERE id=$1 AND tournament_id=$2", int(uid[1:]), tid)
+                    await _promote_waitlist_team(t)
+                    return {"message": "Team removed."}
                 await fetch("UPDATE tournament_players SET status='withdrawn' WHERE tournament_id=$1 AND user_id=$2", tid, uid)
                 return {"message": "Player removed."}
+            if t.get("format") == "ffa":
+                await fetch("UPDATE tournament_players SET status='removed' WHERE tournament_id=$1 AND user_id=$2", tid, uid)
+                return {"message": "Player removed from the remaining rounds. Place them last in any unfinished lobby."}
             m = await fetch("""
                 SELECT * FROM tournament_matches WHERE tournament_id=$1 AND status <> 'done' AND $2 IN (p1_id, p2_id)
                   AND p1_id IS NOT NULL AND p2_id IS NOT NULL LIMIT 1

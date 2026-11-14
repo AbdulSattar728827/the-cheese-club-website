@@ -124,7 +124,9 @@ Needs the bot version with website queueing (it creates `aoe_queue_live` and `ao
   `website_users` and `member_achievements_seen` (website).
 
 ## Tournaments
-Two formats: **1v1 Cup** (single elimination) and **Random Team 3v3** (below). Tournament games are marked
+Four formats: **1v1 Cup** and **Team Cup** (2v2/3v3/4v4 fixed teams), both single elimination,
+**Random Team 3v3** and **Free-for-all** (below). Admins can cancel or **delete** a tournament
+(type its name to confirm); deleting removes it everywhere, but games played stay in match history. Tournament games are marked
 as tournament games (`aoe_matches.is_tournament`): they appear in match history and live with a
 "Tournament" label, but don't change queue stats, community ratings, player insights, civ stats or
 highlights.
@@ -142,6 +144,21 @@ highlights.
 - Champions and runners-up appear in the Hall of Champions and as trophies on their player pages.
 - Tables: `tournaments`, `tournament_players`, `tournament_matches`, `tournament_games` (created by the website).
 
+### Team Cup (2v2 / 3v3 / 4v4)
+- A captain registers a team (name + teammates from the club). Each teammate accepts or declines the
+  invite on the website; the team is registered once everyone has accepted (waiting list when full).
+  Players can be in one team per tournament. Captains can replace a teammate who hasn't accepted.
+- The captain checks in the team. Teams are seeded by their players' average rating.
+- Every player presses Ready; the bot starts the match with the teams already set.
+
+### Free-for-all
+- 2–8 players in one lobby, 1–5 rounds, points by final place (configurable, default 8,6,4,3,2,1,0,0).
+- When everyone is ready, the bot opens a Discord thread for the lobby (players host it in-game).
+- Age of Empires IV doesn't report finishing places, so a player submits the order on the website and
+  others confirm (at least half the lobby, minimum 2, including the reporter). A dispute goes to an
+  admin, who can also set or correct placements at any time; standings recalculate.
+- FFA games are not added to match history or stats.
+
 ### Random Team 3v3
 - Players sign up alone. Each round the website makes new 3v3 teams: random, but balanced by rating
   (team averages within about 60) and avoiding repeated teammates (and, less strongly, opponents).
@@ -157,7 +174,8 @@ highlights.
   are recorded (Hall of Fame, player trophies).
 - Admin: set or correct results, substitute, regenerate the current round (before anyone is ready),
   remove a player from later rounds. Every admin action is saved in `tournament_admin_log`.
-- Tables: `tournament_team_matches`, `tournament_round_byes`, `tournament_admin_log`.
+- Tables: `tournament_team_matches`, `tournament_round_byes`, `tournament_admin_log`,
+  `tournament_teams`, `tournament_team_members`, `tournament_ffa_matches`.
 
 ## Voice time
 A member's voice time is their `vc_stats` total. Members with no `vc_stats` rows fall back to the

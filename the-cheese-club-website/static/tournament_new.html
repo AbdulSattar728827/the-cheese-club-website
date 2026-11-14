@@ -232,6 +232,28 @@ table.rt-std{width:100%;border-collapse:collapse;font-size:12.5px}
 .hint6.ok{background:#13241b;color:#cfe9d9;border:1px solid #285a40}.hint6.warn{background:#2a2213;color:#f0d79a;border:1px solid #6e5424}
 @media(max-width:1100px){.rt-grid{grid-template-columns:1fr}}
 @media(max-width:600px){.rt-podium{grid-template-columns:1fr}.rt-pod.rt-first{order:-1}.rt-mb{grid-template-columns:1fr;text-align:left}.rt-side.rt-r{text-align:left;align-items:flex-start}.rt-std th:nth-child(n+5):not(:last-child),.rt-std td:nth-child(n+5):not(:last-child){display:none}.fmt-pick{grid-template-columns:1fr}}
+
+.tm-card{padding:16px 18px;border-radius:14px;border:1px solid #3a3327;background:#141417;margin-bottom:14px}
+.tm-card.tm-mine{border-color:#285a40;background:linear-gradient(135deg,#13241b,#121214)}
+.tm-card.inv{border-color:#5865f2;background:linear-gradient(135deg,#1c1f3a,#121214)}
+.tm-card h4{margin:0 0 8px;font:700 20px 'Barlow Condensed';text-transform:uppercase}
+.tm-card p{margin:6px 0;color:#a29e95;font-size:12.5px}
+.chips2{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chips2 span{padding:5px 10px;border-radius:20px;font-size:11.5px;border:1px solid #3a3327;color:#cfcac0}
+.chips2 .ok{border-color:#285a40;color:#8fe0b2;background:#13241b}.chips2 .wait{color:#c9bfa8}.chips2 .no{border-color:#6a3329;color:#f0a090}
+.tm-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.tm-actions input,.tm-actions select{padding:9px 11px;border-radius:8px;border:1px solid #3a3327;background:#111114;color:var(--white);font:inherit;font-size:12.5px}
+.reg{display:grid;gap:10px;max-width:640px}
+.reg input{width:100%;padding:11px 12px;border-radius:9px;border:1px solid #3a3327;background:#111114;color:var(--white);font:inherit;font-size:13px}
+.reg label{font-size:12px;font-weight:700;color:#cfcac0}
+.teams-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;padding:14px 18px 18px}
+.teams-grid .tm-card{margin:0}
+.ffa-res{width:100%;border-collapse:collapse;font-size:12.5px}
+.ffa-res td{padding:7px 8px;border-bottom:1px solid #ffffff08;color:#cfcac0}.ffa-res td.r{text-align:right}
+.ffa-res td.p{font:800 16px 'Barlow Condensed';color:var(--gold2);width:36px}
+.order{display:grid;gap:8px;max-width:420px;margin-top:8px}
+.order label{display:grid;grid-template-columns:60px 1fr;gap:8px;align-items:center;font-size:12.5px;font-weight:700;color:#cfcac0}
+.order select{padding:8px 10px;border-radius:8px;border:1px solid #3a3327;background:#111114;color:var(--white);font:inherit;font-size:12.5px}
 </style>
 <link rel="stylesheet" href="/static/common.css">
 <script src="/static/common.js"></script>
@@ -265,20 +287,26 @@ setInterval(()=>document.querySelectorAll('[data-until]').forEach(el=>{el.textCo
 const boText=t=>t.bo_default===t.bo_semi&&t.bo_semi===t.bo_final?`Best of ${t.bo_final} every round`:`Best of ${t.bo_default} early rounds, ${t.bo_semi} semis, ${t.bo_final} final`;
 const STATUS={signup:'Sign-ups open',checkin:'Check-in open',live:'Live',finished:'Finished',cancelled:'Cancelled'};
 const initials=n=>esc((n||'?').trim().slice(0,1).toUpperCase());
-const isRT=t=>t.format==='random3v3';
-const fmtName=t=>isRT(t)?'🎲 Random Team 3v3':'⚔️ 1v1 Cup';
-const fmtIcon=t=>isRT(t)?'🎲':'⚔️';
+const isRT=t=>t.format==='random3v3',isTeam=t=>t.format==='teamcup',isFFA=t=>t.format==='ffa';
+const fmtName=t=>isRT(t)?'🎲 Random Team 3v3':isTeam(t)?`👥 ${t.mode} Team Cup`:isFFA(t)?'🏁 Free-for-all':'⚔️ 1v1 Cup';
+const fmtIcon=t=>isRT(t)?'🎲':isTeam(t)?'👥':isFFA(t)?'🏁':'⚔️';
 
 const pad=n=>String(n).padStart(2,'0');
 function defaultStart(){const d=new Date();d.setDate(d.getDate()+((6-d.getDay()+7)%7||7));d.setHours(20,0,0,0);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T20:00`}
 let MAPS=[];
-function hint6(){const n=+$('tMax').value,rt=$('fRT').checked,box=$('hint6');if(!rt){box.hidden=true;return}box.hidden=false;
+const FMT=()=>document.querySelector('input[name=fmt]:checked').value;
+const MAXOPTS={single:[4,8,16,32],teamcup:[2,4,8,16,32],random3v3:[6,12,18,20,24,30,36,48],ffa:[2,3,4,5,6,7,8]};
+function fillMax(){const f=FMT(),cur=+$('tMax').value,opts=MAXOPTS[f],def={single:8,teamcup:8,random3v3:24,ffa:8}[f];
+ $('tMax').innerHTML=opts.map(n=>`<option ${n===(opts.includes(cur)?cur:def)?'selected':''}>${n}</option>`).join('');
+ $('tMaxLabel').textContent=f==='teamcup'?'Teams':'Players';$('tMaxHelp').textContent=f==='ffa'?'An FFA lobby holds 2 to 8 players. Extra sign-ups go on a waiting list.':f==='teamcup'?'How many teams can enter. Extra teams go on a waiting list.':'Extra sign-ups go on a waiting list.'}
+function hint6(){const n=+$('tMax').value,rt=FMT()==='random3v3',box=$('hint6');if(!rt){box.hidden=true;return}box.hidden=false;
  const out=n%6,m=Math.floor(n/6);box.className='hint6 '+(out?'warn':'ok');
  box.textContent=out?`${n} players → ${m} matches per round and ${out} sit${out===1?'s':''} out each round (they get the sit-out points and can be substitutes). Multiples of 6 mean nobody sits out.`:`${n} players → ${m} matches per round and nobody sits out. 👍`}
-function roundMaps(){const n=+$('tRounds').value,prev=[...document.querySelectorAll('.rmap')].map(x=>x.value);
+function roundMaps(){const n=FMT()==='ffa'?+$('tRoundsF').value:+$('tRounds').value,prev=[...document.querySelectorAll('.rmap')].map(x=>x.value);
  $('roundMaps').innerHTML=Array.from({length:n},(_,i)=>`<label style="margin:0"><small style="display:block;margin:0 0 4px;font-weight:700;color:#cfcac0">Round ${i+1}</small><select class="rmap"><option value="random">🎲 Random (pool)</option>${MAPS.map(m=>`<option ${prev[i]===m?'selected':''}>${esc(m)}</option>`).join('')}</select></label>`).join('')}
-function toggle(){const rt=$('fRT').checked;document.querySelectorAll('.only-rt').forEach(e=>e.hidden=!rt);document.querySelectorAll('.only-1v1').forEach(e=>e.hidden=rt);
- if(rt&&+$('tMax').value<12){$('tMax').value='24'}hint6()}
+function toggle(){const f=FMT();
+ document.querySelectorAll('[data-for]').forEach(e=>e.hidden=!e.dataset.for.split(' ').includes(f));
+ fillMax();roundMaps();hint6()}
 (async()=>{
  let d;try{d=await call('GET','/api/tournaments')}catch(e){d={is_admin:false}}
  if(!d.is_admin){$('formBox').innerHTML='<div class="t-empty">Only Cheese Club admins can create tournaments. <a href="/tournament" style="color:var(--gold);font-weight:700">See tournaments</a></div>';return}
@@ -286,27 +314,32 @@ function toggle(){const rt=$('fRT').checked;document.querySelectorAll('.only-rt'
  $('formBox').innerHTML=`<section class="panel"><div id="fmsg" style="padding:16px 22px 0"></div><form class="tform" id="tf">
   <div class="full"><label>Format</label><div class="fmt-pick">
    <label><input type="radio" name="fmt" id="f1v1" value="single" checked><b>⚔️ 1v1 Cup</b><small>Single elimination bracket. Best-of series, seeded by AoE4World rating.</small></label>
-   <label><input type="radio" name="fmt" id="fRT" value="random3v3"><b>🎲 Random Team 3v3</b><small>Players sign up alone, get new random (balanced) teammates every round, and score individual points.</small></label></div></div>
+   <label><input type="radio" name="fmt" id="fTeam" value="teamcup"><b>👥 Team Cup (2v2 / 3v3 / 4v4)</b><small>A captain registers a fixed team and invites teammates, who accept. Single elimination bracket.</small></label>
+   <label><input type="radio" name="fmt" id="fRT" value="random3v3"><b>🎲 Random Team 3v3</b><small>Players sign up alone, get new random (balanced) teammates every round, and score individual points.</small></label>
+   <label><input type="radio" name="fmt" id="fFFA" value="ffa"><b>🏁 Free-for-all</b><small>2–8 players in one FFA lobby, points by final placement. Optional extra rounds.</small></label></div></div>
+  <div data-for="teamcup" hidden><label for="tSize">Team size</label><select id="tSize"><option value="2">2v2</option><option value="3" selected>3v3</option><option value="4">4v4</option></select><small>Each team has this many players, including the captain.</small></div>
   <div class="full"><label for="tName">Name</label><input id="tName" maxlength="80" required placeholder="Weekly Cheese Cup #1"></div>
   <div class="full"><label for="tDesc">Short description</label><input id="tDesc" maxlength="600" placeholder="Our Saturday cup."></div>
   <div><label for="tStart">Starts</label><input id="tStart" type="datetime-local" required value="${defaultStart()}"><small>In your time zone (${esc(Intl.DateTimeFormat().resolvedOptions().timeZone)}). Everyone sees it in theirs.</small></div>
-  <div><label for="tMax">Players</label><select id="tMax">${[4,8,12,16,18,20,24,30,32,36,48].map(n=>`<option ${n===8?'selected':''}>${n}</option>`).join('')}</select><small>Extra sign-ups go on a waiting list.</small><div class="hint6" id="hint6" hidden></div></div>
+  <div><label for="tMax" id="tMaxLabel">Players</label><select id="tMax"><option selected>8</option></select><small id="tMaxHelp">Extra sign-ups go on a waiting list.</small><div class="hint6" id="hint6" hidden></div></div>
   <div><label for="tCheck">Check-in opens</label><select id="tCheck"><option value="15">15 minutes before</option><option value="30" selected>30 minutes before</option><option value="45">45 minutes before</option><option value="60">1 hour before</option></select><small>Players who don't check in lose their spot.</small></div>
-  <div class="only-1v1"><label>Best of</label><div style="display:flex;gap:8px"><select id="tBo1" aria-label="Early rounds"><option value="1" selected>Early: Bo1</option><option value="3">Early: Bo3</option></select><select id="tBo2" aria-label="Semifinals"><option value="1">Semis: Bo1</option><option value="3" selected>Semis: Bo3</option><option value="5">Semis: Bo5</option></select><select id="tBo3" aria-label="Final"><option value="1">Final: Bo1</option><option value="3">Final: Bo3</option><option value="5" selected>Final: Bo5</option><option value="7">Final: Bo7</option></select></div></div>
-  <div class="only-rt" hidden><label for="tRounds">Rounds</label><select id="tRounds">${[3,4,5,6,7,8].map(n=>`<option ${n===5?'selected':''}>${n}</option>`).join('')}</select><small>Each round: new random teams, one 3v3 match each.</small></div>
-  <div class="only-rt" hidden><label>Points</label><div style="display:flex;gap:8px"><select id="tPw" aria-label="Points for a win"><option value="1" selected>Win: 1 point</option><option value="2">Win: 2 points</option><option value="3">Win: 3 points</option></select><select id="tPb" aria-label="Points for sitting out"><option value="0">Sit-out: 0</option><option value="0.5" selected>Sit-out: 0.5</option><option value="1">Sit-out: 1</option></select></div><small>Loss = 0. Ties: opponents' points, then fewer sit-outs.</small></div>
-  <div class="full only-rt" hidden><label>Map for each round</label><div class="roundmaps" id="roundMaps"></div><small>Everyone plays the same map in a round. "Random from pool" picks one when the round's teams are made.</small></div>
-  <div class="full only-rt" hidden><label>Map pool (for random rounds)</label><div class="pool">${MAPS.map(m=>`<label><input type="checkbox" class="pmap" value="${esc(m)}" checked>${esc(m)}</label>`).join('')}</div></div>
+  <div data-for="single teamcup"><label>Best of</label><div style="display:flex;gap:8px"><select id="tBo1" aria-label="Early rounds"><option value="1" selected>Early: Bo1</option><option value="3">Early: Bo3</option></select><select id="tBo2" aria-label="Semifinals"><option value="1">Semis: Bo1</option><option value="3" selected>Semis: Bo3</option><option value="5">Semis: Bo5</option></select><select id="tBo3" aria-label="Final"><option value="1">Final: Bo1</option><option value="3">Final: Bo3</option><option value="5" selected>Final: Bo5</option><option value="7">Final: Bo7</option></select></div></div>
+  <div data-for="random3v3" hidden><label for="tRounds">Rounds</label><select id="tRounds">${[3,4,5,6,7,8].map(n=>`<option ${n===5?'selected':''}>${n}</option>`).join('')}</select><small>Each round: new random teams, one 3v3 match each.</small></div>
+  <div data-for="random3v3" hidden><label>Points</label><div style="display:flex;gap:8px"><select id="tPw" aria-label="Points for a win"><option value="1" selected>Win: 1 point</option><option value="2">Win: 2 points</option><option value="3">Win: 3 points</option></select><select id="tPb" aria-label="Points for sitting out"><option value="0">Sit-out: 0</option><option value="0.5" selected>Sit-out: 0.5</option><option value="1">Sit-out: 1</option></select></div><small>Loss = 0. Ties: opponents' points, then fewer sit-outs.</small></div>
+  <div class="full" data-for="random3v3 ffa" hidden><label>Map for each round</label><div class="roundmaps" id="roundMaps"></div><small>Everyone plays the same map in a round. "Random from pool" picks one when the round's teams are made.</small></div>
+  <div class="full" data-for="random3v3 ffa" hidden><label>Map pool (for random rounds)</label><div class="pool">${MAPS.map(m=>`<label><input type="checkbox" class="pmap" value="${esc(m)}" checked>${esc(m)}</label>`).join('')}</div></div>
+  <div data-for="ffa" hidden><label for="tRoundsF">Rounds</label><select id="tRoundsF">${[1,2,3,4,5].map(n=>`<option ${n===1?'selected':''}>${n}</option>`).join('')}</select><small>1 = a single FFA match. More rounds: points add up.</small></div>
+  <div data-for="ffa" hidden><label for="tPts">Points for 1st to 8th place</label><input id="tPts" value="8,6,4,3,2,1,0,0"><small>Comma-separated. Smaller lobbies use the first places only.</small></div>
   <div class="full"><label for="tPrize">Prizes (optional)</label><input id="tPrize" maxlength="500" placeholder="Champion role, trophy badge and 500 Cheese Coins"></div>
   <div class="full"><label for="tRules">Rules (optional)</label><textarea id="tRules" maxlength="3000" placeholder="10 minutes late = forfeit. Civ bans are run by the bot. Disputes go to an admin."></textarea></div>
   <div class="full" style="display:flex;gap:10px"><button class="btn primary" type="submit">Create tournament</button><a class="btn secondary" href="/tournament">Cancel</a></div></form></section>`;
- roundMaps();
+ toggle();
  document.querySelectorAll('input[name=fmt]').forEach(r=>r.addEventListener('change',toggle));
- $('tMax').addEventListener('change',hint6);$('tRounds').addEventListener('change',roundMaps);
- $('tf').addEventListener('submit',async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;const rt=$('fRT').checked;
-  try{const r=await call('POST','/api/tournaments',{format:rt?'random3v3':'single',name:$('tName').value,description:$('tDesc').value,starts_at:new Date($('tStart').value).toISOString(),
+ $('tMax').addEventListener('change',hint6);$('tRounds').addEventListener('change',roundMaps);$('tRoundsF').addEventListener('change',roundMaps);
+ $('tf').addEventListener('submit',async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;const f=FMT();
+  try{const r=await call('POST','/api/tournaments',{format:f,team_size:+$('tSize').value,ffa_points:$('tPts').value,name:$('tName').value,description:$('tDesc').value,starts_at:new Date($('tStart').value).toISOString(),
    max_players:+$('tMax').value,checkin_minutes:+$('tCheck').value,bo_default:+$('tBo1').value,bo_semi:+$('tBo2').value,bo_final:+$('tBo3').value,
-   rounds:+$('tRounds').value,points_win:+$('tPw').value,points_bye:+$('tPb').value,round_maps:[...document.querySelectorAll('.rmap')].map(x=>x.value),
+   rounds:f==='ffa'?+$('tRoundsF').value:+$('tRounds').value,points_win:+$('tPw').value,points_bye:+$('tPb').value,round_maps:[...document.querySelectorAll('.rmap')].map(x=>x.value),
    map_pool:[...document.querySelectorAll('.pmap:checked')].map(x=>x.value),prizes:$('tPrize').value,rules:$('tRules').value});
    location.href='/tournament/'+r.id}catch(err){btn.disabled=false;$('fmsg').innerHTML=`<div class="t-msg err">${esc(err.message)}</div>`;$('fmsg').scrollIntoView()}});
 })();

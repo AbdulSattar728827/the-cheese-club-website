@@ -232,6 +232,28 @@ table.rt-std{width:100%;border-collapse:collapse;font-size:12.5px}
 .hint6.ok{background:#13241b;color:#cfe9d9;border:1px solid #285a40}.hint6.warn{background:#2a2213;color:#f0d79a;border:1px solid #6e5424}
 @media(max-width:1100px){.rt-grid{grid-template-columns:1fr}}
 @media(max-width:600px){.rt-podium{grid-template-columns:1fr}.rt-pod.rt-first{order:-1}.rt-mb{grid-template-columns:1fr;text-align:left}.rt-side.rt-r{text-align:left;align-items:flex-start}.rt-std th:nth-child(n+5):not(:last-child),.rt-std td:nth-child(n+5):not(:last-child){display:none}.fmt-pick{grid-template-columns:1fr}}
+
+.tm-card{padding:16px 18px;border-radius:14px;border:1px solid #3a3327;background:#141417;margin-bottom:14px}
+.tm-card.tm-mine{border-color:#285a40;background:linear-gradient(135deg,#13241b,#121214)}
+.tm-card.inv{border-color:#5865f2;background:linear-gradient(135deg,#1c1f3a,#121214)}
+.tm-card h4{margin:0 0 8px;font:700 20px 'Barlow Condensed';text-transform:uppercase}
+.tm-card p{margin:6px 0;color:#a29e95;font-size:12.5px}
+.chips2{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chips2 span{padding:5px 10px;border-radius:20px;font-size:11.5px;border:1px solid #3a3327;color:#cfcac0}
+.chips2 .ok{border-color:#285a40;color:#8fe0b2;background:#13241b}.chips2 .wait{color:#c9bfa8}.chips2 .no{border-color:#6a3329;color:#f0a090}
+.tm-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.tm-actions input,.tm-actions select{padding:9px 11px;border-radius:8px;border:1px solid #3a3327;background:#111114;color:var(--white);font:inherit;font-size:12.5px}
+.reg{display:grid;gap:10px;max-width:640px}
+.reg input{width:100%;padding:11px 12px;border-radius:9px;border:1px solid #3a3327;background:#111114;color:var(--white);font:inherit;font-size:13px}
+.reg label{font-size:12px;font-weight:700;color:#cfcac0}
+.teams-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;padding:14px 18px 18px}
+.teams-grid .tm-card{margin:0}
+.ffa-res{width:100%;border-collapse:collapse;font-size:12.5px}
+.ffa-res td{padding:7px 8px;border-bottom:1px solid #ffffff08;color:#cfcac0}.ffa-res td.r{text-align:right}
+.ffa-res td.p{font:800 16px 'Barlow Condensed';color:var(--gold2);width:36px}
+.order{display:grid;gap:8px;max-width:420px;margin-top:8px}
+.order label{display:grid;grid-template-columns:60px 1fr;gap:8px;align-items:center;font-size:12.5px;font-weight:700;color:#cfcac0}
+.order select{padding:8px 10px;border-radius:8px;border:1px solid #3a3327;background:#111114;color:var(--white);font:inherit;font-size:12.5px}
 </style>
 <link rel="stylesheet" href="/static/common.css">
 <script src="/static/common.js"></script>
@@ -265,9 +287,9 @@ setInterval(()=>document.querySelectorAll('[data-until]').forEach(el=>{el.textCo
 const boText=t=>t.bo_default===t.bo_semi&&t.bo_semi===t.bo_final?`Best of ${t.bo_final} every round`:`Best of ${t.bo_default} early rounds, ${t.bo_semi} semis, ${t.bo_final} final`;
 const STATUS={signup:'Sign-ups open',checkin:'Check-in open',live:'Live',finished:'Finished',cancelled:'Cancelled'};
 const initials=n=>esc((n||'?').trim().slice(0,1).toUpperCase());
-const isRT=t=>t.format==='random3v3';
-const fmtName=t=>isRT(t)?'🎲 Random Team 3v3':'⚔️ 1v1 Cup';
-const fmtIcon=t=>isRT(t)?'🎲':'⚔️';
+const isRT=t=>t.format==='random3v3',isTeam=t=>t.format==='teamcup',isFFA=t=>t.format==='ffa';
+const fmtName=t=>isRT(t)?'🎲 Random Team 3v3':isTeam(t)?`👥 ${t.mode} Team Cup`:isFFA(t)?'🏁 Free-for-all':'⚔️ 1v1 Cup';
+const fmtIcon=t=>isRT(t)?'🎲':isTeam(t)?'👥':isFFA(t)?'🏁':'⚔️';
 
 function closeMatchDetail(){$('detailBackdrop').style.display='none';document.body.style.overflow=''}
 async function openMatchDetail(id){$('detailBackdrop').style.display='flex';document.body.style.overflow='hidden';$('detailTitle').textContent='Match #'+id;const box=$('detailContent');box.innerHTML='<div class="empty">Loading match details…</div>';try{box.innerHTML=matchDetailHtml(await fetchMatchDetail(id))}catch(e){box.innerHTML=`<div class="empty">${esc(e.message)}. Please try again.</div>`}}
@@ -285,11 +307,11 @@ async function load(){
   html+=`<section class="t-hero"><div style="position:relative;z-index:1">
    <span class="t-kicker">Next tournament · ${STATUS[feat.status]}</span><h1>${esc(feat.name)}</h1>
    ${feat.description?`<p>${esc(feat.description)}</p>`:''}
-   <div class="t-facts"><span>${fmtName(feat)}</span>${isRT(feat)?`<span>🔁 ${feat.rounds} rounds, new teammates every round</span><span>🎯 Win = ${feat.points_win} pt · sit-out = ${feat.points_bye} pt</span>`:`<span>🏁 Single elimination</span><span>🎯 ${esc(boText(feat))}</span>`}<span>🗓️ ${esc(when(feat.starts_at))} your time</span></div>
+   <div class="t-facts"><span>${fmtName(feat)}</span>${isRT(feat)?`<span>🔁 ${feat.rounds} rounds, new teammates every round</span><span>🎯 Win = ${feat.points_win} pt · sit-out = ${feat.points_bye} pt</span>`:isFFA(feat)?`<span>🔁 ${feat.rounds} round${feat.rounds===1?'':'s'}</span><span>🎯 Points by placement</span>`:`<span>🏁 Single elimination</span><span>🎯 ${esc(boText(feat))}</span>`}<span>🗓️ ${esc(when(feat.starts_at))} your time</span></div>
    <div class="t-cta"><a class="btn primary" href="/tournament/${feat.id}">${feat.status==='checkin'?'✅ Check in':'✍️ Sign up'}</a><a class="btn secondary" href="/tournament/${feat.id}">Details & players</a><small>Check-in opens ${feat.checkin_minutes} minutes before it starts</small></div></div>
    <div class="t-side">
     <div class="t-box"><label>Starts in</label><div class="count"><div><b>${u.D}</b><small>days</small></div><div><b>${u.H}</b><small>hours</small></div><div><b>${u.M}</b><small>min</small></div></div></div>
-    <div class="t-box"><label>Players</label><div class="spots"><span><b>${feat.players}</b> of ${feat.max_players} spots taken</span><span style="color:var(--gold)">${left?left+' left':'Waiting list open'}</span></div><div class="spotbar"><i style="width:${pct}%"></i></div>
+    <div class="t-box"><label>Players</label><div class="spots"><span><b>${feat.players}</b> of ${feat.max_players} ${isTeam(feat)?'team spots':'spots'} taken</span><span style="color:var(--gold)">${left?left+' left':'Waiting list open'}</span></div><div class="spotbar"><i style="width:${pct}%"></i></div>
      ${(feat.faces||[]).length?`<div class="avs">${feat.faces.map(f=>`<span title="${esc(f.username)}">${initials(f.username)}</span>`).join('')}</div>`:''}</div>
     ${feat.prizes?`<div class="t-box"><label>Prizes</label><div class="prize">🏆 <span>${esc(feat.prizes)}</span></div></div>`:''}
    </div></section>`;

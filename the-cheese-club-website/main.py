@@ -117,6 +117,12 @@ TOURNAMENT_TABLES = [
         finished_at TIMESTAMPTZ, UNIQUE (tournament_id, round)
     )""",
     "ALTER TABLE tournament_ffa_matches ADD COLUMN IF NOT EXISTS civs JSONB",
+    "ALTER TABLE tournament_ffa_matches ADD COLUMN IF NOT EXISTS civ_phase TEXT",
+    "ALTER TABLE tournament_ffa_matches ADD COLUMN IF NOT EXISTS bans JSONB NOT NULL DEFAULT '{}'",
+    "ALTER TABLE tournament_ffa_matches ADD COLUMN IF NOT EXISTS picks JSONB NOT NULL DEFAULT '{}'",
+    "ALTER TABLE tournament_ffa_matches ADD COLUMN IF NOT EXISTS civ_announced TEXT[] NOT NULL DEFAULT '{}'",
+    "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS ffa_unique_civs BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS ffa_civ_bans BOOLEAN NOT NULL DEFAULT FALSE",
     """CREATE TABLE IF NOT EXISTS tournament_admin_log (
         id SERIAL PRIMARY KEY, tournament_id INTEGER, admin_id TEXT NOT NULL, action TEXT NOT NULL,
         detail JSONB, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -2251,6 +2257,30 @@ async def _notify_entrant(t: dict, eid, title: str, body: str, ref: str):
         await _tnotify(uid, "tournament", title, body, t["id"], ref)
 
 
+async def _correct_bracket(t: dict, m: dict, win: str) -> str:
+    """Change the winner of a finished bracket match, as long as the match it fed
+    into hasn't been played yet (or it was the final)."""
+    if m["winner_id"] == win:
+        return "That's already the winner."
+    old = m["winner_id"]
+    if m["next_match_id"]:
+        nxt = (await fetch("SELECT * FROM tournament_matches WHERE id=$1", m["next_match_id"]))[0]
+        played = await fetchval("SELECT COUNT(*) FROM tournament_games WHERE tmatch_id=$1 AND status IN ('done','playing')", nxt["id"], default=0)
+        if nxt["status"] in ("done", "playing", "starting") or played:
+            raise HTTPException(status_code=400, detail="The next match has already started, so this result can't be changed any more.")
+        col = "p1" if m["next_slot"] == 1 else "p2"
+        seed = m["p1_seed"] if win == m["p1_id"] else m["p2_seed"]
+        await fetch(f"""UPDATE tournament_matches SET {col}_id=$2, {col}_seed=$3, ready_ids='{{}}', p1_ready_at=NULL, p2_ready_at=NULL,
+                        announced=FALSE, updated_at=NOW() WHERE id=$1""", nxt["id"], win, seed)
+        await _set_entrant_status(t, win, "playing")
+    else:
+        await fetch("UPDATE tournaments SET winner_id=$2, runner_up_id=$3 WHERE id=$1", t["id"], win, old)
+        await _set_entrant_status(t, win, "champion")
+    await _set_entrant_status(t, old, "eliminated")
+    await fetch("UPDATE tournament_matches SET winner_id=$2, note='Result corrected by an admin', updated_at=NOW() WHERE id=$1", m["id"], win)
+    return "Result corrected. The bracket is updated."
+
+
 async def _start_team_cup(t: dict) -> str:
     tid, size = t["id"], int(t["team_size"])
     teams = [dict(r) for r in await fetch("""
@@ -2474,7 +2504,8 @@ async def _tournament_loop():
 # updates everything automatically.
 # ---------------------------------------------------------------------------
 DEFAULT_MAPS = ["African Waters", "Archipelago", "Dry Arabia", "Forts", "Gorge",
-                "Hedgemaze", "Rocky River", "Sunkenlands", "West Lake"]
+                "Hedgemaze", "Land Mega Random", "Rocky River", "Sunkenlands", "West Lake"]
+FFA_CIVS = [c for c in CIV_NAMES if c != "Random"]
 TEAM_BALANCE_TOLERANCE = 60
 
 
@@ -2688,7 +2719,8 @@ async def _tick_random(t: dict):
 def _t_public(t: dict) -> dict:
     keys = ("id", "name", "description", "mode", "format", "max_players", "starts_at", "checkin_minutes",
             "bo_default", "bo_semi", "bo_final", "rules", "prizes", "status", "started_at", "finished_at", "created_at",
-            "rounds", "current_round", "round_maps", "map_pool", "team_size", "ffa_points", "min_rating", "max_rating")
+            "rounds", "current_round", "round_maps", "map_pool", "team_size", "ffa_points", "min_rating", "max_rating",
+            "ffa_unique_civs", "ffa_civ_bans")
     out = {k: t.get(k) for k in keys}
     out["points_win"] = float(t.get("points_win") or 1)
     out["points_bye"] = float(t.get("points_bye") or 0)
@@ -2913,7 +2945,8 @@ async def api_create_tournament(request: Request):
             table = [max(0, min(100, int(x))) for x in str(b.get("ffa_points") or "8,6,4,3,2,1,0,0").replace(" ", "").split(",") if x != ""][:8]
         except ValueError:
             table = [8, 6, 4, 3, 2, 1, 0, 0]
-        await fetch("UPDATE tournaments SET ffa_points=$2 WHERE id=$1", tid, (table + [0] * 8)[:8])
+        await fetch("UPDATE tournaments SET ffa_points=$2, ffa_unique_civs=$3, ffa_civ_bans=$4 WHERE id=$1",
+                    tid, (table + [0] * 8)[:8], bool(b.get("ffa_unique_civs")), bool(b.get("ffa_civ_bans")))
     await _log_admin(tid, user["uid"], "create", {k: v for k, v in b.items()})
     return {"id": tid}
 
@@ -3292,7 +3325,8 @@ async def _ffa_round(t: dict, r: int) -> str:
     maps = list(t.get("round_maps") or [])
     chosen = maps[r - 1] if len(maps) >= r and maps[r - 1] and maps[r - 1] != "random" else None
     map_name = chosen or _random.choice(list(t.get("map_pool") or []) or DEFAULT_MAPS)
-    await fetch("INSERT INTO tournament_ffa_matches (tournament_id, round, players, map) VALUES ($1,$2,$3,$4)", tid, r, players, map_name)
+    await fetch("INSERT INTO tournament_ffa_matches (tournament_id, round, players, map, civ_phase) VALUES ($1,$2,$3,$4,$5)",
+                tid, r, players, map_name, "ban" if t.get("ffa_civ_bans") else "pick")
     await fetch("UPDATE tournaments SET current_round=$2 WHERE id=$1", tid, r)
     rounds = int(t.get("rounds") or 1)
     for uid in players:
@@ -3377,11 +3411,20 @@ async def _ffa_out(t: dict, uid) -> dict:
                                  "civ": (json_obj_safe(m["civs"]) if m.get("civs") else {}).get(u)} for u in order],
                     "reported_by": names.get(m["reported_by"]) if m["reported_by"] else None,
                     "confirmations": len(m["confirmations"]), "needed": _ffa_needed(len(m["players"])),
+                    "civ_phase": m.get("civ_phase") or "done",
+                    "bans_done": len(json_obj_safe(m.get("bans"))), "picks_done": len(json_obj_safe(m.get("picks"))),
+                    "my_ban": json_obj_safe(m.get("bans")).get(uid) if uid else None,
+                    "my_pick": json_obj_safe(m.get("picks")).get(uid) if uid else None,
+                    "banned": sorted(set(json_obj_safe(m.get("bans")).values())) if (m.get("civ_phase") or "done") != "ban" else [],
+                    "revealed": [{**names.get(u, {}), "civ": c, "me": u == uid} for u, c in json_obj_safe(m.get("picks")).items()]
+                                if (m.get("civ_phase") or "done") == "done" else [],
+                    "locked": [names.get(u, {}).get("username") for u in (json_obj_safe(m.get("bans")) if m.get("civ_phase") == "ban" else json_obj_safe(m.get("picks")))],
                     "me_in": bool(uid and uid in m["players"]), "me_ready": bool(uid and uid in m["ready_ids"]),
                     "me_confirmed": bool(uid and uid in m["confirmations"]), "me_disputed": bool(uid and uid in m["disputes"])})
     standings = await ffa_standings(t)
     sn = await people([s["user_id"] for s in standings])
-    return {"matches": out, "points": list(t.get("ffa_points") or []),
+    return {"matches": out, "points": list(t.get("ffa_points") or []), "civ_list": FFA_CIVS,
+            "unique_civs": bool(t.get("ffa_unique_civs")), "civ_bans": bool(t.get("ffa_civ_bans")),
             "standings": [{**sn.get(s["user_id"], {}), "me": s["user_id"] == uid,
                            **{k: s[k] for k in ("rank", "points", "played", "wins", "podiums", "avg_place", "status")}} for s in standings]}
 
@@ -3407,6 +3450,60 @@ def _parse_order(m: dict, order) -> dict:
     if sorted(ids) != sorted(m["players"]) or len(set(ids)) != len(ids):
         raise HTTPException(status_code=400, detail="Put every player in exactly one place.")
     return {u: i for i, u in enumerate(ids, 1)}
+
+
+async def ffa_civ_action(t: dict, mid: int, uid: str, action: str, civ: str) -> str:
+    """Ban or pick a civ in an FFA lobby. Choices stay hidden until every player has
+    made theirs, then they're revealed together. The Discord bot applies the same rules."""
+    civ = canonical_civ(civ)
+    if civ not in FFA_CIVS:
+        raise HTTPException(status_code=400, detail="Pick a civilization from the list.")
+    if not pool:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            m = await conn.fetchrow("SELECT * FROM tournament_ffa_matches WHERE id=$1 FOR UPDATE", mid)
+            if not m or uid not in m["players"]:
+                raise HTTPException(status_code=403, detail="You're not in this lobby.")
+            if m["status"] not in ("ready", "starting", "playing") or m["civ_phase"] not in ("ban", "pick"):
+                raise HTTPException(status_code=400, detail="Civ selection is over for this lobby.")
+            bans, picks = json_obj_safe(m["bans"]), json_obj_safe(m["picks"])
+            n = len(m["players"])
+            if action == "ban":
+                if m["civ_phase"] != "ban":
+                    raise HTTPException(status_code=400, detail="The ban phase is over: pick your civ now.")
+                if uid in bans:
+                    raise HTTPException(status_code=400, detail="You've already banned a civ.")
+                bans[uid] = civ
+                phase = "pick" if len(bans) >= n else "ban"
+                await conn.execute("UPDATE tournament_ffa_matches SET bans=$2, civ_phase=$3, updated_at=NOW() WHERE id=$1",
+                                   mid, json.dumps(bans), phase)
+                return "Ban locked in. Bans are revealed when everyone has banned." if phase == "ban" else "Ban locked in. All bans are in: pick your civ now."
+            if action != "pick":
+                raise HTTPException(status_code=400, detail="Unknown action.")
+            if m["civ_phase"] != "pick":
+                raise HTTPException(status_code=400, detail="Bans aren't finished yet.")
+            if uid in picks:
+                raise HTTPException(status_code=400, detail="Your civ is already locked in.")
+            if civ in bans.values():
+                raise HTTPException(status_code=400, detail=f"{civ} is banned in this lobby.")
+            if t.get("ffa_unique_civs") and civ in picks.values():
+                raise HTTPException(status_code=400, detail=f"Someone has already picked {civ}. Choose another civ.")
+            picks[uid] = civ
+            done = len(picks) >= n
+            await conn.execute("""UPDATE tournament_ffa_matches SET picks=$2, civ_phase=$3,
+                                  civs=CASE WHEN $3='done' THEN $2::jsonb ELSE civs END, updated_at=NOW() WHERE id=$1""",
+                               mid, json.dumps(picks), "done" if done else "pick")
+            return "Civ locked in. Everyone's civs are revealed when all players have picked." if not done else "Civ locked in. All civs are revealed!"
+
+
+@app.post("/api/tournaments/{tid}/ffa-civ")
+async def api_ffa_civ(request: Request, tid: int):
+    user = require_login(request)
+    require_same_site(request)
+    b = await request.json()
+    t = await _tournament_or_404(tid)
+    return {"message": await ffa_civ_action(t, int(b.get("match_id") or 0), user["uid"], str(b.get("action") or ""), str(b.get("civ") or ""))}
 
 
 @app.post("/api/tournaments/{tid}/ffa-ready")
@@ -3436,10 +3533,12 @@ async def api_ffa_report(request: Request, tid: int):
             raise HTTPException(status_code=403, detail="Only players in this match can report the result.")
         if m["status"] not in ("playing", "reported"):
             raise HTTPException(status_code=400, detail="This match can't be reported right now.")
+        if m.get("civ_phase") in ("ban", "pick"):
+            raise HTTPException(status_code=400, detail="Finish civ selection first (or ask an admin to end it).")
         pl = _parse_order(m, b.get("order"))
+        civs = json_obj_safe(m["picks"]) or _parse_civs(m, b.get("civs"))
         await fetch("""UPDATE tournament_ffa_matches SET status='reported', placements=$2, reported_by=$3, confirmations=$4, disputes='{}',
-                       civs=$5, updated_at=NOW() WHERE id=$1""", m["id"], json.dumps(pl), user["uid"], [user["uid"]],
-                    json.dumps(_parse_civs(m, b.get("civs"))))
+                       civs=$5, updated_at=NOW() WHERE id=$1""", m["id"], json.dumps(pl), user["uid"], [user["uid"]], json.dumps(civs))
         me = (await people([user["uid"]]))[user["uid"]]["username"]
         for u in m["players"]:
             if u != user["uid"]:
@@ -3506,10 +3605,30 @@ async def api_tournament_admin(request: Request, tid: int):
             if " ".join(str(b.get("confirm_name") or "").split()).lower() != " ".join(t["name"].split()).lower():
                 raise HTTPException(status_code=400, detail="Type the tournament's exact name to delete it.")
             await fetch("DELETE FROM member_notifications WHERE link=$1", f"/tournament/{tid}")
+            removed = 0
+            if b.get("delete_games"):
+                ids = [r["aoe_match_id"] for r in await fetch("""
+                    SELECT g.aoe_match_id FROM tournament_games g JOIN tournament_matches m ON m.id=g.tmatch_id
+                    WHERE m.tournament_id=$1 AND g.aoe_match_id IS NOT NULL
+                    UNION SELECT aoe_match_id FROM tournament_team_matches WHERE tournament_id=$1 AND aoe_match_id IS NOT NULL
+                """, tid)]
+                if ids:
+                    removed = await fetchval("""WITH d AS (DELETE FROM aoe_matches WHERE id = ANY($1::int[])
+                                                AND COALESCE((to_jsonb(aoe_matches)->>'is_tournament')::boolean, FALSE) RETURNING 1)
+                                                SELECT COUNT(*) FROM d""", ids, default=0)
+                _match_cache["rows"] = None
             await fetch("DELETE FROM tournaments WHERE id=$1", tid)
-            return {"message": "Tournament deleted.", "deleted": True}
-        if t.get("format") == "ffa" and action in ("ffa_result", "ffa_approve"):
+            return {"message": "Tournament deleted" + (f", along with its {removed} game{'s' if removed != 1 else ''} in match history." if b.get("delete_games") else "."), "deleted": True}
+        if t.get("format") == "ffa" and action in ("ffa_result", "ffa_approve", "ffa_civ_end"):
             m = await _ffa_match(tid, int(b.get("match_id") or 0))
+            if action == "ffa_civ_end":
+                if m["civ_phase"] == "ban":
+                    await fetch("UPDATE tournament_ffa_matches SET civ_phase='pick', updated_at=NOW() WHERE id=$1", m["id"])
+                    return {"message": "Bans revealed. Players can pick their civs now."}
+                if m["civ_phase"] == "pick":
+                    await fetch("UPDATE tournament_ffa_matches SET civ_phase='done', civs=picks, updated_at=NOW() WHERE id=$1", m["id"])
+                    return {"message": "Civ selection ended. Civs picked so far are revealed."}
+                raise HTTPException(status_code=400, detail="Civ selection is already over.")
             if action == "ffa_approve":
                 if m["status"] not in ("reported", "disputed") or not m["placements"]:
                     raise HTTPException(status_code=400, detail="There's no reported result to approve.")
@@ -3545,8 +3664,10 @@ async def api_tournament_admin(request: Request, tid: int):
         if action == "set_winner":
             m = await fetch("SELECT * FROM tournament_matches WHERE tournament_id=$1 AND id=$2", tid, int(b.get("match_id") or 0))
             win = str(b.get("winner") or "") if is_team_fmt(t) else from_public_id(str(b.get("winner") or ""))
-            if not m or m[0]["status"] == "done" or win not in (m[0]["p1_id"], m[0]["p2_id"]):
-                raise HTTPException(status_code=400, detail="Pick one of the two players in an unfinished match.")
+            if m and m[0]["status"] == "done" and win in (m[0]["p1_id"], m[0]["p2_id"]):
+                return {"message": await _correct_bracket(t, dict(m[0]), win)}
+            if not m or win not in (m[0]["p1_id"], m[0]["p2_id"]):
+                raise HTTPException(status_code=400, detail="Pick one of the two sides in this match.")
             await _finish_match(m[0]["id"], win, t, note="Decided by an admin")
             return {"message": "Winner set."}
         if action == "remove_player":

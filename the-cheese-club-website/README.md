@@ -158,6 +158,15 @@ highlights.
   others confirm (at least half the lobby, minimum 2, including the reporter). A dispute goes to an
   admin, who can also set or correct placements at any time; standings recalculate.
 - FFA games are not added to match history or stats.
+- Civ selection: every player picks a civ (website, or the buttons in the Discord thread), hidden until
+  all have picked, then revealed in both places and saved with the result. Optional when creating:
+  **civ bans** (each player bans one civ first) and **unique civs** (no duplicate picks). Admins can end
+  civ selection for an AFK player, and set or correct placements at any time.
+
+### Admin corrections and deleting
+- 1v1 and Team Cups: an admin can correct a finished match while the match it fed into hasn't started
+  (the final can be corrected even after the tournament finished).
+- Delete (type the name to confirm) can also remove the tournament's games from match history.
 
 ### Rating divisions and match details
 - Any tournament can set a minimum and/or maximum AoE4World rating (community rating if a player has

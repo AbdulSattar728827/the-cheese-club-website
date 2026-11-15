@@ -170,7 +170,7 @@ button.btn.secondary{background:transparent;color:var(--white)}
 @media(max-width:760px){.rtabs{display:flex}.bracket{grid-template-columns:1fr!important;min-width:0!important}.round{display:none}.round.active{display:block}.round .col{height:auto!important;gap:12px}.round:not(:last-child) .m::after{display:none}.tform{grid-template-columns:1fr}}
 
 .fmtchip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;background:#1f1a10;border:1px solid #6e5424;color:var(--gold);font:800 10px Inter;letter-spacing:.8px;text-transform:uppercase;margin-left:8px;vertical-align:4px}
-.rt-grid{display:grid;grid-template-columns:minmax(0,1fr) 480px;gap:18px;align-items:start}
+.rt-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-items:start}
 .rt-tabs{display:flex;gap:6px;margin:0 0 14px;flex-wrap:wrap}
 .rt-tabs button{padding:8px 14px;border-radius:20px;border:1px solid #3a3327;background:transparent;font:700 12px Inter;color:#cfcac0;cursor:pointer}
 .rt-tabs button.on{border-color:var(--gold);color:var(--gold);background:#2a2213}.rt-tabs button.done{color:#8fe0b2;border-color:#285a40}
@@ -231,6 +231,7 @@ table.rt-std{width:100%;border-collapse:collapse;font-size:12.5px}
 .hint6{margin-top:6px;font-size:11.5px;padding:8px 10px;border-radius:8px}
 .hint6.ok{background:#13241b;color:#cfe9d9;border:1px solid #285a40}.hint6.warn{background:#2a2213;color:#f0d79a;border:1px solid #6e5424}
 @media(max-width:1100px){.rt-grid{grid-template-columns:1fr}}
+@media(max-width:760px){.rt-std .rt-who a{max-width:78px}.rt-std td,.rt-std th{padding:8px 3px}.rt-std .rt-av{display:none}.rt-std .rt-rk{width:22px}.rt-std th:last-child,.rt-std td:last-child{display:none}.rt-std{table-layout:fixed;width:100%;min-width:0!important}.rt-std th:nth-child(1){width:28px}.rt-std th:nth-child(3){width:48px}.rt-std th:nth-child(4){width:38px}.rt-std .rt-who a{max-width:100%}}
 @media(max-width:600px){.rt-podium{grid-template-columns:1fr}.rt-pod.rt-first{order:-1}.rt-mb{grid-template-columns:1fr;text-align:left}.rt-side.rt-r{text-align:left;align-items:flex-start}.rt-std th:nth-child(n+5):not(:last-child),.rt-std td:nth-child(n+5):not(:last-child){display:none}.fmt-pick{grid-template-columns:1fr}}
 
 .tm-card{padding:16px 18px;border-radius:14px;border:1px solid #3a3327;background:#141417;margin-bottom:14px}
@@ -254,6 +255,13 @@ table.rt-std{width:100%;border-collapse:collapse;font-size:12.5px}
 .order{display:grid;gap:8px;max-width:420px;margin-top:8px}
 .order label{display:grid;grid-template-columns:60px 1fr;gap:8px;align-items:center;font-size:12.5px;font-weight:700;color:#cfcac0}
 .mine .tm-actions .btn{margin-left:0!important;width:auto!important}
+.room p{margin:6px 0 10px}.room-grid{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+.civ-chip{display:inline-flex;cursor:pointer}.civ-chip input{position:absolute;opacity:0;pointer-events:none}
+.civ-chip span{padding:6px 10px;border-radius:8px;border:1px solid #3a3327;background:#141417;color:#cfcac0;font-size:12px;font-weight:600}
+.civ-chip input:checked+span{background:#5b4212;color:#ffdb78;border-color:#99701e}.civ-chip.off span{opacity:.35;text-decoration:line-through;cursor:not-allowed}
+.room-picks{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;margin:8px 0 12px;font-size:12.5px}.room-picks div{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid #ffffff0d}
+.room .tm-actions{justify-content:flex-start;flex-wrap:wrap;margin-top:6px}
+@media(max-width:600px){.room-picks{grid-template-columns:1fr}}
 .sch{display:grid;grid-template-columns:72px 150px 1fr;gap:10px;padding:8px 0;border-top:1px solid #ffffff0d;font-size:12.5px;color:#cfcac0;align-items:baseline}
 .sch b{color:var(--white)}.sch span:nth-child(2){color:#a29e95}
 .standin{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center;margin-left:auto}
@@ -338,7 +346,7 @@ function myCard(){
    return `<div class="mine"><div style="min-width:0"><div class="vs">You <em>vs</em> ${esc(opp.username)}</div>
     <small>${esc(m.round_name)} · best of ${m.best_of}${m.p1_score+m.p2_score?` · score ${ms}–${os}`:''}. ${playing?`Game ${m.p1_score+m.p2_score+1} is on in Discord: head to the match thread for the map veto and civ picks.`:myReady?`You're ready. The game starts in Discord as soon as ${esc(opp.username)} is ready too.`:'Join a voice channel in Discord, then press I\'m ready.'}</small>
     ${playing?'':`<div class="ready-row"><span class="rdy ${myReady?'yes':''}">${myReady?'✓':'○'} You</span><span class="rdy ${oppReady?'yes':''}">${oppReady?'✓':'○'} ${esc(opp.username)}</span></div>`}</div>
-    ${playing?'<a class="btn primary" href="https://discord.com/channels/@me" target="_blank" rel="noopener noreferrer">Open Discord ↗</a>':myReady?`<button class="btn danger" type="button" data-ready="${m.id}" data-on="0">Not ready</button>`:`<button class="btn primary" type="button" data-ready="${m.id}" data-on="1">✅ I'm ready</button>`}</div>`+reportBox(m)}
+    ${playing?'<a class="btn primary" href="https://discord.com/channels/@me" target="_blank" rel="noopener noreferrer">Open Discord ↗</a>':myReady?`<button class="btn danger" type="button" data-ready="${m.id}" data-on="0">Not ready</button>`:`<button class="btn primary" type="button" data-ready="${m.id}" data-on="1">✅ I'm ready</button>`}</div>`+matchPanel(m,'bracket')}
   if(me.status==='eliminated')return '<div class="t-msg" style="border:1px solid #3a3327;background:#17171b;color:#cfcac0">You\'re out of this one. Thanks for playing, and GG! Follow the rest of the bracket below.</div>';
   if(me.status==='playing')return '<div class="t-msg ok">You\'re through! Your next match appears here when your opponent is decided.</div>';
  }
@@ -349,6 +357,51 @@ function gamesLine(m){const g=m.games.filter(x=>x.status==='done'||x.status==='p
   if(x.status==='playing')return `G${x.game} <b style="color:#8fe0b2">● live</b>${x.map?' · 🗺️ '+esc(x.map):''}${link}`;
   const who=x.p1_civ||x.p2_civ?`<b>${esc(x.p1_civ||'?')}</b> vs <b>${esc(x.p2_civ||'?')}</b>`:x.winner_side?`${esc((x.winner_side===1?m.p1:m.p2)?.username||'')} won`:'';
   return `G${x.game}: ${who}${x.map?' · 🗺️ '+esc(x.map):''}${link}`}).join('<br>')}</div>`}
+let roomSel={key:'',bans:[],pick:null};
+function roomResult(R,m,kind){
+ const mine=R.me_team,other=mine===1?2:1,P=R.pending,rm=`data-rm="${m.id}" data-rk="${kind}"`;
+ const b=(cls,label,act,v)=>`<button class="btn ${cls}" type="button" data-room="${act}" ${rm} ${v!=null?`data-v="${v}"`:''}>${label}</button>`;
+ if(P&&P.action==='victory'){const iWon=P.winner_team===mine;
+  return P.by_me?`<p>You reported ${iWon?'a win':'a loss'}. Waiting for the other captain to confirm it, here or in the Discord thread.</p><div class="tm-actions">${b('secondary','Withdraw','victory',P.winner_team)}</div>`
+   :`<p>${esc(P.by)} says ${iWon?'your team won':'their team won'} this game. Is that right?</p><div class="tm-actions">${b('primary','✓ Yes, confirm','victory',P.winner_team)}${b('danger','✗ No, dispute','victory',P.winner_team===1?2:1)}</div>`}
+ if(P&&P.action==='cancel')return P.by_me?`<p>You asked to cancel this game. Waiting for the other captain.</p><div class="tm-actions">${b('secondary','Withdraw','cancel')}</div>`:`<p>${esc(P.by)} wants to cancel this game (it won't count).</p><div class="tm-actions">${b('danger','Confirm cancel','cancel')}</div>`;
+ return `<p>Game over? Report the result here or with the buttons in the Discord thread. The other captain has to confirm it. Only captains can report.</p><div class="tm-actions">${b('primary','🏆 My team won','victory',mine)}${b('secondary','My team lost','victory',other)}${b('danger','Cancel game','cancel')}</div>`}
+function roomPanel(m,kind){
+ const R=m.room,mid=`data-rm="${m.id}" data-rk="${kind}"`,key=`${m.id}:${R.phase}:${R.civ.ban_count}`;
+ if(roomSel.key!==key)roomSel={key,bans:[...R.civ.my_bans],pick:R.civ.my_pick};
+ const btn=(cls,label,act,v,dis)=>`<button class="btn ${cls}" type="button" data-room="${act}" ${mid} ${v!=null?`data-v="${esc(String(v))}"`:''} ${dis?'disabled':''}>${label}</button>`;
+ let title='',body='';
+ if(R.phase==='map_veto_coinflip'){title='🪙 Map veto: the coin flip';
+  body=!R.flip.winner?(R.flip.flipper_me?`<p>You flip the coin. Call it:</p><div class="tm-actions">${btn('primary','Heads','veto_flip','heads')}${btn('primary','Tails','veto_flip','tails')}</div>`:`<p>Waiting for ${esc(R.flip.flipper)} to flip the coin.</p>`)
+   :(R.flip.winner_me?`<p>You won the flip! Choose your ban order:</p><div class="tm-actions">${btn('success','Ban first','veto_order','first')}${btn('secondary','Ban second','veto_order','second')}</div>`:`<p>${esc(R.flip.winner)} won the flip and is choosing the ban order.</p>`)}
+ else if(R.phase==='map_veto'){title='🗺️ Map veto';
+  body=`<p>${R.map.banner_me?'<b>Your turn:</b> ban a map.':`${esc(R.map.banner||'…')} is banning a map.`}</p><div class="room-grid">${R.map.pool.map(x=>btn(R.map.banner_me?'danger':'secondary',esc(x),'veto_ban',x,!R.map.banner_me)).join('')}</div>${R.map.bans.length?`<small style="color:#a29e95">Banned: ${R.map.bans.map(x=>esc(x.map)+' ('+esc(x.by)+')').join(', ')}</small>`:''}`}
+ else if(R.phase==='civ_ban'){const n=R.civ.ban_count;title=`🚫 Civ bans: ${n} per ${R.one_v_one?'player':'team'}`;
+  if(!CIVS.length){body='<p>Loading the civilizations…</p>'}
+  else if(R.civ.my_ban_locked)body=`<p>✅ Your bans are locked in${R.civ.my_bans.length?': <b>'+R.civ.my_bans.map(esc).join(', ')+'</b>':''}. ${R.civ.opp_ban_locked?'Both sides are in.':'Waiting for the other side.'}</p>`
+  else if(R.captain){const sel=new Set(roomSel.bans);
+   body=`<p>Ban <b>${n}</b> civ${n===1?'':'s'} for the other ${R.one_v_one?'player':'team'}. They stay hidden until both sides lock in. <b data-bancount>${sel.size}/${n}</b> selected.</p><div class="room-grid" data-n="${n}">${CIVS.filter(c=>c!=='Random').map(c=>`<label class="civ-chip"><input type="checkbox" class="roomban" value="${esc(c)}" ${sel.has(c)?'checked':''}><span>${esc(c)}</span></label>`).join('')}</div><div class="tm-actions">${btn('primary','🔒 Lock in bans','civ_ban')}${btn('secondary','⏭ Skip bans','skip_bans')}</div><small style="color:#a29e95">Skipping needs both captains to agree.</small>`}
+  else body=`<p>Your captain is choosing the bans. ${R.civ.opp_ban_locked?'The other side has locked in.':''}</p>`}
+ else if(R.phase==='civ_select'){title='🎯 Choose your civilization';
+  const b=R.civ.bans;
+  const bansLine=b&&!R.civ.skipped?`<p>🚫 <b>Banned:</b> Team 1 banned ${b.team1.length?b.team1.map(esc).join(', '):'nothing'} · Team 2 banned ${b.team2.length?b.team2.map(esc).join(', '):'nothing'}</p>`:(R.civ.skipped?'<p>🚫 Civ bans were skipped.</p>':'');
+  if(!CIVS.length){body=bansLine+'<p>Loading the civilizations…</p>'}
+  else{const avail=CIVS.filter(c=>!R.civ.unavailable.includes(c)),cur=roomSel.pick||'';
+   body=bansLine+(R.civ.my_locked?`<p>✅ Your team has locked in. Your civ: <b>${esc(R.civ.my_pick||'?')}</b>. ${R.civ.opp_locked?'Both teams are in.':'Waiting for the other team.'}</p>`
+    :`<p>Pick your civ. It stays hidden until both teams lock in.</p><div class="tm-actions"><select id="roomPick" aria-label="Your civilization" style="padding:8px 10px;border-radius:8px;border:1px solid #3a3327;background:#111114;color:#fff;font:inherit;min-width:200px"><option value="">Choose a civ…</option>${avail.map(c=>`<option ${c===cur?'selected':''}>${esc(c)}</option>`).join('')}</select>${btn('primary','Pick','civ_pick')}</div>`)
+    +`<div class="room-picks">${R.civ.team.map(x=>`<div><span>${x.me?'You':esc(x.name)}</span><b>${x.civ?esc(x.civ):x.picked?'✓ picked':'…'}</b></div>`).join('')}</div>`
+    +(R.captain&&!R.civ.my_locked?`<div class="tm-actions">${btn('success','🔒 Lock in our civs','civ_lock','',!R.civ.all_picked)}</div>${R.civ.all_picked?'':'<small style="color:#a29e95">Everyone on your team has to pick first.</small>'}`:'')}}
+ else if(R.phase==='pre_match'){title='✅ Teams set: ready to play';
+  const all=R.civ.all||[];
+  body=`<div class="room-picks">${all.map(x=>`<div><span>${x.team===R.me_team?'🟢':'🔴'} ${esc(x.name)}</span><b>${esc(x.civ)}</b></div>`).join('')}</div>`+(R.captain?`<p>Everyone ready? Start the match, then join the in-game lobby.</p><div class="tm-actions">${btn('success','▶ Start match','start')}</div>`:'<p>Waiting for the captain to start the match.</p>')}
+ else{title='⚔️ Match in progress';body=roomResult(R,m,kind)}
+ return `<div class="tm-card room" style="margin:10px 0 0"><h4>${title}</h4>${R.map&&R.map.final&&R.phase!=='in_match'?`<p>🗺️ Map: <b>${esc(R.map.final)}</b></p>`:''}${body}</div>`}
+function matchPanel(m,kind){
+ if(!m||!(m.status==='playing'||m.status==='starting'))return '';
+ if(m.room&&(kind==='team'||m.room.phase!=='in_match'))return roomPanel(m,kind);
+ return kind==='bracket'?reportBox(m):''}
+const roomActive=()=>{const m=(D&&D.me&&D.me.match)||(D&&D.random&&D.random.my_match);return !!(m&&m.room)};
+setInterval(()=>{if(document.hidden||busy||!roomActive())return;const a=document.activeElement;if(a&&(a.id==='roomPick'||a.tagName==='SELECT'))return;load()},5000);
 function reportBox(m){
  if(!m||!(m.status==='playing'||m.status==='starting'))return '';
  const mine=D.me.my_slot,other=mine===1?2:1,P=m.pending,mid=`data-m="${m.id}"`;
@@ -464,7 +517,7 @@ function teamLiveCard(){
  return `<div class="mine"><div style="min-width:0"><div class="vs">${esc(us.username)} <em>vs</em> ${esc(them.username)}</div>
   <small>${esc(m.round_name)} · best of ${m.best_of}${m.p1_score+m.p2_score?` · score ${ms}–${os}`:''}. ${playing?`Game ${m.p1_score+m.p2_score+1} is on in Discord: head to the match thread for civ bans and picks.`:m.me_ready?'You\'re ready. The game starts in Discord when both full teams are ready.':'Every player joins a voice channel in Discord and presses I\'m ready.'}</small>
   ${playing?'':`<div class="ready-row"><span class="rdy ${m.me_ready?'yes':''}">${m.me_ready?'✓':'○'} You</span><span class="rdy ${usN===size?'yes':''}">Your team ${usN}/${size}</span><span class="rdy ${themN===size?'yes':''}">${esc(them.username)} ${themN}/${size}</span></div>`}</div>
-  ${playing?'<a class="btn primary" href="https://discord.com/channels/@me" target="_blank" rel="noopener noreferrer">Open Discord ↗</a>':m.me_ready?`<button class="btn danger" type="button" data-ready="${m.id}" data-on="0">Not ready</button>`:`<button class="btn primary" type="button" data-ready="${m.id}" data-on="1">✅ I'm ready</button>`}</div>`+reportBox(m)}
+  ${playing?'<a class="btn primary" href="https://discord.com/channels/@me" target="_blank" rel="noopener noreferrer">Open Discord ↗</a>':m.me_ready?`<button class="btn danger" type="button" data-ready="${m.id}" data-on="0">Not ready</button>`:`<button class="btn primary" type="button" data-ready="${m.id}" data-on="1">✅ I'm ready</button>`}</div>`+matchPanel(m,'bracket')}
 function teamsTab(){const T=D.teams;const list=T.list.filter(x=>x.status!=='withdrawn');
  if(!list.length)return '<div class="t-empty">No teams yet. Register the first one!</div>';
  const lbl={forming:'Waiting for invites',registered:D.tournament.status==='checkin'?'':'Registered',waitlist:'Waiting list',playing:'In',eliminated:'Out',champion:'🏆 Champion',no_show:'No-show'};
@@ -570,7 +623,7 @@ function rtLiveCard(){
    <small>Your team: <b style="color:#fff">${us.map(p=>p.me?'You':esc(p.username)).join(', ')}</b> (avg ${fmt(usAvg)}) vs ${them.map(p=>esc(p.username)).join(', ')} (avg ${fmt(themAvg)})${m.map?` · Map: <b style="color:#fff">${esc(m.map)}</b>`:''}.<br>
    ${playing?'Your match is on in Discord: head to the match thread for civ bans and picks.':m.me_ready?`You're ready. The match starts in Discord as soon as all ${m.team1.length*2} players are ready.`:'Join a voice channel in Discord, then press I\'m ready.'}</small>
    ${playing?'':`<div class="ready-row"><span class="rdy ${m.me_ready?'yes':''}">${m.me_ready?'✓':'○'} You</span><span class="rdy ${m.ready_count===m.team1.length*2?'yes':''}">${m.ready_count} of ${m.team1.length*2} ready</span></div>`}</div>
-   ${playing?'<a class="btn primary" href="https://discord.com/channels/@me" target="_blank" rel="noopener noreferrer">Open Discord ↗</a>':m.me_ready?`<button class="btn danger" type="button" data-tready="${m.id}" data-on="0">Not ready</button>`:`<button class="btn primary" type="button" data-tready="${m.id}" data-on="1">✅ I'm ready</button>`}</div>`}
+   ${playing?'<a class="btn primary" href="https://discord.com/channels/@me" target="_blank" rel="noopener noreferrer">Open Discord ↗</a>':m.me_ready?`<button class="btn danger" type="button" data-tready="${m.id}" data-on="0">Not ready</button>`:`<button class="btn primary" type="button" data-tready="${m.id}" data-on="1">✅ I'm ready</button>`}</div>`+matchPanel(m,'team')}
  if(R.my_bye)return `<div class="you"><i class="pulse"></i><div><b>You're sitting out round ${t.current_round}</b><small>You get ${t.points_bye} point${t.points_bye===1?'':'s'}, and you won't sit out again until everyone else has. Stay nearby: an admin may call you in as a substitute.</small></div></div>`;
  if(me.status==='removed')return '<div class="t-msg err">You were removed from the remaining rounds. Your points so far still count.</div>';
  if(me.status==='playing')return t.locked?'':'<div class="t-msg ok">Your match this round is done. The next round\'s teams appear as soon as every match has finished.</div>';
@@ -622,6 +675,7 @@ function rtRules(){const t=D.tournament;
  return `<div class="info-body" style="padding:18px 20px"><ul>
   <li><b>Format:</b> everyone signs up alone. Each round, the website makes new random ${esc(t.mode)} teams, balanced by AoE4World rating, and avoids giving you the same teammates twice.</li>
   <li><b>Rounds:</b> ${t.rounds}. Each round, every team plays one match.</li>
+  <li><b>Civs:</b> ${t.civ_bans==null||t.civ_bans>0?`each captain bans ${t.civ_bans==null?2:t.civ_bans} civ${(t.civ_bans==null?2:t.civ_bans)===1?'':'s'} for the other team (hidden until both lock in)`:'no civ bans'}; ${{off:'any civ can be picked in any round',won:'a civ you won with can\'t be used again',all:'no civ can be used twice in the tournament'}[t.civ_unique||'off']}.</li>
   ${(t.round_times||[]).length?`<li><b>Schedule:</b> ${t.round_times.map((x,i)=>'round '+(i+1)+' '+esc(when(x))).join(' · ')} (your time). A round opens at its time: you get a notification and a Discord DM, then press I\'m ready.</li>`:''}
   <li><b>Roster:</b> ${t.locked?'the roster is locked and the teams for every round are shown on this page. If a player can\'t play, an admin replaces them with a candidate, or puts in a stand-in for a single round (the absent player scores nothing for it).':'when an admin locks the roster, the teams for every round are created and shown here at once. Players who sign up after that become candidates.'}</li>
   <li><b>Points (individual):</b> win = ${t.points_win}, loss = 0, sitting out = ${t.points_bye}. Your points are yours, even though you play in a team.</li>
@@ -693,6 +747,13 @@ document.addEventListener('click',async e=>{
  const ad=e.target.closest('[data-admin]');if(ad){if(ad.dataset.confirm&&!confirm(ad.dataset.confirm))return;ad.disabled=true;
   if(['lock','reshuffle'].includes(ad.dataset.admin)){tab='rounds';rtRound=null}
   await act(`/api/tournaments/${TID}/admin`,{action:ad.dataset.admin,user:ad.dataset.admin==='remove_player'?$('rmSel').value:undefined});return}
+ const rmb=e.target.closest('[data-room]');if(rmb){const ra=rmb.dataset.room,body={kind:rmb.dataset.rk,match_id:+rmb.dataset.rm,action:ra};
+  if(ra==='veto_flip')body.choice=rmb.dataset.v;else if(ra==='veto_order')body.order=rmb.dataset.v;else if(ra==='veto_ban')body.map=rmb.dataset.v;
+  else if(ra==='civ_ban'){body.civs=roomSel.bans;if(!confirm('Lock in these bans? You can\'t change them afterwards.'))return}
+  else if(ra==='civ_pick'){body.civ=(document.getElementById('roomPick')||{}).value;if(!body.civ){msg={ok:false,text:'Choose a civ first.'};render();return}}
+  else if(ra==='civ_lock'&&!confirm('Lock in your team\'s civs? Nobody can change them afterwards.'))return;
+  else if(ra==='victory'){body.winner=+rmb.dataset.v;if(!confirm(body.winner===(roomSel.me||0)?'Report your team as the winner?':'Confirm this result?'))return}
+  rmb.disabled=true;await act(`/api/tournaments/${TID}/room`,body);return}
  const rpg=e.target.closest('[data-report],[data-reportcancel]');if(rpg){const body={match_id:+rpg.dataset.m};
   if(rpg.dataset.reportcancel)body.cancel=true;else{body.winner=+rpg.dataset.report;const me=D.me.my_slot;
    if(!confirm(body.winner===me?'Report that YOU won this game?':'Report that you LOST this game?'))return}
@@ -712,7 +773,9 @@ document.addEventListener('click',async e=>{
  const sw=e.target.closest('[data-setwin]');if(sw){const sel=sw.parentElement.querySelector('select');if(!confirm('Set '+sel.options[sel.selectedIndex].text+' as the winner of this match?'+(sw.textContent.includes('Correct')?' The bracket will be updated.':'')))return;sw.disabled=true;
   await act(`/api/tournaments/${TID}/admin`,{action:'set_winner',match_id:+sw.dataset.setwin,winner:sel.value});return}
 });
-document.addEventListener('change',e=>{if(e.target.id==='swTeam'){const tm=D.teams.list.find(x=>'T'+x.id===e.target.value);$('swOut').innerHTML=teamMemberOptions(tm)}});
+document.addEventListener('change',e=>{if(e.target.classList&&e.target.classList.contains('roomban')){const grid=e.target.closest('.room-grid'),n=+grid.dataset.n,on=[...grid.querySelectorAll('.roomban:checked')];if(on.length>n){e.target.checked=false;return}roomSel.bans=on.map(x=>x.value);const c=grid.parentElement.querySelector('[data-bancount]');if(c)c.textContent=roomSel.bans.length+'/'+n;return}
+ if(e.target.id==='roomPick'){roomSel.pick=e.target.value;return}
+ if(e.target.id==='swTeam'){const tm=D.teams.list.find(x=>'T'+x.id===e.target.value);$('swOut').innerHTML=teamMemberOptions(tm)}});
 document.addEventListener('submit',async e=>{if(e.target.id!=='teamForm')return;e.preventDefault();await loadMembers();
  const ids=[...document.querySelectorAll('.tmM')].map(x=>memberId(x.value));
  if(ids.some(x=>!x)){msg={ok:false,text:'Pick each teammate from the list of club members (start typing their name).'};render();return}

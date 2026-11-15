@@ -321,3 +321,20 @@ Set when creating the tournament (old tournaments keep their old behaviour: 1v1 
 - **Results on the website:** during a game the players (captains in a team game) can report the winner or ask to
   cancel; the website queues it in `aoe_match_actions` and the bot applies it with the same captain/confirm rules as the
   Discord thread buttons. Deploy the website before the bot (it adds the columns and tables the bot reads).
+
+## Ratings, All Random civ rules, tournament channels and the match room
+- **Ratings:** for All Random and Team Cup (seeding, team balance, rating divisions, replacements) a player's rating is
+  their AoE4World **team (TG)** rating, then their solo rating, then the club's own team rating, then its 1v1 rating.
+  1v1 Cups and FFA use the solo rating, then the club's 1v1 rating (`_player_rating(uid, kind)`).
+- **All Random civ rules:** `civ_bans` (0-3 per captain, default 2) and `civ_unique` (`off`, `won`, `all`) are set when
+  creating the tournament; the bot starts each match with the round's map and these rules.
+- **Standings** sit under the matches at full width; on a phone the W/L/Win%/Sat out/Form columns are hidden so nothing scrolls.
+- **Channels (bot):** every tournament game thread (1v1 Cup, Team Cup, All Random, FFA) opens in `#tournament-queue`
+  (created next to `#tournaments` if missing; override with `TOURNAMENT_QUEUE_CHANNEL_ID`). Tournament match history is
+  posted in `#tournament-matches` (title with the tournament, round and match, and the map), never in `#queue-matches`.
+- **Match room on the website:** during a tournament game a player sees the live step (coin flip, map veto, civ bans,
+  civ picks, start, result) on the tournament page and can act on it: the page sends the step to `POST /api/tournaments/{id}/room`,
+  which queues it in `aoe_match_actions` (with a `payload`); the bot applies it with the same rules and checks as the buttons
+  in the Discord thread (captains only for bans, locks, start and results; the current banner for map bans). `_room_view`
+  hides a side's bans until both have locked in, and picks until both teams have, exactly like Discord. The page refreshes
+  every 5 seconds while a room is active.

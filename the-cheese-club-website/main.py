@@ -78,6 +78,7 @@ TOURNAMENT_TABLES = [
         winner_user TEXT, status TEXT NOT NULL DEFAULT 'pending', message TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), processed_at TIMESTAMPTZ
     )""",
+    "ALTER TABLE aoe_match_actions ADD COLUMN IF NOT EXISTS payload JSONB",
     "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS roster_locked_at TIMESTAMPTZ",
     "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS map_mode TEXT",
     "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS map_bans INTEGER NOT NULL DEFAULT 1",
@@ -2505,15 +2506,25 @@ def _seed_positions(size: int) -> list:
     return order
 
 
-async def _player_rating(uid: str) -> int:
+TEAM_QUEUES = ["2v2", "3v3", "4v4", "4v3", "3v2", "5v3", "2v1"]
+
+
+async def _player_rating(uid: str, kind: str = "solo") -> int:
+    """A player's rating for seeding and balancing. kind="team" (All Random, Team Cup): the AoE4World team (TG)
+    rating, or the solo rating if they have no team rating, then the club's own team rating, then its 1v1 rating.
+    kind="solo" (1v1 Cup, FFA): the solo rating, then the club's 1v1 rating."""
     link = await _link_row(uid)
     if link and link["profile_id"]:
-        solo = (await aoe4world_ratings(link["profile_id"])).get("solo_elo")
-        if solo:
-            return int(solo)
-    elo = await fetchval("SELECT elo FROM aoe_queue_stats WHERE user_id=$1 AND LOWER(queue_type)='1v1' ORDER BY elo DESC LIMIT 1",
-                         uid, default=0)
-    return int(elo or 0)
+        r = await aoe4world_ratings(link["profile_id"])
+        for key in (("team_elo", "solo_elo") if kind == "team" else ("solo_elo",)):
+            if r.get(key):
+                return int(r[key])
+    for queues in ((TEAM_QUEUES, ["1v1"]) if kind == "team" else (["1v1"],)):
+        elo = await fetchval("SELECT elo FROM aoe_queue_stats WHERE user_id=$1 AND LOWER(queue_type) = ANY($2::text[]) ORDER BY elo DESC LIMIT 1",
+                             uid, queues, default=0)
+        if elo:
+            return int(elo)
+    return 0
 
 
 async def _tnotify(uid, kind, title, body, tid, ref):
@@ -2627,7 +2638,7 @@ async def _start_team_cup(t: dict) -> str:
     ratings = {}
     for tm in ok:
         ms = await entrant_members(f"T{tm['id']}")
-        rs = [await _player_rating(u) for u in ms]
+        rs = [await _player_rating(u, "team") for u in ms]
         ratings[f"T{tm['id']}"] = round(sum(rs) / len(rs)) if rs else 0
     order = {f"T{tm['id']}": i for i, tm in enumerate(ok)}
     manual = {f"T{r['id']}": r["manual_seed"] for r in await fetch(
@@ -2670,7 +2681,8 @@ async def _start_tournament(t: dict) -> str:
         for uid in playing:
             await _tnotify(uid, "tournament", f"{t['name']} was cancelled", "Not enough players checked in.", tid, f"t{tid}-cancel")
         return f"Fewer than {need} players checked in, so the tournament was cancelled."
-    ratings = {uid: await _player_rating(uid) for uid in playing}
+    kind = "team" if t.get("format") == "random3v3" else "solo"
+    ratings = {uid: await _player_rating(uid, kind) for uid in playing}
     order = {uid: i for i, uid in enumerate(playing)}
     manual = {r["user_id"]: r["manual_seed"] for r in await fetch(
         "SELECT user_id, manual_seed FROM tournament_players WHERE tournament_id=$1 AND manual_seed IS NOT NULL", tid)}
@@ -3255,7 +3267,7 @@ async def _lock_roster(t: dict, reshuffle: bool = False) -> str:
         players = [r["user_id"] for r in rows][: t["max_players"]]
         if len(players) < 2 * size:
             raise HTTPException(status_code=400, detail=f"Locking needs at least {2 * size} players; {len(players)} have signed up so far.")
-        ratings = {uid: await _player_rating(uid) for uid in players}
+        ratings = {uid: await _player_rating(uid, "team") for uid in players}
         order = {uid: i for i, uid in enumerate(players)}
         for i, uid in enumerate(sorted(players, key=lambda u: (-ratings[u], order[u])), 1):
             await fetch("""UPDATE tournament_players SET status='playing', seed=$3, rating=$4, checked_in_at=COALESCE(checked_in_at, NOW())
@@ -3294,7 +3306,7 @@ async def _ordered_teams(tid: int, team1: list, team2: list):
     rate = {r["user_id"]: int(r["rating"]) for r in rows if r["rating"]}
     for u in users:
         if u not in rate:
-            rate[u] = await _player_rating(u)
+            rate[u] = await _player_rating(u, "team")
     t1, t2 = sorted(team1, key=lambda u: -rate[u]), sorted(team2, key=lambda u: -rate[u])
     return t1, t2, round(sum(rate[u] for u in t1) / len(t1)), round(sum(rate[u] for u in t2) / len(t2))
 
@@ -3317,7 +3329,7 @@ async def _replace_player(t: dict, out_u: str, in_u: str) -> str:
                              AND $2 = ANY(team1 || team2)""", tid, out_u, default=0)
     if busy:
         raise HTTPException(status_code=400, detail="That player is in a match being played right now. Wait for it to finish.")
-    rating = await _player_rating(in_u)
+    rating = await _player_rating(in_u, "team")
     await fetch("UPDATE tournament_players SET status='removed' WHERE tournament_id=$1 AND user_id=$2", tid, out_u)
     await fetch("""UPDATE tournament_players SET status='playing', seed=$3, rating=$4, checked_in_at=COALESCE(checked_in_at, NOW())
                    WHERE tournament_id=$1 AND user_id=$2""", tid, in_u, outp[0]["seed"], rating)
@@ -3593,6 +3605,14 @@ async def api_tournament(request: Request, tid: int):
         link = await _link_row(uid)
         present = await fetchval("SELECT COUNT(*) FROM discord_member_profiles WHERE user_id=$1 AND is_present", uid, default=0)
         eligible = {"in_server": bool(present) or bool(user.get("g")), "linked": bool(link and (link["profile_id"] or link["bypassed"]))}
+    rooms = {}
+    if uid:
+        for m in matches:
+            if m["status"] in ("starting", "playing") and uid in (mem.get(m["p1_id"], []) + mem.get(m["p2_id"], [])):
+                st = next((json_obj_safe(g.get("live_state")) for g in games if g["tmatch_id"] == m["id"] and g["status"] == "playing" and g.get("live_state")), None)
+                if st:
+                    ids_in = [str(x) for x in (st.get("team1_ids") or []) + (st.get("team2_ids") or []) + [st.get("pending_by_id"), st.get("map_flip_winner")] if x]
+                    rooms[m["id"]] = _room_view(st, uid, await people(ids_in))
     def match_out(m):
         gs = [g for g in games if g["tmatch_id"] == m["id"]]
         civs = []
@@ -3623,23 +3643,32 @@ async def api_tournament(request: Request, tid: int):
                 "me_ready": bool(uid and uid in m["ready_ids"]),
                 "winner_slot": 1 if m["winner_id"] and m["winner_id"] == m["p1_id"] else 2 if m["winner_id"] else None,
                 "status": m["status"], "note": m["note"], "p1_ready": bool(m["p1_ready_at"]), "p2_ready": bool(m["p2_ready_at"]),
-                "games": civs, "is_third": bool(m.get("is_third")), "ready_by": m.get("ready_by"),
+                "games": civs, "room": rooms.get(m["id"]), "is_third": bool(m.get("is_third")), "ready_by": m.get("ready_by"),
                 "opens_at": _bracket_opens_at(t, m["round"], max((x["round"] for x in matches), default=0))}
     random_data = None
     if t.get("format") == "random3v3":
         tms = [dict(r) for r in await fetch("""
-            SELECT tm.*, a.civ_data, to_jsonb(a)->'civ_bans' AS civ_bans FROM tournament_team_matches tm LEFT JOIN aoe_matches a ON a.id = tm.aoe_match_id
+            SELECT tm.*, a.civ_data, to_jsonb(a)->'civ_bans' AS civ_bans,
+                   CASE WHEN a.result='pending' THEN to_jsonb(a)->'active_state' END AS live_state
+            FROM tournament_team_matches tm LEFT JOIN aoe_matches a ON a.id = tm.aoe_match_id
             WHERE tm.tournament_id=$1 ORDER BY round, match_no
         """, tid)]
         byes = [dict(r) for r in await fetch("SELECT * FROM tournament_round_byes WHERE tournament_id=$1 ORDER BY round", tid)]
         more = await people(list({u for m in tms for u in m["team1"] + m["team2"]} | {b["user_id"] for b in byes}))
         names.update(more)
         standings = await random_standings(t)
+        rooms_t = {}
+        if uid:
+            for m in tms:
+                if m["status"] in ("starting", "playing") and uid in m["team1"] + m["team2"] and m.get("live_state"):
+                    st = json_obj_safe(m["live_state"])
+                    ids_in = [str(x) for x in (st.get("team1_ids") or []) + (st.get("team2_ids") or []) + [st.get("pending_by_id"), st.get("map_flip_winner")] if x]
+                    rooms_t[m["id"]] = _room_view(st, uid, await people(ids_in))
         def tm_out(m):
             team_ids = m["team1"] + m["team2"]
             civs = json_obj_safe(m.get("civ_data"))
             side = lambda ids: [{**(pub(u) or {}), "civ": canonical_civ(civs.get(u)) if civs else None, "ready": u in m["ready_ids"]} for u in ids]
-            return {"id": m["id"], "round": m["round"], "match_no": m["match_no"], "map": m["map"],
+            return {"id": m["id"], "round": m["round"], "match_no": m["match_no"], "map": m["map"], "room": rooms_t.get(m["id"]),
                     "team1": side(m["team1"]), "team2": side(m["team2"]), "team1_avg": m["team1_avg"], "team2_avg": m["team2_avg"],
                     "status": m["status"], "winner_team": m["winner_team"], "note": m["note"], "aoe_match_id": m["aoe_match_id"],
                     "ready_count": len(set(m["ready_ids"]) & set(team_ids)), "me_in": uid in team_ids if uid else False,
@@ -3805,6 +3834,9 @@ async def api_create_tournament(request: Request):
         pts("points_bye", 0, 2, 0.5), round_maps, pool)
     if round_times:
         await fetch("UPDATE tournaments SET round_times=$2 WHERE id=$1", tid, round_times)
+    if fmt == "random3v3":
+        await fetch("UPDATE tournaments SET civ_bans=$2, civ_unique=$3 WHERE id=$1", tid, _clean_int(b.get("civ_bans"), 0, 3, 2),
+                    b.get("civ_unique") if b.get("civ_unique") in ("off", "won", "all") else "off")
     if fmt not in ("random3v3", "ffa"):
         await _save_bracket_settings(tid, fmt, b, starts, num("max_players", 2, 64, 8), pool,
                                      max(bo("bo_default", 1), bo("bo_semi", 3), bo("bo_final", 5)))
@@ -3932,6 +3964,127 @@ async def api_tournament_checkin(request: Request, tid: int):
     return {"ok": True}
 
 
+ROOM_ACTIONS = ("veto_flip", "veto_order", "veto_ban", "civ_ban", "civ_pick", "civ_lock", "skip_bans", "start", "victory", "cancel")
+
+
+def _room_view(state: dict, uid: str, names: dict) -> Optional[dict]:
+    """The live match room (map veto, civ bans, civ picks, start) as `uid` may see it. Like in Discord, a side's bans
+    stay hidden until both have locked in, and picks until both teams have locked in."""
+    if not state or state.get("phase") not in ("map_veto_coinflip", "map_veto", "civ_ban", "civ_select", "pre_match", "in_match"):
+        return None
+    t1 = [str(x) for x in state.get("team1_ids") or []]
+    t2 = [str(x) for x in state.get("team2_ids") or []]
+    me = 1 if uid in t1 else 2 if uid in t2 else None
+    if me is None:
+        return None
+    nm = lambda i: (names.get(str(i)) or {}).get("username") or "A player"
+    phase = state["phase"]
+    cap = {1: str(state.get("captain1_id")), 2: str(state.get("captain2_id"))}
+    rules = state.get("series_rules") or {}
+    one = state.get("queue_type") == "1v1"
+    n_bans = 1 if one else int(rules.get("civ_bans") if rules.get("civ_bans") is not None else 2)
+    civ = lambda c: canonical_civ(c)
+    # map veto
+    pool, bans = list(state.get("map_pool") or []), state.get("map_bans") or []
+    banner = None
+    if phase == "map_veto" and not state.get("final_map") and len(pool) > 1 and state.get("map_ban_order") in (1, 2):
+        limit = state.get("map_ban_limit")
+        if not (limit and len(bans) >= limit):
+            banner = cap[1 if (state["map_ban_order"] - 1 + len(bans)) % 2 == 0 else 2]
+    fw = str(state.get("map_flip_winner")) if state.get("map_flip_winner") else None
+    out = {
+        "phase": phase, "me_team": me, "captain": uid == cap[me], "one_v_one": one,
+        "map": {"final": state.get("final_map"), "pool": pool, "bans": [{"map": m, "by": nm(i)} for i, m in bans],
+                "banner": nm(banner) if banner else None, "banner_me": banner == uid},
+        "flip": {"flipper": nm(cap[1]), "flipper_me": uid == cap[1], "winner": nm(fw) if fw else None, "winner_me": fw == uid},
+    }
+    # civ bans
+    if one:
+        lists = {1: [state.get("civ_ban_p1_choice")] if state.get("civ_ban_p1_choice") else [], 2: [state.get("civ_ban_p2_choice")] if state.get("civ_ban_p2_choice") else []}
+        locked = {1: bool(state.get("civ_ban_p1_locked")), 2: bool(state.get("civ_ban_p2_locked"))}
+    else:
+        lists = {1: list(state.get("civ_bans_t1") or []), 2: list(state.get("civ_bans_t2") or [])}
+        locked = {1: bool(state.get("ban_locked_t1")), 2: bool(state.get("ban_locked_t2"))}
+    skipped = bool(state.get("bans_skipped"))
+    bans_revealed = skipped or (locked[1] and locked[2]) or phase in ("civ_select", "pre_match", "in_match")
+    opp = 2 if me == 1 else 1
+    picks = {str(k): v for k, v in (state.get("civ_picks") or {}).items()}
+    pick_locked = {1: bool(state.get("cap1_locked")), 2: bool(state.get("cap2_locked"))}
+    picks_revealed = pick_locked[1] and pick_locked[2]
+    mine = t1 if me == 1 else t2
+    unavailable = ([civ(c) for c in lists[opp]] if bans_revealed and not skipped else []) + \
+                  [civ(c) for c in (state.get("civ_exclusions") or {}).get(uid, []) if civ(c) not in [civ(x) for x in lists[opp]]]
+    out["civ"] = {
+        "ban_count": n_bans, "my_bans": [civ(c) for c in lists[me]], "my_ban_locked": locked[me], "opp_ban_locked": locked[opp],
+        "bans": {"team1": [civ(c) for c in lists[1]], "team2": [civ(c) for c in lists[2]]} if bans_revealed else None, "skipped": skipped,
+        "unavailable": unavailable, "my_pick": civ(picks[uid]) if uid in picks else None,
+        "my_locked": pick_locked[me], "opp_locked": pick_locked[opp], "revealed": picks_revealed,
+        "team": [{"name": nm(i), "me": i == uid, "picked": i in picks, "civ": civ(picks[i]) if i in picks and (i == uid or picks_revealed) else None} for i in mine],
+        "all": ([{"name": nm(i), "team": 1 if i in t1 else 2, "civ": civ(picks.get(i, "?"))} for i in t1 + t2] if picks_revealed else None),
+        "all_picked": all(i in picks for i in mine),
+    }
+    pa = state.get("pending_action")
+    out["pending"] = ({"action": pa, "by": nm(state.get("pending_by_id")), "by_me": str(state.get("pending_by_id")) == uid,
+                       "winner_team": state.get("pending_winner") if pa == "victory" else None} if pa in ("victory", "cancel") else None)
+    return out
+
+
+async def _queue_match_action(uid: str, aoe_match_id: int, action: str, winner_user=None, payload=None) -> dict:
+    """Hand a step of a running match to the bot and wait a few seconds for its answer."""
+    if await fetchval("SELECT COUNT(*) FROM aoe_match_actions WHERE user_id=$1 AND status IN ('pending','working') AND created_at > NOW() - INTERVAL '15 seconds'",
+                      uid, default=0):
+        raise HTTPException(status_code=429, detail="Hold on, your last step is still being processed.")
+    aid = await fetchval("""INSERT INTO aoe_match_actions (guild_id, match_id, user_id, action, winner_user, payload)
+                            VALUES ($1,$2,$3,$4,$5,$6::jsonb) RETURNING id""",
+                         await club_guild_id(), aoe_match_id, uid, action, winner_user, json.dumps(payload or {}))
+    for _ in range(30):                               # the bot answers within a few seconds
+        await asyncio.sleep(0.5)
+        row = await fetch("SELECT status, message FROM aoe_match_actions WHERE id=$1", aid)
+        if row and row[0]["status"] not in ("pending", "working"):
+            if row[0]["status"] == "done":
+                return {"ok": True, "message": row[0]["message"] or "Done."}
+            raise HTTPException(status_code=400, detail=row[0]["message"] or "That didn't work. Use the buttons in the Discord thread.")
+    raise HTTPException(status_code=504, detail="The bot is taking a while. Check the Discord thread, or try again in a moment.")
+
+
+@app.post("/api/tournaments/{tid}/room")
+async def api_room(request: Request, tid: int):
+    """A step of the match room: map veto, civ bans, civ picks, lock-in, start, result. The bot applies it with the
+    same rules as the buttons in the Discord thread."""
+    user = require_login(request)
+    require_same_site(request)
+    b = await request.json()
+    action, uid = str(b.get("action") or ""), user["uid"]
+    if action not in ROOM_ACTIONS:
+        raise HTTPException(status_code=400, detail="Unknown action.")
+    if b.get("kind") == "team":                          # All Random
+        rows = await fetch("SELECT * FROM tournament_team_matches WHERE tournament_id=$1 AND id=$2", tid, int(b.get("match_id") or 0))
+        if not rows or uid not in rows[0]["team1"] + rows[0]["team2"]:
+            raise HTTPException(status_code=404, detail="That isn't your match.")
+        if rows[0]["status"] not in ("starting", "playing") or not rows[0]["aoe_match_id"]:
+            raise HTTPException(status_code=400, detail="This match isn't being played right now.")
+        aoe_id, sides = rows[0]["aoe_match_id"], {1: rows[0]["team1"], 2: rows[0]["team2"]}
+    else:                                                # 1v1 Cup / Team Cup
+        rows = await fetch("SELECT * FROM tournament_matches WHERE tournament_id=$1 AND id=$2", tid, int(b.get("match_id") or 0))
+        if not rows:
+            raise HTTPException(status_code=404, detail="That isn't your match.")
+        m1, m2 = await entrant_members(rows[0]["p1_id"]), await entrant_members(rows[0]["p2_id"])
+        if uid not in m1 + m2:
+            raise HTTPException(status_code=404, detail="That isn't your match.")
+        game = await fetch("SELECT * FROM tournament_games WHERE tmatch_id=$1 AND status='playing' AND aoe_match_id IS NOT NULL ORDER BY id DESC LIMIT 1", rows[0]["id"])
+        if rows[0]["status"] not in ("starting", "playing") or not game:
+            raise HTTPException(status_code=400, detail="There's no game being played in this match right now.")
+        aoe_id, sides = game[0]["aoe_match_id"], {1: m1, 2: m2}
+    winner_user = None
+    if action == "victory":
+        slot = int(b.get("winner") or 0)
+        if slot not in (1, 2) or not sides[slot]:
+            raise HTTPException(status_code=400, detail="Say who won.")
+        winner_user = sides[slot][0]
+    payload = {k: b.get(k) for k in ("choice", "order", "map", "civs", "civ")}
+    return await _queue_match_action(uid, aoe_id, action, winner_user, payload)
+
+
 @app.post("/api/tournaments/{tid}/report-game")
 async def api_report_game(request: Request, tid: int):
     """A player reports the result of the game being played (or asks to cancel it). The bot applies it with the
@@ -3957,19 +4110,7 @@ async def api_report_game(request: Request, tid: int):
             raise HTTPException(status_code=400, detail="Say who won.")
         members = m1 if slot == 1 else m2
         action, winner_user = "victory", (members[0] if members else None)
-    if await fetchval("SELECT COUNT(*) FROM aoe_match_actions WHERE user_id=$1 AND status IN ('pending','working') AND created_at > NOW() - INTERVAL '15 seconds'",
-                      user["uid"], default=0):
-        raise HTTPException(status_code=429, detail="Hold on, your last report is still being processed.")
-    aid = await fetchval("""INSERT INTO aoe_match_actions (guild_id, match_id, user_id, action, winner_user) VALUES ($1,$2,$3,$4,$5) RETURNING id""",
-                         await club_guild_id(), game[0]["aoe_match_id"], user["uid"], action, winner_user)
-    for _ in range(30):                               # the bot answers within a few seconds
-        await asyncio.sleep(0.5)
-        row = await fetch("SELECT status, message FROM aoe_match_actions WHERE id=$1", aid)
-        if row and row[0]["status"] not in ("pending", "working"):
-            if row[0]["status"] == "done":
-                return {"ok": True, "message": row[0]["message"] or "Done."}
-            raise HTTPException(status_code=400, detail=row[0]["message"] or "That didn't work. Use the buttons in the Discord thread.")
-    raise HTTPException(status_code=504, detail="The bot is taking a while. Check the Discord thread, or try again in a moment.")
+    return await _queue_match_action(user["uid"], game[0]["aoe_match_id"], action, winner_user)
 
 
 @app.post("/api/tournaments/{tid}/ready")
@@ -4105,7 +4246,7 @@ async def _division_problem(t: dict, uid: str, who: str = "Your") -> Optional[st
     lo, hi = t.get("min_rating"), t.get("max_rating")
     if lo is None and hi is None:
         return None
-    r = await _player_rating(uid)
+    r = await _player_rating(uid, "team" if t.get("format") in ("random3v3", "teamcup") else "solo")
     if lo is not None and r < lo:
         return f"{who} rating ({r}) is below this tournament's minimum of {lo}."
     if hi is not None and r > hi:

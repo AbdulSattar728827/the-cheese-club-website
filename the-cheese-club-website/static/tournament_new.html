@@ -170,7 +170,7 @@ button.btn.secondary{background:transparent;color:var(--white)}
 @media(max-width:760px){.rtabs{display:flex}.bracket{grid-template-columns:1fr!important;min-width:0!important}.round{display:none}.round.active{display:block}.round .col{height:auto!important;gap:12px}.round:not(:last-child) .m::after{display:none}.tform{grid-template-columns:1fr}}
 
 .fmtchip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;background:#1f1a10;border:1px solid #6e5424;color:var(--gold);font:800 10px Inter;letter-spacing:.8px;text-transform:uppercase;margin-left:8px;vertical-align:4px}
-.rt-grid{display:grid;grid-template-columns:minmax(0,1fr) 480px;gap:18px;align-items:start}
+.rt-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-items:start}
 .rt-tabs{display:flex;gap:6px;margin:0 0 14px;flex-wrap:wrap}
 .rt-tabs button{padding:8px 14px;border-radius:20px;border:1px solid #3a3327;background:transparent;font:700 12px Inter;color:#cfcac0;cursor:pointer}
 .rt-tabs button.on{border-color:var(--gold);color:var(--gold);background:#2a2213}.rt-tabs button.done{color:#8fe0b2;border-color:#285a40}
@@ -231,6 +231,7 @@ table.rt-std{width:100%;border-collapse:collapse;font-size:12.5px}
 .hint6{margin-top:6px;font-size:11.5px;padding:8px 10px;border-radius:8px}
 .hint6.ok{background:#13241b;color:#cfe9d9;border:1px solid #285a40}.hint6.warn{background:#2a2213;color:#f0d79a;border:1px solid #6e5424}
 @media(max-width:1100px){.rt-grid{grid-template-columns:1fr}}
+@media(max-width:760px){.rt-std .rt-who a{max-width:78px}.rt-std td,.rt-std th{padding:8px 3px}.rt-std .rt-av{display:none}.rt-std .rt-rk{width:22px}.rt-std th:last-child,.rt-std td:last-child{display:none}.rt-std{table-layout:fixed;width:100%;min-width:0!important}.rt-std th:nth-child(1){width:28px}.rt-std th:nth-child(3){width:48px}.rt-std th:nth-child(4){width:38px}.rt-std .rt-who a{max-width:100%}}
 @media(max-width:600px){.rt-podium{grid-template-columns:1fr}.rt-pod.rt-first{order:-1}.rt-mb{grid-template-columns:1fr;text-align:left}.rt-side.rt-r{text-align:left;align-items:flex-start}.rt-std th:nth-child(n+5):not(:last-child),.rt-std td:nth-child(n+5):not(:last-child){display:none}.fmt-pick{grid-template-columns:1fr}}
 
 .tm-card{padding:16px 18px;border-radius:14px;border:1px solid #3a3327;background:#141417;margin-bottom:14px}
@@ -254,6 +255,13 @@ table.rt-std{width:100%;border-collapse:collapse;font-size:12.5px}
 .order{display:grid;gap:8px;max-width:420px;margin-top:8px}
 .order label{display:grid;grid-template-columns:60px 1fr;gap:8px;align-items:center;font-size:12.5px;font-weight:700;color:#cfcac0}
 .mine .tm-actions .btn{margin-left:0!important;width:auto!important}
+.room p{margin:6px 0 10px}.room-grid{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+.civ-chip{display:inline-flex;cursor:pointer}.civ-chip input{position:absolute;opacity:0;pointer-events:none}
+.civ-chip span{padding:6px 10px;border-radius:8px;border:1px solid #3a3327;background:#141417;color:#cfcac0;font-size:12px;font-weight:600}
+.civ-chip input:checked+span{background:#5b4212;color:#ffdb78;border-color:#99701e}.civ-chip.off span{opacity:.35;text-decoration:line-through;cursor:not-allowed}
+.room-picks{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;margin:8px 0 12px;font-size:12.5px}.room-picks div{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid #ffffff0d}
+.room .tm-actions{justify-content:flex-start;flex-wrap:wrap;margin-top:6px}
+@media(max-width:600px){.room-picks{grid-template-columns:1fr}}
 .sch{display:grid;grid-template-columns:72px 150px 1fr;gap:10px;padding:8px 0;border-top:1px solid #ffffff0d;font-size:12.5px;color:#cfcac0;align-items:baseline}
 .sch b{color:var(--white)}.sch span:nth-child(2){color:#a29e95}
 .standin{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center;margin-left:auto}
@@ -380,6 +388,11 @@ function toggle(){const f=FMT();
   <div data-for="random3v3" hidden><label for="tRounds">Rounds</label><select id="tRounds">${[3,4,5,6,7,8].map(n=>`<option ${n===5?'selected':''}>${n}</option>`).join('')}</select><small>Each round: new random teams, one 3v3 match each.</small></div>
   <div data-for="random3v3" hidden><label>Points</label><div style="display:flex;gap:8px"><select id="tPw" aria-label="Points for a win"><option value="1" selected>Win: 1 point</option><option value="2">Win: 2 points</option><option value="3">Win: 3 points</option></select><select id="tPb" aria-label="Points for sitting out"><option value="0">Sit-out: 0</option><option value="0.5" selected>Sit-out: 0.5</option><option value="1">Sit-out: 1</option></select></div><small>Loss = 0. Ties: opponents' points, then fewer sit-outs.</small></div>
   <div class="full" data-for="random3v3" hidden><label style="display:flex;gap:10px;align-items:center;margin:0;font-weight:700"><input type="checkbox" id="tSched" style="width:auto">Rounds on different dates and times</label><small>Round 1 starts at the time above. Players see every round's date and the round opens by itself at its time. Leave it off and each round opens as soon as the one before it finishes.</small><div class="roundmaps" id="schedBox" hidden style="margin-top:8px"></div></div>
+  <div class="full" data-for="random3v3" hidden><label>Civilization rules</label>
+   <div class="tform" style="padding:0;gap:10px 14px">
+    <div><label for="rCivBans">Civ bans per captain</label><select id="rCivBans"><option value="0">Off: no civ bans</option><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option></select><small>Each team's captain bans civs for the other team, hidden until both lock in.</small></div>
+    <div><label for="rCivUnique">Unique civs</label><select id="rCivUnique"><option value="off" selected>Off: any civ, any round</option><option value="won">A civ you won with can't be used again</option><option value="all">No civ twice in the tournament</option></select></div>
+   </div></div>
   <div class="full" data-for="random3v3 ffa" hidden><label>Map for each round</label><div class="roundmaps" id="roundMaps"></div><small>Everyone plays the same map in a round. "Random from pool" picks one when the round's teams are made.</small></div>
   <div class="full" data-for="random3v3 ffa single teamcup" id="poolBox" hidden><label>Map pool</label><div class="pool">${MAPS.map(m=>`<label><input type="checkbox" class="pmap" value="${esc(m)}" checked>${esc(m)}</label>`).join('')}</div></div>
   <div data-for="ffa" hidden><label for="tRoundsF">Rounds</label><select id="tRoundsF">${[1,2,3,4,5].map(n=>`<option ${n===1?'selected':''}>${n}</option>`).join('')}</select><small>1 = a single FFA match. More rounds: points add up.</small></div>
@@ -400,7 +413,7 @@ function toggle(){const f=FMT();
    max_players:+$('tMax').value,checkin_minutes:+$('tCheck').value,bo_default:+$('tBo1').value,bo_semi:+$('tBo2').value,bo_final:+$('tBo3').value,
    rounds:f==='ffa'?+$('tRoundsF').value:+$('tRounds').value,points_win:+$('tPw').value,points_bye:+$('tPb').value,round_maps:[...document.querySelectorAll('.rmap')].map(x=>x.value),
    map_pool:[...document.querySelectorAll('.pmap:checked')].map(x=>x.value),prizes:$('tPrize').value,rules:$('tRules').value,
-   map_mode:(f==='single'||f==='teamcup')?$('tMapMode').value:undefined,map_bans:$('tMapBans').value,game_maps:[...document.querySelectorAll('.gmap')].map(x=>x.value),civ_bans:$('tCivBans').value,civ_unique:$('tCivUnique').value,seeding:$('tSeeding').value,third_place:$('tThird').checked,noshow_minutes:+$('tNoShow').value});
+   map_mode:(f==='single'||f==='teamcup')?$('tMapMode').value:undefined,map_bans:$('tMapBans').value,game_maps:[...document.querySelectorAll('.gmap')].map(x=>x.value),civ_bans:(f==='random3v3'?$('rCivBans').value:$('tCivBans').value),civ_unique:(f==='random3v3'?$('rCivUnique').value:$('tCivUnique').value),seeding:$('tSeeding').value,third_place:$('tThird').checked,noshow_minutes:+$('tNoShow').value});
    location.href='/tournament/'+r.id}catch(err){btn.disabled=false;$('fmsg').innerHTML=`<div class="t-msg err">${esc(err.message)}</div>`;$('fmsg').scrollIntoView()}});
 })();
 

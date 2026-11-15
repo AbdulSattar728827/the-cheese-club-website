@@ -338,7 +338,7 @@ function myCard(){
    return `<div class="mine"><div style="min-width:0"><div class="vs">You <em>vs</em> ${esc(opp.username)}</div>
     <small>${esc(m.round_name)} · best of ${m.best_of}${m.p1_score+m.p2_score?` · score ${ms}–${os}`:''}. ${playing?`Game ${m.p1_score+m.p2_score+1} is on in Discord: head to the match thread for the map veto and civ picks.`:myReady?`You're ready. The game starts in Discord as soon as ${esc(opp.username)} is ready too.`:'Join a voice channel in Discord, then press I\'m ready.'}</small>
     ${playing?'':`<div class="ready-row"><span class="rdy ${myReady?'yes':''}">${myReady?'✓':'○'} You</span><span class="rdy ${oppReady?'yes':''}">${oppReady?'✓':'○'} ${esc(opp.username)}</span></div>`}</div>
-    ${playing?'<a class="btn primary" href="https://discord.com/channels/@me" target="_blank" rel="noopener noreferrer">Open Discord ↗</a>':myReady?`<button class="btn danger" type="button" data-ready="${m.id}" data-on="0">Not ready</button>`:`<button class="btn primary" type="button" data-ready="${m.id}" data-on="1">✅ I'm ready</button>`}</div>`}
+    ${playing?'<a class="btn primary" href="https://discord.com/channels/@me" target="_blank" rel="noopener noreferrer">Open Discord ↗</a>':myReady?`<button class="btn danger" type="button" data-ready="${m.id}" data-on="0">Not ready</button>`:`<button class="btn primary" type="button" data-ready="${m.id}" data-on="1">✅ I'm ready</button>`}</div>`+reportBox(m)}
   if(me.status==='eliminated')return '<div class="t-msg" style="border:1px solid #3a3327;background:#17171b;color:#cfcac0">You\'re out of this one. Thanks for playing, and GG! Follow the rest of the bracket below.</div>';
   if(me.status==='playing')return '<div class="t-msg ok">You\'re through! Your next match appears here when your opponent is decided.</div>';
  }
@@ -349,6 +349,24 @@ function gamesLine(m){const g=m.games.filter(x=>x.status==='done'||x.status==='p
   if(x.status==='playing')return `G${x.game} <b style="color:#8fe0b2">● live</b>${x.map?' · 🗺️ '+esc(x.map):''}${link}`;
   const who=x.p1_civ||x.p2_civ?`<b>${esc(x.p1_civ||'?')}</b> vs <b>${esc(x.p2_civ||'?')}</b>`:x.winner_side?`${esc((x.winner_side===1?m.p1:m.p2)?.username||'')} won`:'';
   return `G${x.game}: ${who}${x.map?' · 🗺️ '+esc(x.map):''}${link}`}).join('<br>')}</div>`}
+function reportBox(m){
+ if(!m||!(m.status==='playing'||m.status==='starting'))return '';
+ const mine=D.me.my_slot,other=mine===1?2:1,P=m.pending,mid=`data-m="${m.id}"`;
+ const b=(cls,label,attr)=>`<button class="btn ${cls}" type="button" ${attr} ${mid}>${label}</button>`;
+ let text,btns;
+ if(P&&P.action==='victory'){const iWon=P.winner_slot===mine;
+  if(P.by_me){text=`You reported ${iWon?'a win':'a loss'}. Waiting for your opponent to confirm it, here or in the Discord thread.`;btns=b('secondary','Withdraw',`data-report="${P.winner_slot}"`)}
+  else{text=`${esc(P.by)} says ${iWon?'you won':'they won'} this game. Is that right?`;btns=b('primary','✓ Yes, confirm',`data-report="${P.winner_slot}"`)+b('danger','✗ No, dispute',`data-report="${P.winner_slot===1?2:1}"`)}}
+ else if(P&&P.action==='cancel'){
+  if(P.by_me){text='You asked to cancel this game. Waiting for your opponent to confirm.';btns=b('secondary','Withdraw',`data-reportcancel="1"`)}
+  else{text=`${esc(P.by)} wants to cancel this game (it won't count).`;btns=b('danger','Confirm cancel',`data-reportcancel="1"`)}}
+ else{text='Game over? Report the result here or with the buttons in the Discord thread. Your opponent has to confirm it. In a team game only the captains can report.';
+  btns=b('primary','🏆 I won',`data-report="${mine}"`)+b('secondary','I lost',`data-report="${other}"`)+b('danger','Cancel game',`data-reportcancel="1"`)}
+ return `<div class="tm-card" style="margin:10px 0 0"><h4>Game result</h4><p>${text}</p><div class="tm-actions" style="justify-content:flex-start;flex-wrap:wrap">${btns}</div></div>`}
+const schedLine=m=>{
+ if(m.status==='pending'&&m.p1&&m.p2&&m.opens_at&&new Date(m.opens_at)>new Date())return `<div class="civs">🕒 Opens ${esc(when(m.opens_at))}</div>`;
+ if(m.status==='ready'&&m.ready_by&&D.tournament.noshow_minutes)return `<div class="civs">⏱ If only one side is ready by ${esc(when(m.ready_by))}, that side wins</div>`;
+ return ''};
 function box(m){
  const me=D.me,isMine=me.match&&me.match.id===m.id,live=m.status==='playing'||m.status==='starting';
  const head=m.status==='done'?(m.note||'Result'):live?`Game ${m.p1_score+m.p2_score+1} live`:m.status==='ready'?`Bo${m.best_of} · waiting for ready`:(m.p1||m.p2)?`Bo${m.best_of} · waiting`:`Bo${m.best_of}`;
@@ -356,21 +374,41 @@ function box(m){
   return `<div class="p ${cls}"><span class="seed">${seed||''}</span><span class="n">${p?name(p):(m.status==='done'?'Bye':'To be decided')}</span><span class="s">${p&&m.note!=='Bye'&&(m.status!=='pending'||score)?score:''}</span></div>`};
  let admin='';
  if(D.is_admin&&m.p1&&m.p2&&m.note!=='Bye'&&['live','finished'].includes(D.tournament.status))admin=`<div class="admin-set"><select aria-label="Winner"><option value="${m.p1_entrant||m.p1.user_id}">${esc(m.p1.username)}</option><option value="${m.p2_entrant||m.p2.user_id}">${esc(m.p2.username)}</option></select><button type="button" data-setwin="${m.id}">${m.status==='done'?'Correct result':'Set winner'}</button></div>`;
- return `<div class="m ${isMine?'my-m':live?'live':''}"><div class="mh"><span>${esc(m.round_name)} ${m.slot}</span><span>${esc(head)}</span></div>${row(m.p1,m.p1_seed,m.p1_score,1)}${row(m.p2,m.p2_seed,m.p2_score,2)}${teamLine(m)}${gamesLine(m)}${admin}</div>`}
+ return `<div class="m ${isMine?'my-m':live?'live':''}"><div class="mh"><span>${esc(m.round_name)} ${m.slot}</span><span>${esc(head)}</span></div>${row(m.p1,m.p1_seed,m.p1_score,1)}${row(m.p2,m.p2_seed,m.p2_score,2)}${teamLine(m)}${gamesLine(m)}${schedLine(m)}${admin}</div>`}
 function bracket(){
- const rounds=[...new Set(D.matches.map(m=>m.round))].sort((a,b)=>a-b);if(!rounds.length)return '<div class="t-empty">The bracket is created when the tournament starts.</div>';
- const h=Math.max(260,D.matches.filter(m=>m.round===1).length*104);
- const cur=D.matches.find(m=>m.status!=='done');if(roundSel===null)roundSel=cur?cur.round:rounds[rounds.length-1];
- return `<div class="rtabs">${rounds.map(r=>`<button type="button" class="${r===roundSel?'on':''}" data-round="${r}">${esc(D.matches.find(m=>m.round===r).round_name)}</button>`).join('')}</div>
-  <div class="bracket-wrap"><div class="bracket" style="grid-template-columns:repeat(${rounds.length},minmax(210px,1fr));min-width:${rounds.length*245}px">${rounds.map(r=>{const ms=D.matches.filter(m=>m.round===r);
-   return `<div class="round ${r===roundSel?'active':''}"><h4>${esc(ms[0].round_name)}<small>Bo${ms[0].best_of}</small></h4><div class="col" style="height:${h}px">${ms.map(box).join('')}${r===rounds[rounds.length-1]?`<div class="champ-slot">🏆<b>${D.winner?esc(D.winner.username):'Champion'}</b>${D.winner?'Champion':'Crowned after the final'}</div>`:''}</div></div>`}).join('')}</div></div>`}
+ const BM=D.matches.filter(m=>!m.is_third),TM=D.matches.find(m=>m.is_third);
+ const rounds=[...new Set(BM.map(m=>m.round))].sort((a,b)=>a-b);if(!rounds.length)return '<div class="t-empty">The bracket is created when the tournament starts.</div>';
+ const h=Math.max(260,BM.filter(m=>m.round===1).length*104);
+ const cur=BM.find(m=>m.status!=='done');if(roundSel===null)roundSel=cur?cur.round:rounds[rounds.length-1];
+ return `<div class="rtabs">${rounds.map(r=>`<button type="button" class="${r===roundSel?'on':''}" data-round="${r}">${esc(BM.find(m=>m.round===r).round_name)}</button>`).join('')}</div>
+  <div class="bracket-wrap"><div class="bracket" style="grid-template-columns:repeat(${rounds.length},minmax(210px,1fr));min-width:${rounds.length*245}px">${rounds.map(r=>{const ms=BM.filter(m=>m.round===r);
+   return `<div class="round ${r===roundSel?'active':''}"><h4>${esc(ms[0].round_name)}<small>Bo${ms[0].best_of}</small></h4><div class="col" style="height:${h}px">${ms.map(box).join('')}${r===rounds[rounds.length-1]?`<div class="champ-slot">🏆<b>${D.winner?esc(D.winner.username):'Champion'}</b>${D.winner?'Champion':'Crowned after the final'}</div>`:''}</div></div>`}).join('')}</div></div>
+  ${TM?`<div style="padding:4px 2px 0"><h4 style="margin:18px 0 8px;font:700 12px Inter;letter-spacing:.1em;text-transform:uppercase;color:#c9a24a">🥉 Third place</h4><div style="max-width:300px">${box(TM)}</div></div>`:''}`}
+const seedMode=()=>D.is_admin&&D.tournament.seeding==='manual'&&['signup','checkin'].includes(D.tournament.status)&&!isRT(D.tournament)&&!isFFA(D.tournament);
+const seedInput=(id,val)=>seedMode()?`<input class="seedin" data-sid="${id}" type="number" min="1" max="999" placeholder="Seed" value="${val||''}" aria-label="Manual seed" style="width:64px;padding:5px 6px;border-radius:6px;border:1px solid #3a3327;background:#111114;color:#fff;font:inherit;font-size:12px">`:'';
 function playersTab(){
  if(!D.players.length)return '<div class="t-empty">No one has signed up yet. Be the first!</div>';
  const lbl=p=>({registered:p.checked_in?'<span class="ok">✓ Checked in</span>':(D.tournament.status==='checkin'?'<span class="wait">Not yet</span>':'<span class="wait">Signed up</span>'),waitlist:D.tournament.locked?'<span class="wait">Candidate</span>':'<span class="wait">Waiting list</span>',removed:'<span class="st-out">Replaced</span>',playing:'<span class="ok">In</span>',eliminated:'<span class="st-out">Out</span>',champion:'<span class="st-champ">🏆 Champion</span>',no_show:'<span class="st-out">No-show</span>'})[p.status]||'';
- return `<div class="plist">${D.players.map(p=>`<div class="pl" ${p.me?'style="border-color:#8a682b"':''}><span class="av">${initials(p.username)}</span><div style="min-width:0"><b>${p.user_id?name(p):esc(p.username)}${p.me?' (you)':''}</b><br><small>${p.seed?'Seed '+p.seed+(p.rating?' · '+fmt(p.rating):''):''}</small></div>${lbl(p)}</div>`).join('')}</div>`}
-function rulesTab(){const t=D.tournament;
+ return `<div class="plist">${D.players.map(p=>`<div class="pl" ${p.me?'style="border-color:#8a682b"':''}><span class="av">${initials(p.username)}</span><div style="min-width:0"><b>${p.user_id?name(p):esc(p.username)}${p.me?' (you)':''}</b><br><small>${p.seed?'Seed '+p.seed+(p.rating?' · '+fmt(p.rating):''):''}</small></div>${lbl(p)}${p.user_id?seedInput(p.user_id,p.manual_seed):''}</div>`).join('')}</div>`}
+function seriesRulesHtml(t){
+ const team=isTeam(t),mode=t.map_mode||(team?'free':'veto');
+ const mm={veto:(team?'captains':'players')+' veto maps until one is left (a coin flip decides who bans first)',ban:`each captain bans ${t.map_bans} map${t.map_bans===1?'':'s'}, then a random map is drawn from the rest`,
+  fixed:'set by the tournament: '+(t.game_maps||[]).map((m,i)=>`game ${i+1} ${m==='random'?'random':esc(m)}`).join(', '),random:'a random map from the pool for every game',free:'no map step: players agree on the map in the lobby'}[mode];
+ const cb=t.civ_bans==null?(team?2:1):t.civ_bans,cu={off:'',won:" A civ you won with can't be used again in the same series.",all:' No civ can be used twice in the same series.'}[t.civ_unique||'off'];
+ const rt=(t.round_times||[]).length?`<li><b>Schedule:</b> ${t.round_times.map(x=>esc(when(x))).join(' → ')} (your time). A round's matches open at its time.</li>`:'';
+ return `<li><b>Maps:</b> ${mm}.</li><li><b>Civ bans:</b> ${cb?cb+' per '+(team?'captain':'player')+', hidden until both sides lock in':'none'}.${cu}</li>${t.seeding==='random'?'<li><b>Seeding:</b> random.</li>':t.seeding==='manual'?'<li><b>Seeding:</b> set by the admins.</li>':''}${t.third_place?'<li><b>Third place:</b> the two semifinal losers play for third.</li>':''}${t.noshow_minutes?`<li><b>No-show:</b> if only one side is ready ${t.noshow_minutes} minutes after a match opens, that side wins.</li>`:''}${rt}`}
+function rulesTab(){return rulesTabBase()+`<div class="info-body" style="padding:0 20px 18px"><ul>${seriesRulesHtml(D.tournament)}</ul></div>`}
+function rulesTabBase(){const t=D.tournament;
  return `<div class="info-body" style="padding:18px 20px"><ul><li><b>Format:</b> 1v1, single elimination. Seeds by AoE4World rating, so the top seeds meet last.</li><li><b>Games:</b> ${esc(boText(t))}.</li><li><b>Check-in:</b> opens ${t.checkin_minutes} minutes before the start. Players who aren't checked in lose their spot to the waiting list.</li><li><b>Playing:</b> when your match is ready, both players press <b>I'm ready</b>. The bot starts the game in Discord, with the usual map veto and civ bans, and both players confirm the result.</li><li>Tournament games appear in match history with a Tournament label, but don't change club stats or community ratings.</li></ul>
   ${t.prizes?`<p style="margin-top:12px"><b>Prizes:</b> ${esc(t.prizes)}</p>`:''}${t.rules?`<p style="margin-top:12px"><b>Rules</b></p><p class="rules-text">${esc(t.rules)}</p>`:''}</div>`}
+function teamMemberOptions(team){return (team?team.members:[]).filter(m=>m.status==='accepted'&&m.user_id).map(m=>`<option value="${m.user_id}">Out: ${esc(m.username)}</option>`).join('')}
+function bracketTools(){
+ const t=D.tournament;if(isRT(t)||isFFA(t)||['finished','cancelled'].includes(t.status))return '';
+ let h='';
+ if(seedMode())h+='<button class="btn secondary" type="button" data-saveseeds="1">💾 Save seeds</button>';
+ if(isTeam(t)){const teams=D.teams.list.filter(x=>['registered','playing','forming','waitlist'].includes(x.status)&&x.members.some(m=>m.status==='accepted'));
+  if(teams.length)h+=`<datalist id="memberList"></datalist><span class="standin"><select id="swTeam" aria-label="Team">${teams.map(x=>`<option value="T${x.id}">${esc(x.name)}</option>`).join('')}</select><select id="swOut" aria-label="Member to replace">${teamMemberOptions(teams[0])}</select><input id="swIn" list="memberList" placeholder="replacement (any member)" autocomplete="off"><button type="button" data-tswap="1">Replace member</button></span>`}
+ return h}
 function rtLockTools(){
  const t=D.tournament,st=t.status;if(!isRT(t)||st==='finished'||st==='cancelled')return '';
  let h='<datalist id="memberList"></datalist>';
@@ -388,6 +426,7 @@ function adminPanel(){
   ${st==='signup'&&!D.tournament.locked?'<button class="btn secondary" type="button" data-admin="open_checkin">Open check-in now</button>':''}
   ${st!=='live'?`<button class="btn primary" type="button" data-admin="start" data-confirm="${D.tournament.locked?'Start now? Round 1 opens straight away.':'Start now? Players who haven\'t checked in will lose their spot.'}">Start now</button>`:''}
   ${rtLockTools()}
+  ${bracketTools()}
   ${st==='live'&&isRT(D.tournament)&&!D.tournament.locked?'<button class="btn secondary" type="button" data-admin="regenerate_round" data-confirm="Make new teams for this round? Only possible before anyone presses Ready.">Regenerate this round\'s teams</button>':''}
   ${removable.length?`<select id="rmSel" aria-label="Player">${removable.map(p=>`<option value="${p.user_id}">${esc(p.username)}</option>`).join('')}</select><button class="btn danger" type="button" data-admin="remove_player" data-confirm="Remove ${isTeam(D.tournament)?'this team':'this player'}?${st==='live'&&!isFFA(D.tournament)?' Their opponent advances.':''}">Remove ${isTeam(D.tournament)?'team':'player'}</button>`:''}
   <button class="btn danger" type="button" data-admin="cancel" data-confirm="Cancel the whole tournament?">Cancel tournament</button>${del}</div></section>`}
@@ -425,12 +464,13 @@ function teamLiveCard(){
  return `<div class="mine"><div style="min-width:0"><div class="vs">${esc(us.username)} <em>vs</em> ${esc(them.username)}</div>
   <small>${esc(m.round_name)} · best of ${m.best_of}${m.p1_score+m.p2_score?` · score ${ms}–${os}`:''}. ${playing?`Game ${m.p1_score+m.p2_score+1} is on in Discord: head to the match thread for civ bans and picks.`:m.me_ready?'You\'re ready. The game starts in Discord when both full teams are ready.':'Every player joins a voice channel in Discord and presses I\'m ready.'}</small>
   ${playing?'':`<div class="ready-row"><span class="rdy ${m.me_ready?'yes':''}">${m.me_ready?'✓':'○'} You</span><span class="rdy ${usN===size?'yes':''}">Your team ${usN}/${size}</span><span class="rdy ${themN===size?'yes':''}">${esc(them.username)} ${themN}/${size}</span></div>`}</div>
-  ${playing?'<a class="btn primary" href="https://discord.com/channels/@me" target="_blank" rel="noopener noreferrer">Open Discord ↗</a>':m.me_ready?`<button class="btn danger" type="button" data-ready="${m.id}" data-on="0">Not ready</button>`:`<button class="btn primary" type="button" data-ready="${m.id}" data-on="1">✅ I'm ready</button>`}</div>`}
+  ${playing?'<a class="btn primary" href="https://discord.com/channels/@me" target="_blank" rel="noopener noreferrer">Open Discord ↗</a>':m.me_ready?`<button class="btn danger" type="button" data-ready="${m.id}" data-on="0">Not ready</button>`:`<button class="btn primary" type="button" data-ready="${m.id}" data-on="1">✅ I'm ready</button>`}</div>`+reportBox(m)}
 function teamsTab(){const T=D.teams;const list=T.list.filter(x=>x.status!=='withdrawn');
  if(!list.length)return '<div class="t-empty">No teams yet. Register the first one!</div>';
  const lbl={forming:'Waiting for invites',registered:D.tournament.status==='checkin'?'':'Registered',waitlist:'Waiting list',playing:'In',eliminated:'Out',champion:'🏆 Champion',no_show:'No-show'};
- return `<div class="teams-grid">${list.map(tm=>`<div class="tm-card ${tm.members.some(x=>x.me)?'tm-mine':''}"><h4>${tm.seed?'<span style="color:#8f8b82">#'+tm.seed+'</span> ':''}${esc(tm.name)}</h4><p>${tm.status==='registered'&&D.tournament.status==='checkin'?(tm.checked_in?'✓ Checked in':'Not checked in yet'):lbl[tm.status]||''}${tm.rating?' · avg '+fmt(tm.rating):''}</p>${teamChips(tm)}</div>`).join('')}</div>`}
-function teamRules(){const t=D.tournament;return `<div class="info-body" style="padding:18px 20px"><ul>
+ return `<div class="teams-grid">${list.map(tm=>`<div class="tm-card ${tm.members.some(x=>x.me)?'tm-mine':''}"><h4>${tm.seed?'<span style="color:#8f8b82">#'+tm.seed+'</span> ':''}${esc(tm.name)}</h4><p>${tm.status==='registered'&&D.tournament.status==='checkin'?(tm.checked_in?'✓ Checked in':'Not checked in yet'):lbl[tm.status]||''}${tm.rating?' · avg '+fmt(tm.rating):''}</p>${teamChips(tm)}${seedInput('T'+tm.id,tm.manual_seed)}</div>`).join('')}</div>`}
+function teamRules(){return teamRulesBase()+`<div class="info-body" style="padding:0 20px 18px"><ul>${seriesRulesHtml(D.tournament)}</ul></div>`}
+function teamRulesBase(){const t=D.tournament;return `<div class="info-body" style="padding:18px 20px"><ul>
  <li><b>Format:</b> ${esc(t.mode)} teams, single elimination. Teams are seeded by their players' average AoE4World rating.</li>
  <li><b>Registering:</b> a captain registers the team and picks the teammates. Each teammate accepts the invite on the website. A team is in once everyone has accepted. Players can only be in one team.</li>
  <li><b>Games:</b> ${esc(boText(t))}.</li>
@@ -653,6 +693,14 @@ document.addEventListener('click',async e=>{
  const ad=e.target.closest('[data-admin]');if(ad){if(ad.dataset.confirm&&!confirm(ad.dataset.confirm))return;ad.disabled=true;
   if(['lock','reshuffle'].includes(ad.dataset.admin)){tab='rounds';rtRound=null}
   await act(`/api/tournaments/${TID}/admin`,{action:ad.dataset.admin,user:ad.dataset.admin==='remove_player'?$('rmSel').value:undefined});return}
+ const rpg=e.target.closest('[data-report],[data-reportcancel]');if(rpg){const body={match_id:+rpg.dataset.m};
+  if(rpg.dataset.reportcancel)body.cancel=true;else{body.winner=+rpg.dataset.report;const me=D.me.my_slot;
+   if(!confirm(body.winner===me?'Report that YOU won this game?':'Report that you LOST this game?'))return}
+  rpg.disabled=true;await act(`/api/tournaments/${TID}/report-game`,body);return}
+ const svs=e.target.closest('[data-saveseeds]');if(svs){const seeds={};document.querySelectorAll('.seedin').forEach(x=>{seeds[x.dataset.sid]=x.value});svs.disabled=true;await act(`/api/tournaments/${TID}/admin`,{action:'set_seeds',seeds});return}
+ const tsw=e.target.closest('[data-tswap]');if(tsw){await loadMembers();const who=memberId($('swIn').value);if(!who){msg={ok:false,text:'Pick a club member from the list.'};render();return}
+  const tm=$('swTeam'),out=$('swOut');if(!confirm(`Replace ${out.options[out.selectedIndex].text.replace('Out: ','')} in ${tm.options[tm.selectedIndex].text} with ${$('swIn').value}? Their Ready status is cleared.`))return;
+  tsw.disabled=true;await act(`/api/tournaments/${TID}/admin`,{action:'team_swap',team:tm.value,out_user:out.value,in_user:who});return}
  const rpl=e.target.closest('[data-replace]');if(rpl){const o=$('repOut'),n=$('repIn');if(!o||!n||!n.value)return;
   if(!confirm(`Replace ${o.options[o.selectedIndex].text.replace('Replace: ','')} with ${n.options[n.selectedIndex].text.replace('With: ','')} in all their remaining rounds?`))return;
   rpl.disabled=true;await act(`/api/tournaments/${TID}/admin`,{action:'replace',out_user:o.value,in_user:n.value});return}
@@ -664,6 +712,7 @@ document.addEventListener('click',async e=>{
  const sw=e.target.closest('[data-setwin]');if(sw){const sel=sw.parentElement.querySelector('select');if(!confirm('Set '+sel.options[sel.selectedIndex].text+' as the winner of this match?'+(sw.textContent.includes('Correct')?' The bracket will be updated.':'')))return;sw.disabled=true;
   await act(`/api/tournaments/${TID}/admin`,{action:'set_winner',match_id:+sw.dataset.setwin,winner:sel.value});return}
 });
+document.addEventListener('change',e=>{if(e.target.id==='swTeam'){const tm=D.teams.list.find(x=>'T'+x.id===e.target.value);$('swOut').innerHTML=teamMemberOptions(tm)}});
 document.addEventListener('submit',async e=>{if(e.target.id!=='teamForm')return;e.preventDefault();await loadMembers();
  const ids=[...document.querySelectorAll('.tmM')].map(x=>memberId(x.value));
  if(ids.some(x=>!x)){msg={ok:false,text:'Pick each teammate from the list of club members (start typing their name).'};render();return}

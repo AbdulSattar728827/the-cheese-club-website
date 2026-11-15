@@ -316,11 +316,33 @@ function schedRender(){const on=$('tSched').checked&&FMT()==='random3v3',box=$('
  const n=+$('tRounds').value,prev=[...document.querySelectorAll('.rtime')].map(x=>x.value),base=new Date($('tStart').value||Date.now());
  box.innerHTML=Array.from({length:Math.max(0,n-1)},(_,i)=>{const d=new Date(base.getTime()+86400000*(i+1)),def=prev[i]||`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   return `<label style="margin:0"><small style="display:block;margin:0 0 4px;font-weight:700;color:#cfcac0">Round ${i+2} starts</small><input type="datetime-local" class="rtime" value="${def}"></label>`}).join('')}
+const ROUND_NAMES=['Final','Semifinal','Quarterfinal','Round of 16','Round of 32','Round of 64'];
+function ruleUi(){
+ const f=FMT();if(f!=='single'&&f!=='teamcup'){return}
+ const team=f==='teamcup',modeSel=$('tMapMode');
+ if(modeSel.dataset.fmt!==f){modeSel.dataset.fmt=f;
+  const opts=team?[['ban','Captains ban maps, then a random one is drawn'],['veto','Captains veto maps until one is left'],['fixed','Set the map for each game'],['random','Random map from the pool'],['free','No map step (players agree in the lobby)']]
+                 :[['veto','Players veto maps until one is left'],['ban','Players ban maps, then a random one is drawn'],['fixed','Set the map for each game'],['random','Random map from the pool']];
+  modeSel.innerHTML=opts.map(([v,t])=>`<option value="${v}">${t}</option>`).join('');
+  const cb=$('tCivBans');cb.innerHTML=(team?[0,1,2,3]:[0,1]).map(n=>`<option value="${n}" ${n===(team?2:1)?'selected':''}>${n===0?'Off: no civ bans':n+' per '+(team?'captain':'player')}</option>`).join('');
+  $('civBansLbl').textContent=team?'Civ bans per captain':'Civ bans per player'}
+ const mode=modeSel.value;$('mBansBox').hidden=mode!=='ban';
+ const games=Math.max(+$('tBo1').value,+$('tBo2').value,+$('tBo3').value),prev=[...document.querySelectorAll('.gmap')].map(x=>x.value);
+ $('gameMapsBox').hidden=mode!=='fixed';
+ if(mode==='fixed')$('gameMaps').innerHTML=Array.from({length:games},(_,i)=>`<label style="margin:0"><small style="display:block;margin:0 0 4px;font-weight:700;color:#cfcac0">Game ${i+1}</small><select class="gmap"><option value="random">🎲 Random (pool)</option>${MAPS.map(m=>`<option ${prev[i]===m?'selected':''}>${esc(m)}</option>`).join('')}</select></label>`).join('');
+ $('poolBox').hidden=!(mode==='veto'||mode==='ban'||mode==='random');
+ $('mapModeHint').textContent={veto:team?'Each captain bans in turn after a coin flip.':'A coin flip decides who bans first.',ban:'Set how many bans each captain gets.',fixed:'Every series plays these maps in order.',random:'A new random map for every game.',free:'No map is decided by the bot.'}[mode];
+ bSchedRender()}
+function bSchedRender(){
+ const f=FMT(),on=(f==='single'||f==='teamcup')&&$('bSched').checked,box=$('bSchedBox');box.hidden=!on;if(!on)return;
+ const cap=Math.max(1,Math.ceil(Math.log2(Math.max(2,+$('tMax').value)))),prev=[...document.querySelectorAll('.btime')].map(x=>x.value),base=new Date($('tStart').value||Date.now());
+ box.innerHTML=Array.from({length:cap},(_,i)=>{const fromEnd=cap-1-i,d=new Date(base.getTime()+86400000*i),def=prev[i]||`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `<label style="margin:0"><small style="display:block;margin:0 0 4px;font-weight:700;color:#cfcac0">${ROUND_NAMES[fromEnd]||'Round '+(i+1)} starts</small><input type="datetime-local" class="btime" value="${def}"></label>`}).join('')}
 function roundMaps(){const n=FMT()==='ffa'?+$('tRoundsF').value:+$('tRounds').value,prev=[...document.querySelectorAll('.rmap')].map(x=>x.value);
  $('roundMaps').innerHTML=Array.from({length:n},(_,i)=>`<label style="margin:0"><small style="display:block;margin:0 0 4px;font-weight:700;color:#cfcac0">Round ${i+1}</small><select class="rmap"><option value="random">🎲 Random (pool)</option>${MAPS.map(m=>`<option ${prev[i]===m?'selected':''}>${esc(m)}</option>`).join('')}</select></label>`).join('')}
 function toggle(){const f=FMT();
  document.querySelectorAll('[data-for]').forEach(e=>e.hidden=!e.dataset.for.split(' ').includes(f));
- fillMax();roundMaps();schedRender();hint6()}
+ fillMax();roundMaps();schedRender();ruleUi();hint6()}
 (async()=>{
  let d;try{d=await call('GET','/api/tournaments')}catch(e){d={is_admin:false}}
  if(!d.is_admin){$('formBox').innerHTML='<div class="t-empty">Only Cheese Club admins can create tournaments. <a href="/tournament" style="color:var(--gold);font-weight:700">See tournaments</a></div>';return}
@@ -338,11 +360,28 @@ function toggle(){const f=FMT();
   <div><label for="tMax" id="tMaxLabel">Players</label><select id="tMax"><option selected>8</option></select><small id="tMaxHelp">Extra sign-ups go on a waiting list.</small><div class="hint6" id="hint6" hidden></div></div>
   <div><label for="tCheck">Check-in opens</label><select id="tCheck"><option value="15">15 minutes before</option><option value="30" selected>30 minutes before</option><option value="45">45 minutes before</option><option value="60">1 hour before</option></select><small>Players who don't check in lose their spot.</small></div>
   <div data-for="single teamcup"><label>Best of</label><div style="display:flex;gap:8px"><select id="tBo1" aria-label="Early rounds"><option value="1" selected>Early: Bo1</option><option value="3">Early: Bo3</option></select><select id="tBo2" aria-label="Semifinals"><option value="1">Semis: Bo1</option><option value="3" selected>Semis: Bo3</option><option value="5">Semis: Bo5</option></select><select id="tBo3" aria-label="Final"><option value="1">Final: Bo1</option><option value="3">Final: Bo3</option><option value="5" selected>Final: Bo5</option><option value="7">Final: Bo7</option></select></div></div>
+  <div class="full" data-for="single teamcup"><label>Series rules</label>
+   <div class="tform" style="padding:0;gap:10px 14px">
+    <div><label for="tMapMode">Maps</label><select id="tMapMode"></select><small id="mapModeHint"></small></div>
+    <div id="mBansBox" hidden><label for="tMapBans">Map bans per captain</label><select id="tMapBans">${[0,1,2,3].map(n=>`<option ${n===1?'selected':''}>${n}</option>`).join('')}</select><small>Then a random map is drawn from the rest.</small></div>
+    <div><label for="tCivBans" id="civBansLbl">Civ bans</label><select id="tCivBans"></select><small>Hidden until both sides lock in.</small></div>
+    <div><label for="tCivUnique">Unique civs</label><select id="tCivUnique"><option value="off" selected>Off: any civ, any game</option><option value="won">A civ you won with can't be used again in the series</option><option value="all">No civ twice in the series</option></select></div>
+   </div>
+   <div id="gameMapsBox" hidden style="margin-top:10px"><label>Map for each game</label><div class="roundmaps" id="gameMaps"></div><small>"Random (pool)" picks from the map pool when that game starts.</small></div>
+  </div>
+  <div class="full" data-for="single teamcup"><label>Seeding, schedule and forfeits</label>
+   <div class="tform" style="padding:0;gap:10px 14px">
+    <div><label for="tSeeding">Seeding</label><select id="tSeeding"><option value="rating" selected>By AoE4World rating</option><option value="random">Random</option><option value="manual">Manual (you set it before the start)</option></select></div>
+    <div><label for="tNoShow">No-show forfeit</label><select id="tNoShow"><option value="0" selected>Off: an admin decides</option><option value="10">10 minutes</option><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option></select><small>If only one side is ready when the time is up, they win.</small></div>
+    <div class="full"><label style="display:flex;gap:10px;align-items:center;margin:0;font-weight:700"><input type="checkbox" id="tThird" style="width:auto">Third-place match</label><small>The two semifinal losers play for third.</small></div>
+    <div class="full"><label style="display:flex;gap:10px;align-items:center;margin:0;font-weight:700"><input type="checkbox" id="bSched" style="width:auto">A date and time for each round</label><small>A round's matches only open at its time. Without this they open as soon as both players are known.</small><div class="roundmaps" id="bSchedBox" hidden style="margin-top:8px"></div></div>
+   </div>
+  </div>
   <div data-for="random3v3" hidden><label for="tRounds">Rounds</label><select id="tRounds">${[3,4,5,6,7,8].map(n=>`<option ${n===5?'selected':''}>${n}</option>`).join('')}</select><small>Each round: new random teams, one 3v3 match each.</small></div>
   <div data-for="random3v3" hidden><label>Points</label><div style="display:flex;gap:8px"><select id="tPw" aria-label="Points for a win"><option value="1" selected>Win: 1 point</option><option value="2">Win: 2 points</option><option value="3">Win: 3 points</option></select><select id="tPb" aria-label="Points for sitting out"><option value="0">Sit-out: 0</option><option value="0.5" selected>Sit-out: 0.5</option><option value="1">Sit-out: 1</option></select></div><small>Loss = 0. Ties: opponents' points, then fewer sit-outs.</small></div>
   <div class="full" data-for="random3v3" hidden><label style="display:flex;gap:10px;align-items:center;margin:0;font-weight:700"><input type="checkbox" id="tSched" style="width:auto">Rounds on different dates and times</label><small>Round 1 starts at the time above. Players see every round's date and the round opens by itself at its time. Leave it off and each round opens as soon as the one before it finishes.</small><div class="roundmaps" id="schedBox" hidden style="margin-top:8px"></div></div>
   <div class="full" data-for="random3v3 ffa" hidden><label>Map for each round</label><div class="roundmaps" id="roundMaps"></div><small>Everyone plays the same map in a round. "Random from pool" picks one when the round's teams are made.</small></div>
-  <div class="full" data-for="random3v3 ffa" hidden><label>Map pool (for random rounds)</label><div class="pool">${MAPS.map(m=>`<label><input type="checkbox" class="pmap" value="${esc(m)}" checked>${esc(m)}</label>`).join('')}</div></div>
+  <div class="full" data-for="random3v3 ffa single teamcup" id="poolBox" hidden><label>Map pool</label><div class="pool">${MAPS.map(m=>`<label><input type="checkbox" class="pmap" value="${esc(m)}" checked>${esc(m)}</label>`).join('')}</div></div>
   <div data-for="ffa" hidden><label for="tRoundsF">Rounds</label><select id="tRoundsF">${[1,2,3,4,5].map(n=>`<option ${n===1?'selected':''}>${n}</option>`).join('')}</select><small>1 = a single FFA match. More rounds: points add up.</small></div>
   <div data-for="ffa" hidden><label>Civilization rules</label><div style="display:grid;gap:8px">
    <label style="display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid #2c2a26;border-radius:10px;background:#141417;font-weight:600;cursor:pointer;margin:0"><input type="checkbox" id="tUnique" style="width:auto">Unique civs<small style="margin:0 0 0 auto">No two players can pick the same civ</small></label>
@@ -354,13 +393,14 @@ function toggle(){const f=FMT();
   <div class="full" style="display:flex;gap:10px"><button class="btn primary" type="submit">Create tournament</button><a class="btn secondary" href="/tournament">Cancel</a></div></form></section>`;
  toggle();
  document.querySelectorAll('input[name=fmt]').forEach(r=>r.addEventListener('change',toggle));
- $('tMax').addEventListener('change',hint6);$('tSize').addEventListener('change',()=>{if(FMT()==='random3v3'){fillMax();hint6()}});$('tRounds').addEventListener('change',()=>{roundMaps();schedRender()});$('tSched').addEventListener('change',schedRender);$('tStart').addEventListener('change',()=>{if($('tSched').checked){document.querySelectorAll('.rtime').forEach(x=>x.value='');schedRender()}});$('tRoundsF').addEventListener('change',roundMaps);
+ $('tMax').addEventListener('change',hint6);$('tSize').addEventListener('change',()=>{if(FMT()==='random3v3'){fillMax();hint6()}});$('tRounds').addEventListener('change',()=>{roundMaps();schedRender()});$('tSched').addEventListener('change',schedRender);['tMapMode','tBo1','tBo2','tBo3'].forEach(id=>$(id).addEventListener('change',ruleUi));$('bSched').addEventListener('change',bSchedRender);$('tMax').addEventListener('change',bSchedRender);$('tStart').addEventListener('change',()=>{if($('tSched').checked){document.querySelectorAll('.rtime').forEach(x=>x.value='');schedRender()}if($('bSched').checked){document.querySelectorAll('.btime').forEach(x=>x.value='');bSchedRender()}});$('tRoundsF').addEventListener('change',roundMaps);
  $('tf').addEventListener('submit',async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;const f=FMT();
-  const rtimes=(f==='random3v3'&&$('tSched').checked)?[new Date($('tStart').value).toISOString(),...[...document.querySelectorAll('.rtime')].map(x=>new Date(x.value).toISOString())]:[];
+  const rtimes=(f==='random3v3'&&$('tSched').checked)?[new Date($('tStart').value).toISOString(),...[...document.querySelectorAll('.rtime')].map(x=>new Date(x.value).toISOString())]:((f==='single'||f==='teamcup')&&$('bSched').checked)?[...document.querySelectorAll('.btime')].map(x=>new Date(x.value).toISOString()):[];
   try{const r=await call('POST','/api/tournaments',{format:f,round_times:rtimes,ffa_unique_civs:$('tUnique').checked,ffa_civ_bans:$('tBans').checked,team_size:+$('tSize').value,min_rating:$('tMinR').value,max_rating:$('tMaxR').value,ffa_points:$('tPts').value,name:$('tName').value,description:$('tDesc').value,starts_at:new Date($('tStart').value).toISOString(),
    max_players:+$('tMax').value,checkin_minutes:+$('tCheck').value,bo_default:+$('tBo1').value,bo_semi:+$('tBo2').value,bo_final:+$('tBo3').value,
    rounds:f==='ffa'?+$('tRoundsF').value:+$('tRounds').value,points_win:+$('tPw').value,points_bye:+$('tPb').value,round_maps:[...document.querySelectorAll('.rmap')].map(x=>x.value),
-   map_pool:[...document.querySelectorAll('.pmap:checked')].map(x=>x.value),prizes:$('tPrize').value,rules:$('tRules').value});
+   map_pool:[...document.querySelectorAll('.pmap:checked')].map(x=>x.value),prizes:$('tPrize').value,rules:$('tRules').value,
+   map_mode:(f==='single'||f==='teamcup')?$('tMapMode').value:undefined,map_bans:$('tMapBans').value,game_maps:[...document.querySelectorAll('.gmap')].map(x=>x.value),civ_bans:$('tCivBans').value,civ_unique:$('tCivUnique').value,seeding:$('tSeeding').value,third_place:$('tThird').checked,noshow_minutes:+$('tNoShow').value});
    location.href='/tournament/'+r.id}catch(err){btn.disabled=false;$('fmsg').innerHTML=`<div class="t-msg err">${esc(err.message)}</div>`;$('fmsg').scrollIntoView()}});
 })();
 

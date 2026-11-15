@@ -300,3 +300,24 @@ rankings message. Deleting a tournament here removes its Discord posts too.
   for it. **Reshuffle** / **Unlock** are possible until the first round opens (reshuffling clears stand-ins).
 - A sit-out only counts in the standings once its round has opened.
 - Tables/columns: `tournaments.roster_locked_at`, `tournaments.round_times`, `tournament_standins`.
+
+## 1v1 Cup and Team Cup: series rules, schedule, forfeits, seeding, third place, replacements
+Set when creating the tournament (old tournaments keep their old behaviour: 1v1 veto, Team Cup no map step):
+- **Maps** (`map_mode`): `veto` (players/captains ban in turn until one is left), `ban` (each captain bans `map_bans`
+  maps, then a random one is drawn), `fixed` (a map per game number in `game_maps`), `random` (from `map_pool`),
+  `free` (Team Cup only: players agree in the lobby). Team Cups default to `ban`, 1v1 Cups to `veto`.
+- **Civ bans** (`civ_bans`): 0-1 per player in a 1v1 Cup, 0-3 per captain in a Team Cup (default 1 / 2).
+- **Unique civs** (`civ_unique`): `won` (a civ you won with can't be used again in the series) or `all` (no civ twice).
+  The bot works this out from the earlier games of the series and removes those civs from the player's list.
+- **Round times** (`round_times`): one per round of a full bracket, counted back from the final. A match whose round
+  hasn't opened stays `pending`; the tick opens it at its time.
+- **No-show forfeit** (`noshow_minutes`): when a match opens it gets a ready-by time. If only one side is ready when it
+  passes, that side wins; if nobody is ready an admin is notified.
+- **Seeding** (`seeding`): `rating`, `random` or `manual` (admins type seeds on the Players/Teams tab, then Save seeds).
+- **Third place** (`third_place`): the semifinal losers play a third-place match; the tournament finishes when it and
+  the final are both done. Needs at least 4 players.
+- **Team Cup replacements** (admin): replace a team member at any time except while the team is playing a game; the
+  replacement becomes captain if the captain is replaced, and the team's Ready status is cleared.
+- **Results on the website:** during a game the players (captains in a team game) can report the winner or ask to
+  cancel; the website queues it in `aoe_match_actions` and the bot applies it with the same captain/confirm rules as the
+  Discord thread buttons. Deploy the website before the bot (it adds the columns and tables the bot reads).

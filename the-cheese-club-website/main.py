@@ -4029,6 +4029,15 @@ def _room_view(state: dict, uid: str, names: dict) -> Optional[dict]:
     return out
 
 
+async def _close_live_match(admin_uid: str, aoe_match_id, winner_user=None):
+    """An admin decided a match on the website: ask the bot to close its live Discord match too (the bot does it as
+    soon as it sees this; we don't make the admin wait for it)."""
+    if not aoe_match_id:
+        return
+    await fetch("""INSERT INTO aoe_match_actions (guild_id, match_id, user_id, action, winner_user, payload)
+                   VALUES ($1,$2,$3,'admin_close',$4,'{}'::jsonb)""", await club_guild_id(), aoe_match_id, admin_uid, winner_user)
+
+
 async def _queue_match_action(uid: str, aoe_match_id: int, action: str, winner_user=None, payload=None) -> dict:
     """Hand a step of a running match to the bot and wait a few seconds for its answer."""
     if await fetchval("SELECT COUNT(*) FROM aoe_match_actions WHERE user_id=$1 AND status IN ('pending','working') AND created_at > NOW() - INTERVAL '15 seconds'",
@@ -4159,6 +4168,8 @@ async def _random_admin(t: dict, action: str, b: dict) -> dict:
         w = int(b.get("winner_team") or 0)
         if w not in (0, 1, 2):
             raise HTTPException(status_code=400, detail="Pick Team 1, Team 2 or No result.")
+        if m["aoe_match_id"] and m["status"] in ("starting", "playing"):
+            await _close_live_match(b.get("_by"), m["aoe_match_id"], (m["team1"] if w == 1 else m["team2"])[0] if w in (1, 2) else None)
         await fetch("""
             UPDATE tournament_team_matches SET status=$2, winner_team=$3, note=$4, finished_at=NOW(), updated_at=NOW() WHERE id=$1
         """, m["id"], "done" if w else "void", w or None,
@@ -4824,6 +4835,7 @@ async def api_tournament_admin(request: Request, tid: int):
             return {"message": "Placements saved. Standings are updated."}
         if t.get("format") == "random3v3" and action in ("team_result", "substitute", "regenerate_round", "remove_player",
                                                                   "lock", "unlock", "reshuffle", "replace", "standin"):
+            b["_by"] = admin["uid"]
             return await _random_admin(t, action, b)
         if action == "start":
             if t["status"] not in ("signup", "checkin"):
@@ -4867,8 +4879,11 @@ async def api_tournament_admin(request: Request, tid: int):
                 return {"message": await _correct_bracket(t, dict(m[0]), win)}
             if not m or win not in (m[0]["p1_id"], m[0]["p2_id"]):
                 raise HTTPException(status_code=400, detail="Pick one of the two sides in this match.")
+            for g in await fetch("SELECT id, aoe_match_id FROM tournament_games WHERE tmatch_id=$1 AND status='playing'", m[0]["id"]):
+                await _close_live_match(admin["uid"], g["aoe_match_id"])       # the game being played is closed in Discord
+                await fetch("UPDATE tournament_games SET status='void' WHERE id=$1", g["id"])
             await _finish_match(m[0]["id"], win, t, note="Decided by an admin")
-            return {"message": "Winner set."}
+            return {"message": "Winner set. If a game was being played, its Discord match is being closed."}
         if action == "remove_player":
             uid = str(b.get("user") or "") if is_team_fmt(t) else from_public_id(str(b.get("user") or ""))
             if t["status"] in ("signup", "checkin"):

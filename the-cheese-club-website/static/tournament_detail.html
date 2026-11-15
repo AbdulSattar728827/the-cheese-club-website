@@ -734,7 +734,7 @@ document.addEventListener('click',async e=>{
  const fa=e.target.closest('[data-fapprove]');if(fa){fa.disabled=true;await act(`/api/tournaments/${TID}/admin`,{action:'ffa_approve',match_id:+fa.dataset.fapprove});return}
  const rr=e.target.closest('[data-rround]');if(rr){rtRound=+rr.dataset.rround;render();return}
  const tr=e.target.closest('[data-tready]');if(tr){tr.disabled=true;await act(`/api/tournaments/${TID}/team-ready`,{match_id:+tr.dataset.tready,ready:tr.dataset.on==='1'},tr.dataset.on==='1'?"You're ready! The match starts in Discord when all six players are ready.":'Marked as not ready.');return}
- const tres=e.target.closest('[data-tres]');if(tres){const sel=tres.previousElementSibling;if(!confirm('Save this result? Standings update straight away.'))return;tres.disabled=true;
+ const tres=e.target.closest('[data-tres]');if(tres){const sel=tres.previousElementSibling;if(!confirm('Save this result? Standings update straight away. If the match is being played, it is closed in Discord too.'))return;tres.disabled=true;
   await act(`/api/tournaments/${TID}/admin`,{action:'team_result',match_id:+tres.dataset.tres,winner_team:+sel.value});return}
  const tsub=e.target.closest('[data-tsub]');if(tsub){const inSel=tsub.previousElementSibling,outSel=inSel.previousElementSibling;if(!confirm(`${inSel.options[inSel.selectedIndex].text.replace('In: ','')} replaces ${outSel.options[outSel.selectedIndex].text.replace('Out: ','')}?`))return;tsub.disabled=true;
   await act(`/api/tournaments/${TID}/admin`,{action:'substitute',match_id:+tsub.dataset.tsub,out_user:outSel.value,in_user:inSel.value});return}
@@ -770,7 +770,7 @@ document.addEventListener('click',async e=>{
   if(!who){msg={ok:false,text:'Choose who stands in.'};render();return}
   if(!confirm(`Put the stand-in in ${sels[0].options[sels[0].selectedIndex].text.replace('Absent: ','')}'s slot for round ${tst.dataset.srnd}? The absent player scores nothing for it.`))return;
   tst.disabled=true;await act(`/api/tournaments/${TID}/admin`,{action:'standin',round:+tst.dataset.srnd,out_user:sels[0].value,in_user:who});return}
- const sw=e.target.closest('[data-setwin]');if(sw){const sel=sw.parentElement.querySelector('select');if(!confirm('Set '+sel.options[sel.selectedIndex].text+' as the winner of this match?'+(sw.textContent.includes('Correct')?' The bracket will be updated.':'')))return;sw.disabled=true;
+ const sw=e.target.closest('[data-setwin]');if(sw){const sel=sw.parentElement.querySelector('select');if(!confirm('Set '+sel.options[sel.selectedIndex].text+' as the winner of this match?'+(sw.textContent.includes('Correct')?' The bracket will be updated.':' If a game is being played, its Discord match is closed too and nothing more can be reported for this match.')))return;sw.disabled=true;
   await act(`/api/tournaments/${TID}/admin`,{action:'set_winner',match_id:+sw.dataset.setwin,winner:sel.value});return}
 });
 document.addEventListener('change',e=>{if(e.target.classList&&e.target.classList.contains('roomban')){const grid=e.target.closest('.room-grid'),n=+grid.dataset.n,on=[...grid.querySelectorAll('.roomban:checked')];if(on.length>n){e.target.checked=false;return}roomSel.bans=on.map(x=>x.value);const c=grid.parentElement.querySelector('[data-bancount]');if(c)c.textContent=roomSel.bans.length+'/'+n;return}

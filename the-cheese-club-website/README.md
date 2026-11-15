@@ -338,3 +338,8 @@ Set when creating the tournament (old tournaments keep their old behaviour: 1v1 
   in the Discord thread (captains only for bans, locks, start and results; the current banner for map bans). `_room_view`
   hides a side's bans until both have locked in, and picks until both teams have, exactly like Discord. The page refreshes
   every 5 seconds while a room is active.
+- **An admin's result closes the live game.** "Set result" on a match card (a cup's `set_winner`, All Random's `team_result`)
+  also queues an `admin_close` action for the bot when a game is being played: All Random records that team's victory (or
+  cancels for "No result"), a cup closes the running game as cancelled and marks it void, and the match is final on the
+  website at once. The bot closes the Discord match without any captain confirmation (the website already checked the
+  admin). After that the match room, ready and result buttons refuse input, because the match is no longer being played.

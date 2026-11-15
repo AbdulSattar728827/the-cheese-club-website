@@ -399,15 +399,20 @@ async def lifespan(app: FastAPI):
             # Tournaments (run by the website; the bot starts each game in Discord)
             for stmt in TOURNAMENT_TABLES:
                 await conn.execute(stmt)
+            # Errors for the admins: saved here, posted by the bot in #website-exception-logs
+            for stmt in ERROR_LOG_TABLES:
+                await conn.execute(stmt)
         await refresh_hidden()
         refresher = asyncio.create_task(_hidden_refresh_loop())
         notifier = asyncio.create_task(_notification_loop())
         tourney = asyncio.create_task(_tournament_loop())
+        error_writer = asyncio.create_task(_error_writer_loop())
     yield
     if pool:
         refresher.cancel()
         notifier.cancel()
         tourney.cancel()
+        error_writer.cancel()
         await pool.close()
     await http_client.aclose()
 
@@ -430,6 +435,274 @@ async def _hidden_refresh_loop():
 
 app = FastAPI(title="The Cheese Club API", version="0.2.0", lifespan=lifespan,
               docs_url=None, redoc_url=None, openapi_url=None)
+
+
+# ---------------------------------------------------------------------------
+# Error reporting for the admins. Anything that fails (a page or API request, a
+# background job, or a script error in a visitor's browser) is saved in
+# website_error_log; the Discord bot posts each one in #website-exception-logs.
+# (The website has no Discord bot token, so it never talks to Discord itself.)
+# Repeats of the same error within 10 minutes only raise a counter on the same
+# message, and a burst of different errors is capped, so the channel can't flood.
+# ---------------------------------------------------------------------------
+import traceback as _traceback
+from urllib.parse import urlsplit as _urlsplit
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.exception_handlers import http_exception_handler as _default_http_handler
+
+ERROR_LOG_TABLES = [
+    """CREATE TABLE IF NOT EXISTS website_error_log (
+        id           SERIAL PRIMARY KEY,
+        ref          TEXT NOT NULL,
+        signature    TEXT NOT NULL,
+        kind         TEXT NOT NULL,
+        title        TEXT NOT NULL,
+        details      TEXT NOT NULL DEFAULT '',
+        method       TEXT,
+        path         TEXT,
+        status       INTEGER,
+        user_label   TEXT,
+        user_agent   TEXT,
+        count        INTEGER NOT NULL DEFAULT 1,
+        first_seen   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        last_seen    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        posted       BOOLEAN NOT NULL DEFAULT FALSE,
+        message_id   TEXT,
+        posted_count INTEGER NOT NULL DEFAULT 0
+    )""",
+    "CREATE INDEX IF NOT EXISTS website_error_log_sig ON website_error_log (signature, first_seen)",
+]
+ERROR_REPEAT_MINUTES = 10        # the same error inside this window is counted, not re-posted
+ERROR_NEW_PER_MINUTE = 20        # more different errors than this in a minute are summarised
+ERROR_KEEP_DAYS = 14
+_error_queue = None
+_error_loop = None
+_SECRET_PATTERNS = [
+    (re.compile(r"postgres(?:ql)?://\S+", re.I), "postgres://***"),
+    (re.compile(r"(?i)\b(authorization|cookie|set-cookie)\b\s*[:=]?\s*(?:bearer\s+|bot\s+|basic\s+)?\S+"), r"\1 ***"),
+    (re.compile(r"(?i)\b(bearer|bot|basic)\s+[A-Za-z0-9._~+/=\-]{8,}"), r"\1 ***"),
+    (re.compile(r"\beyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-.]+"), "***"),                        # JWT-style tokens
+    (re.compile(r"\b[A-Za-z0-9_\-]{23,28}\.[A-Za-z0-9_\-]{6}\.[A-Za-z0-9_\-]{27,}\b"), "***"),  # Discord bot token shape
+    (re.compile(r"(?i)\b(cc_session|cc_state|session|token|secret|password|passwd|client_secret|code|state)=([^\s&;\"']+)"), r"\1=***"),
+    (re.compile(r"\b[A-Za-z0-9_\-]{32,}\b"), "***"),     # long keys and tokens
+]
+FENCE = "`" * 3
+
+
+def _scrub(text, limit: int = 3000) -> str:
+    """Remove anything that looks like a secret, defuse Discord code fences, and keep the END of long text
+    (the end of a traceback is the actual error)."""
+    text = str(text or "")
+    for pattern, repl in _SECRET_PATTERNS:
+        text = pattern.sub(repl, text)
+    text = text.replace(FENCE, "'''")
+    return text if len(text) <= limit else "…" + text[-limit:]
+
+
+def _clean_path(path) -> str:
+    return _scrub(_urlsplit(str(path or "")).path, 150)
+
+
+def _signature(*parts) -> str:
+    return hashlib.sha1("|".join(str(x) for x in parts).encode("utf-8", "ignore")).hexdigest()[:16]
+
+
+def report_error(kind: str, title: str, details: str = "", *, method=None, path=None, status=None,
+                 user=None, user_agent=None, signature=None, ref=None) -> str:
+    """Queue an error for #website-exception-logs. Never raises, never blocks."""
+    ref = ref or secrets.token_hex(3)
+    try:
+        if _error_queue is None or _error_loop is None:
+            return ref
+        item = {"ref": ref, "kind": kind, "title": _scrub(title, 200), "details": _scrub(details, 3000),
+                "method": method, "path": _clean_path(path) if path else None, "status": status,
+                "user": _scrub(user, 80) if user else None, "ua": _scrub(user_agent, 120) if user_agent else None}
+        item["signature"] = signature or _signature(kind, item["title"][:80], item["path"] or "")
+        _error_loop.call_soon_threadsafe(_enqueue_error, item)
+    except Exception:
+        pass
+    return ref
+
+
+def _enqueue_error(item):
+    if _error_queue is not None and _error_queue.qsize() < 200:
+        _error_queue.put_nowait(item)
+
+
+async def _store_error(item: dict, allow_new: bool = True):
+    """True = new row, False = counted on an existing row, None = suppressed (too many new errors)."""
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT id FROM website_error_log WHERE signature=$1 AND first_seen > NOW() - make_interval(mins => $2) ORDER BY id DESC LIMIT 1",
+            item["signature"], ERROR_REPEAT_MINUTES)
+        if row:
+            await conn.execute("UPDATE website_error_log SET count=count+1, last_seen=NOW() WHERE id=$1", row["id"])
+            return False
+        if not allow_new:
+            return None
+        await conn.execute(
+            """INSERT INTO website_error_log (ref, signature, kind, title, details, method, path, status, user_label, user_agent)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)""",
+            item["ref"], item["signature"], item["kind"], item["title"], item["details"], item["method"], item["path"],
+            item["status"], item["user"], item["ua"])
+        return True
+
+
+async def _prune_errors():
+    async with pool.acquire() as conn:
+        await conn.execute("DELETE FROM website_error_log WHERE first_seen < NOW() - make_interval(days => $1)", ERROR_KEEP_DAYS)
+
+
+async def _error_writer_loop():
+    global _error_queue, _error_loop
+    _error_queue = asyncio.Queue()
+    _error_loop = asyncio.get_running_loop()
+    recent, suppressed, last_prune = [], 0, 0.0
+    while True:
+        try:
+            item = await asyncio.wait_for(_error_queue.get(), timeout=30)
+        except asyncio.TimeoutError:
+            item = None
+        try:
+            now = time.monotonic()
+            recent = [t for t in recent if now - t < 60]
+            if suppressed and len(recent) < ERROR_NEW_PER_MINUTE // 2:
+                await _store_error({"ref": secrets.token_hex(3), "signature": "flood", "kind": "server",
+                                    "title": f"Error burst: {suppressed} more different errors were not shown",
+                                    "details": "Too many different errors in one minute. Check the Railway logs for the full list.",
+                                    "method": None, "path": None, "status": None, "user": None, "ua": None})
+                suppressed = 0
+            if item is not None:
+                result = await _store_error(item, allow_new=len(recent) < ERROR_NEW_PER_MINUTE)
+                if result is None:
+                    suppressed += 1
+                elif result:
+                    recent.append(now)
+            if now - last_prune > 3600:
+                last_prune = now
+                await _prune_errors()
+        except asyncio.CancelledError:
+            raise
+        except Exception as ex:          # printed, never logged: logging an error here would loop
+            print(f"[error-writer] {type(ex).__name__}: {ex}", flush=True)
+            await asyncio.sleep(5)
+
+
+class _SiteErrorHandler(logging.Handler):
+    """Everything the site logs at ERROR (log.exception and friends) goes to the admins' channel."""
+    def __init__(self):
+        super().__init__(level=logging.ERROR)
+
+    def emit(self, record):
+        try:
+            if record.name == "uvicorn.access" or record.name == "cheese_club.request":
+                return                  # request errors are reported (with more detail) by _catch_unhandled
+            if record.name == "uvicorn.error" and "Exception in ASGI application" in record.getMessage():
+                return                  # the request error handler reports this one with more detail
+            exc = ""
+            etype = ""
+            if record.exc_info and record.exc_info[0]:
+                etype = record.exc_info[0].__name__
+                exc = "".join(_traceback.format_exception(*record.exc_info))
+            message = record.getMessage()
+            where = f"{os.path.basename(record.pathname)}:{record.lineno}"
+            report_error("background", message[:200] + (f" ({etype})" if etype else ""),
+                         f"{record.name} at {where}\n{message}\n{exc}".strip(),
+                         signature=_signature("log", record.name, where, etype))
+        except Exception:
+            pass
+
+
+logging.getLogger().addHandler(_SiteErrorHandler())
+
+
+def _report_request_error(request: Request, exc: Exception, status: int) -> str:
+    try:
+        user = current_user(request)
+        who = f"{user.get('name') or 'Member'} (logged in)" if user else "visitor (not logged in)"
+    except Exception:
+        who = None
+    frames = _traceback.extract_tb(exc.__traceback__)
+    where = f"{os.path.basename(frames[-1].filename)}:{frames[-1].lineno}" if frames else ""
+    route = request.scope.get("route")
+    label = getattr(route, "path", None) or re.sub(r"\d+", "{n}", request.url.path)
+    return report_error(
+        "server", f"{type(exc).__name__}: {str(exc)[:150]}",
+        "".join(_traceback.format_exception(type(exc), exc, exc.__traceback__)),
+        method=request.method, path=request.url.path, status=status, user=who,
+        user_agent=request.headers.get("user-agent"), signature=_signature("req", type(exc).__name__, where, label))
+
+
+@app.middleware("http")
+async def _catch_unhandled(request: Request, call_next):
+    """Turn any unhandled error into a clean 500 for the visitor and a report for the admins.
+    (A middleware, not an exception handler: Starlette re-raises after an Exception handler,
+    which makes uvicorn drop the connection.) The traceback still goes to the Railway log."""
+    try:
+        return await call_next(request)
+    except Exception as exc:
+        ref = _report_request_error(request, exc, 500)
+        logging.getLogger("cheese_club.request").error(
+            "Unhandled error on %s %s (reference %s)", request.method, request.url.path, ref, exc_info=exc)
+        return JSONResponse({"detail": f"Something went wrong on our side. The admins have been told (reference {ref})."},
+                            status_code=500)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def _http_exception(request: Request, exc: StarletteHTTPException):
+    if exc.status_code >= 500:
+        _report_request_error(request, exc, exc.status_code)
+    return await _default_http_handler(request, exc)
+
+
+_client_error_hits: dict = {}
+_client_error_global: list = []
+
+
+@app.post("/api/client-error", include_in_schema=False)
+async def api_client_error(request: Request):
+    """Script errors from visitors' browsers (sent by common.js). Same-site only, size-limited and rate-limited."""
+    require_same_site(request)
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "?")
+    now = time.monotonic()
+    mine = [t for t in _client_error_hits.get(ip, []) if now - t < 60]
+    everyone = [t for t in _client_error_global if now - t < 60]
+    if len(mine) >= 6 or len(everyone) >= 30:
+        return JSONResponse({"ok": False}, status_code=429)
+    mine.append(now)
+    everyone.append(now)
+    _client_error_hits[ip] = mine
+    _client_error_global[:] = everyone
+    if len(_client_error_hits) > 2000:
+        _client_error_hits.clear()
+    raw = await request.body()
+    if len(raw) > 6000:
+        return JSONResponse({"ok": False}, status_code=413)
+    try:
+        b = json.loads(raw)
+        message = str(b.get("message") or "").strip()[:300]
+        source = _clean_path(b.get("source") or "")
+        line = int(b.get("line") or 0)
+        col = int(b.get("col") or 0)
+        stack = str(b.get("stack") or "")[:1500]
+        page = _clean_path(b.get("page") or "")
+    except (ValueError, TypeError, AttributeError):
+        return JSONResponse({"ok": False}, status_code=400)
+    if not message:
+        return JSONResponse({"ok": False}, status_code=400)
+    user = current_user(request)
+    who = f"{user.get('name') or 'Member'} (logged in)" if user else "visitor (not logged in)"
+    report_error("browser", message, f"{message}\nat {source or '?'}:{line}:{col}\n{stack}".strip(),
+                 path=page, user=who, user_agent=request.headers.get("user-agent"),
+                 signature=_signature("browser", message[:120], source, line))
+    return {"ok": True}
+
+
+@app.get("/api/admin/test-error", include_in_schema=False)
+async def api_admin_test_error(request: Request):
+    """Admins only: raises a harmless error so you can check it arrives in #website-exception-logs."""
+    require_admin(request)
+    raise RuntimeError("Test error requested by an admin. Nothing is broken.")
 
 
 async def fetch(query: str, *args):

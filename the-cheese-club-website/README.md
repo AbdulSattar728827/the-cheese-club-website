@@ -247,3 +247,22 @@ uvicorn main:app --reload
 
 `scope=community` raises the bar for inclusion: 5+ games for the AoE leaderboard and 100+ hours
 for voice, versus 1 game and 10 hours for `public`.
+
+## Error reports in Discord (#website-exception-logs)
+Anything that fails is saved in `website_error_log`, and the Discord bot posts it in
+#website-exception-logs (channel ID in the bot's `WEBSITE_ERRORS_CHANNEL_ID`, default set in
+`website_errors.py`; it falls back to a channel named `website-exception-logs`). The website itself has
+no Discord bot token and never talks to Discord.
+- **Server errors:** any unhandled error in a page or API request (shown to the visitor as a clean 500
+  with a reference code) and any deliberate 5xx. 4xx answers (not found, not allowed, bad input) are not
+  failures and are not reported.
+- **Background errors:** everything the site logs at ERROR (`log.exception(...)`): the tournament job,
+  notifications, login, rating history, and so on.
+- **Browser errors:** script errors on a page, sent by `common.js` to `/api/client-error` (same-site only,
+  rate-limited, at most 3 per page load; browser extensions, other sites' scripts and offline errors are
+  ignored).
+- Repeats of the same error within 10 minutes only raise a counter (the message is edited to show x5),
+  a burst of different errors is capped at 20 a minute and summarised, secrets (database URLs, tokens,
+  cookies) are removed, and rows older than 14 days are deleted.
+- `/api/admin/test-error` (admins only, open it in the browser while logged in) raises a harmless error
+  so you can check the whole chain works.

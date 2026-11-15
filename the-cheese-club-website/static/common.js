@@ -1,3 +1,24 @@
+/* Script errors on a page are sent to the admins (#website-exception-logs) so they can be fixed.
+   Only errors from this site's own scripts are sent, at most 3 per page load, and never the same one twice. */
+(function(){
+  let sent=0;const seen=new Set();
+  const IGNORE=/^Script error\.?$|ResizeObserver loop|Non-Error promise rejection|Failed to fetch|NetworkError|Load failed|AbortError|The operation was aborted/i;
+  function report(message,source,line,col,stack){
+    try{
+      message=String(message||'').slice(0,300);
+      if(!message||sent>=3||IGNORE.test(message))return;
+      source=String(source||'');stack=String(stack||'');
+      if(/extension:\/\//i.test(source+stack))return;
+      if(source&&source.indexOf(location.origin)!==0)return;
+      const key=message+'|'+source+'|'+line;if(seen.has(key))return;seen.add(key);sent++;
+      fetch('/api/client-error',{method:'POST',credentials:'same-origin',keepalive:true,headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({message,source:source.replace(location.origin,''),line:line||0,col:col||0,stack:stack.slice(0,1500),page:location.pathname})}).catch(()=>{});
+    }catch(e){}
+  }
+  window.addEventListener('error',e=>report(e.message,e.filename,e.lineno,e.colno,e.error&&e.error.stack));
+  window.addEventListener('unhandledrejection',e=>{const r=e.reason;report('Unhandled promise rejection: '+((r&&r.message)||r),'',0,0,r&&r.stack)});
+})();
+
 /* The Cheese Club — shared helpers loaded by every page.
    Keep match, civilization and navigation rendering here so every page shows
    the same thing. Page scripts still define their own small helpers (esc, fmt,

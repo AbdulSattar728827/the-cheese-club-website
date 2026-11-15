@@ -284,3 +284,19 @@ standings). Channel IDs are bot variables `TOURNAMENTS_CHANNEL_ID`, `TOURNAMENT_
 `TOURNAMENT_LEADERBOARD_CHANNEL_ID` (they fall back to the channel names). `/api/tournaments/rankings`
 (all-time titles, runner-ups, thirds, played and game record, hidden players left out) is used for the
 rankings message. Deleting a tournament here removes its Discord posts too.
+
+## All Random: locked roster, scheduled rounds, replacements and stand-ins
+- **Lock roster** (admin, before the tournament starts): the registered players are placed and the teams for
+  EVERY round are created at once (status `scheduled`), with each round's map and time, and shown to everyone.
+  Each player gets one notification with their whole schedule. There is no check-in for a locked roster.
+  Sign-ups after the lock become candidates (the waiting list); locked players can't withdraw.
+- **Rounds open on their own:** with a time per round (set when creating the tournament, "Rounds on different
+  dates and times") a round opens at its time and never earlier; without times it opens when the previous round
+  is finished. Opening flips its matches to `ready` and the bot DMs the players. Starting early opens round 1 now.
+  Unlocked tournaments keep making each round just in time, but a round with a scheduled time still waits for it.
+- **Replace** (admin): a candidate takes a player's place in every round not yet played (including their sit-out);
+  the replaced player keeps points already earned. **Stand-in** (admin): someone plays in an absent player's slot for
+  one round (a candidate, a player sitting out that round, or any club member); the absent player scores nothing
+  for it. **Reshuffle** / **Unlock** are possible until the first round opens (reshuffling clears stand-ins).
+- A sit-out only counts in the standings once its round has opened.
+- Tables/columns: `tournaments.roster_locked_at`, `tournaments.round_times`, `tournament_standins`.

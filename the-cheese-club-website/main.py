@@ -73,6 +73,8 @@ TOURNAMENT_TABLES = [
     "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS map_pool TEXT[] NOT NULL DEFAULT '{}'",
     "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS current_round INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS third_id TEXT",
+    "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS roster_locked_at TIMESTAMPTZ",
+    "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS round_times TIMESTAMPTZ[] NOT NULL DEFAULT '{}'",
     """CREATE TABLE IF NOT EXISTS tournament_team_matches (
         id SERIAL PRIMARY KEY,
         tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
@@ -126,6 +128,12 @@ TOURNAMENT_TABLES = [
     "ALTER TABLE tournament_ffa_matches ADD COLUMN IF NOT EXISTS civ_announced TEXT[] NOT NULL DEFAULT '{}'",
     "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS ffa_unique_civs BOOLEAN NOT NULL DEFAULT FALSE",
     "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS ffa_civ_bans BOOLEAN NOT NULL DEFAULT FALSE",
+    """CREATE TABLE IF NOT EXISTS tournament_standins (
+        id SERIAL PRIMARY KEY,
+        tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+        round INTEGER NOT NULL, match_id INTEGER, absent_user TEXT NOT NULL, standin_user TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
     """CREATE TABLE IF NOT EXISTS tournament_admin_log (
         id SERIAL PRIMARY KEY, tournament_id INTEGER, admin_id TEXT NOT NULL, action TEXT NOT NULL,
         detail JSONB, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -2601,6 +2609,17 @@ async def _start_tournament(t: dict) -> str:
     tid = t["id"]
     if t.get("format") == "teamcup":
         return await _start_team_cup(t)
+    if t.get("format") == "random3v3" and t.get("roster_locked_at"):
+        # the roster and every round's teams already exist: just go live and open the rounds that are due
+        await fetch("UPDATE tournaments SET status='live', started_at=NOW(), current_round=0 WHERE id=$1", tid)
+        t = {**t, "status": "live", "current_round": 0}
+        times = list(t.get("round_times") or [])
+        if times and times[0] and times[0] > datetime.now(timezone.utc):
+            # started by an admin ahead of the schedule: round 1 opens now (the other rounds keep their times)
+            times[0] = datetime.now(timezone.utc)
+            await fetch("UPDATE tournaments SET round_times=$2 WHERE id=$1", tid, times)
+            t["round_times"] = times
+        return "Started with the locked roster. " + await _advance_locked(t)
     rows = await fetch("""
         SELECT user_id, status, checked_in_at FROM tournament_players WHERE tournament_id=$1
         ORDER BY (status='registered') DESC, signed_up_at
@@ -2714,7 +2733,11 @@ async def tournament_tick():
     async with _tournament_lock:
         now = datetime.now(timezone.utc)
         for t in [dict(r) for r in await fetch("SELECT * FROM tournaments WHERE status IN ('signup','checkin','live')")]:
-            if t["status"] == "signup" and now >= t["starts_at"] - timedelta(minutes=t["checkin_minutes"]):
+            locked = bool(t.get("roster_locked_at"))
+            if locked and t["status"] in ("signup", "checkin") and now >= t["starts_at"]:
+                await _start_tournament(t)
+                continue
+            if t["status"] == "signup" and not locked and now >= t["starts_at"] - timedelta(minutes=t["checkin_minutes"]):
                 await fetch("UPDATE tournaments SET status='checkin' WHERE id=$1", t["id"])
                 t["status"] = "checkin"
             if t["status"] == "checkin" and not t["checkin_notified"]:
@@ -2852,7 +2875,8 @@ async def _log_admin(tid, admin_id, action, detail):
                 tid, admin_id, action, json.dumps(detail, default=str))
 
 
-async def _generate_round(t: dict, r: int) -> str:
+async def _generate_round(t: dict, r: int, pregen: bool = False) -> str:
+    """Make round r's teams. pregen = created ahead of time (status 'scheduled', nobody is told yet)."""
     import random as _random
     rng = _random.Random()
     tid = t["id"]
@@ -2861,6 +2885,8 @@ async def _generate_round(t: dict, r: int) -> str:
     active = list(rating)
     size = rt_size(t)
     if len(active) < 2 * size:
+        if pregen:
+            raise HTTPException(status_code=400, detail="Not enough players for another round.")
         await _finish_random(t, note="Not enough players left for another round.")
         return "Not enough players left, so the tournament was finished."
     mates, opps = {}, {}
@@ -2883,25 +2909,19 @@ async def _generate_round(t: dict, r: int) -> str:
     maps = list(t.get("round_maps") or [])
     chosen = maps[r - 1] if len(maps) >= r and maps[r - 1] and maps[r - 1] != "random" else None
     map_name = chosen or rng.choice(list(t.get("map_pool") or []) or DEFAULT_MAPS)
-    names = await people(active)
     for n, i in enumerate(range(0, len(teams), 2), 1):
         a = sorted(teams[i], key=lambda u: -rating[u])          # highest rating first = captain
         b = sorted(teams[i + 1], key=lambda u: -rating[u])
         await fetch("""
-            INSERT INTO tournament_team_matches (tournament_id, round, match_no, team1, team2, team1_avg, team2_avg, map)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-        """, tid, r, n, a, b, round(sum(rating[u] for u in a) / size), round(sum(rating[u] for u in b) / size), map_name)
-        for side, other in ((a, b), (b, a)):
-            for uid in side:
-                mates_txt = " and ".join(names[u]["username"] for u in side if u != uid)
-                await _tnotify(uid, "tournament", f"🎲 Round {r}: you're with {mates_txt}",
-                               f"vs {', '.join(names[u]['username'] for u in other)} · Map: {map_name}. Press I'm ready when you're in voice.",
-                               tid, f"r{r}-team")
+            INSERT INTO tournament_team_matches (tournament_id, round, match_no, team1, team2, team1_avg, team2_avg, map, status)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+        """, tid, r, n, a, b, round(sum(rating[u] for u in a) / size), round(sum(rating[u] for u in b) / size), map_name,
+            "scheduled" if pregen else "ready")
     for uid in byes:
         await fetch("INSERT INTO tournament_round_byes (tournament_id, round, user_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING", tid, r, uid)
-        await _tnotify(uid, "tournament", f"🪑 You sit out round {r}", f"You get {float(t['points_bye']):g} points and may be called in as a substitute.",
-                       tid, f"r{r}-bye")
-    await fetch("UPDATE tournaments SET current_round=$2 WHERE id=$1", tid, r)
+    if not pregen:
+        await _notify_round(t, r)
+        await fetch("UPDATE tournaments SET current_round=$2 WHERE id=$1", tid, r)
     return f"Round {r}: {len(teams) // 2} matches, {len(byes)} sitting out."
 
 
@@ -2922,7 +2942,8 @@ async def random_standings(t: dict) -> list:
         for uid in lose:
             if uid in st:
                 st[uid]["played"] += 1; st[uid]["losses"] += 1; st[uid]["form"][m["round"]] = "l"
-    for b in await fetch("SELECT round, user_id FROM tournament_round_byes WHERE tournament_id=$1 AND substituted_into IS NULL", tid):
+    opened = int(t.get("current_round") or 0)       # a sit-out only counts once its round has opened
+    for b in await fetch("SELECT round, user_id FROM tournament_round_byes WHERE tournament_id=$1 AND substituted_into IS NULL AND round <= $2", tid, opened):
         if b["user_id"] in st:
             st[b["user_id"]]["byes"] += 1; st[b["user_id"]]["form"][b["round"]] = "b"
     for s in st.values():
@@ -2962,6 +2983,252 @@ async def _finish_random(t: dict, note: str = None):
                            f"{r['points']:g} points from {r['wins']} wins. Thanks for playing!", t["id"], f"t{t['id']}-place")
 
 
+# ---------------------------------------------------------------------------
+# All Random with a locked roster. An admin locks the players, the teams for
+# EVERY round are created and shown at once, each round opens at its scheduled
+# time (or when the one before it finishes, if no times were set), and the
+# admin can replace a player for all their remaining rounds or put in a
+# stand-in for a single round.
+# ---------------------------------------------------------------------------
+def _round_due(t: dict, r: int) -> bool:
+    """Has round r's scheduled time come? (Rounds without a time are always due.)"""
+    times = t.get("round_times") or []
+    if r - 1 >= len(times) or times[r - 1] is None:
+        return True
+    return datetime.now(timezone.utc) >= times[r - 1]
+
+
+async def _round_complete(tid: int, r: int) -> bool:
+    left = await fetchval("SELECT COUNT(*) FROM tournament_team_matches WHERE tournament_id=$1 AND round=$2 AND status NOT IN ('done','void')",
+                          tid, r, default=1)
+    total = await fetchval("SELECT COUNT(*) FROM tournament_team_matches WHERE tournament_id=$1 AND round=$2", tid, r, default=0)
+    return bool(total) and not left
+
+
+async def _notify_round(t: dict, r: int):
+    """Tell everyone in round r their teammate, opponents and map (when the round opens)."""
+    tid = t["id"]
+    ms = [dict(x) for x in await fetch("SELECT * FROM tournament_team_matches WHERE tournament_id=$1 AND round=$2 ORDER BY match_no", tid, r)]
+    byes = [x["user_id"] for x in await fetch(
+        "SELECT user_id FROM tournament_round_byes WHERE tournament_id=$1 AND round=$2 AND substituted_into IS NULL", tid, r)]
+    names = await people(list({u for m in ms for u in m["team1"] + m["team2"]} | set(byes)))
+    for m in ms:
+        for side, other in ((m["team1"], m["team2"]), (m["team2"], m["team1"])):
+            for uid in side:
+                mates_txt = " and ".join(names[u]["username"] for u in side if u != uid)
+                await _tnotify(uid, "tournament", f"🎲 Round {r}: you're with {mates_txt}",
+                               f"vs {', '.join(names[u]['username'] for u in other)} · Map: {m['map']}. Press I'm ready when you're in voice.",
+                               tid, f"r{r}-team")
+    for uid in byes:
+        await _tnotify(uid, "tournament", f"🪑 You sit out round {r}",
+                       f"You get {float(t['points_bye']):g} points and may be called in as a substitute.", tid, f"r{r}-bye")
+
+
+async def _open_round(t: dict, r: int):
+    """Round r goes live: its matches become 'ready' (the bot DMs the players) and everyone is told."""
+    tid = t["id"]
+    await fetch("""UPDATE tournament_team_matches SET status='ready', announced=FALSE, ready_ids='{}', updated_at=NOW()
+                   WHERE tournament_id=$1 AND round=$2 AND status='scheduled'""", tid, r)
+    await fetch("UPDATE tournaments SET current_round=GREATEST(current_round, $2) WHERE id=$1", tid, r)
+    await _notify_round(t, r)
+
+
+async def _advance_locked(t: dict) -> str:
+    """Open every round that is due, and finish the tournament after the last one."""
+    tid, rounds = t["id"], int(t["rounds"])
+    cur = int(await fetchval("SELECT current_round FROM tournaments WHERE id=$1", tid, default=0) or 0)
+    scheduled = bool(t.get("round_times"))
+    opened = []
+    while cur < rounds:
+        nxt = cur + 1
+        due = _round_due(t, nxt) if scheduled else (nxt == 1 or await _round_complete(tid, cur))
+        if not due:
+            break
+        await _open_round(t, nxt)
+        cur = nxt
+        opened.append(nxt)
+    if cur >= rounds:
+        unfinished = await fetchval("SELECT COUNT(*) FROM tournament_team_matches WHERE tournament_id=$1 AND status NOT IN ('done','void')",
+                                    tid, default=1)
+        if not unfinished:
+            await _finish_random({**t, "current_round": cur})
+            return "The tournament is finished."
+    return f"Round {', '.join(map(str, opened))} is open." if opened else ""
+
+
+async def _notify_schedule(t: dict, title: str):
+    """One notification per player with their whole schedule: teammate, opponents, map and when."""
+    tid = t["id"]
+    ms = [dict(x) for x in await fetch("SELECT * FROM tournament_team_matches WHERE tournament_id=$1 ORDER BY round, match_no", tid)]
+    byes = [dict(x) for x in await fetch("SELECT round, user_id FROM tournament_round_byes WHERE tournament_id=$1 AND substituted_into IS NULL", tid)]
+    uids = {u for m in ms for u in m["team1"] + m["team2"]} | {b["user_id"] for b in byes}
+    names = await people(list(uids))
+    times = t.get("round_times") or []
+    when = lambda r: f" {times[r - 1]:%a %d %b %H:%M} UTC" if r - 1 < len(times) and times[r - 1] else ""
+    stamp = int(time.time())
+    for uid in uids:
+        lines = []
+        for r in range(1, int(t["rounds"]) + 1):
+            m = next((x for x in ms if x["round"] == r and uid in x["team1"] + x["team2"]), None)
+            if m:
+                mine, other = (m["team1"], m["team2"]) if uid in m["team1"] else (m["team2"], m["team1"])
+                lines.append(f"R{r}{when(r)}: with {' & '.join(names[u]['username'] for u in mine if u != uid)} vs "
+                             f"{' & '.join(names[u]['username'] for u in other)} ({m['map']})")
+            elif any(b["round"] == r and b["user_id"] == uid for b in byes):
+                lines.append(f"R{r}{when(r)}: sitting out")
+        await _tnotify(uid, "tournament", f"{title}: {t['name']}", " · ".join(lines)[:900], tid, f"t{tid}-sched-{stamp}")
+
+
+async def _lock_roster(t: dict, reshuffle: bool = False) -> str:
+    """Lock the players and create the teams for every round (or, with reshuffle, make them again)."""
+    tid, size = t["id"], rt_size(t)
+    if not reshuffle:
+        rows = await fetch("SELECT user_id FROM tournament_players WHERE tournament_id=$1 AND status='registered' ORDER BY signed_up_at", tid)
+        players = [r["user_id"] for r in rows][: t["max_players"]]
+        if len(players) < 2 * size:
+            raise HTTPException(status_code=400, detail=f"Locking needs at least {2 * size} players; {len(players)} have signed up so far.")
+        ratings = {uid: await _player_rating(uid) for uid in players}
+        order = {uid: i for i, uid in enumerate(players)}
+        for i, uid in enumerate(sorted(players, key=lambda u: (-ratings[u], order[u])), 1):
+            await fetch("""UPDATE tournament_players SET status='playing', seed=$3, rating=$4, checked_in_at=COALESCE(checked_in_at, NOW())
+                           WHERE tournament_id=$1 AND user_id=$2""", tid, uid, i, ratings[uid])
+        await fetch("UPDATE tournaments SET roster_locked_at=NOW(), status='signup', checkin_notified=TRUE WHERE id=$1", tid)
+        t = {**t, "roster_locked_at": datetime.now(timezone.utc), "status": "signup"}
+    else:
+        for table in ("tournament_team_matches", "tournament_round_byes", "tournament_standins"):
+            await fetch(f"DELETE FROM {table} WHERE tournament_id=$1", tid)
+    try:
+        for r in range(1, int(t["rounds"]) + 1):
+            await _generate_round(t, r, pregen=True)
+    except Exception:
+        if not reshuffle:                    # nothing is half-locked
+            await _unlock_roster(t)
+        raise
+    await _notify_schedule(t, "🔀 Teams were reshuffled" if reshuffle else "🔒 Teams are set")
+    n_matches = await fetchval("SELECT COUNT(*) FROM tournament_team_matches WHERE tournament_id=$1 AND round=1", tid, default=0)
+    return (f"Teams reshuffled for all {t['rounds']} rounds." if reshuffle else
+            f"Roster locked with {len(players)} players. Teams for all {t['rounds']} rounds are created ({n_matches} matches per round).")
+
+
+async def _unlock_roster(t: dict) -> str:
+    tid = t["id"]
+    for table in ("tournament_team_matches", "tournament_round_byes", "tournament_standins"):
+        await fetch(f"DELETE FROM {table} WHERE tournament_id=$1", tid)
+    await fetch("UPDATE tournament_players SET status='registered' WHERE tournament_id=$1 AND status='playing'", tid)
+    await fetch("UPDATE tournaments SET roster_locked_at=NULL, current_round=0 WHERE id=$1", tid)
+    return "Roster unlocked. The teams were removed and sign-ups work as before."
+
+
+async def _ordered_teams(tid: int, team1: list, team2: list):
+    """Highest-rated player first (the captain) in each team, plus the teams' average ratings."""
+    users = list(team1) + list(team2)
+    rows = await fetch("SELECT user_id, rating FROM tournament_players WHERE tournament_id=$1 AND user_id = ANY($2::text[])", tid, users)
+    rate = {r["user_id"]: int(r["rating"]) for r in rows if r["rating"]}
+    for u in users:
+        if u not in rate:
+            rate[u] = await _player_rating(u)
+    t1, t2 = sorted(team1, key=lambda u: -rate[u]), sorted(team2, key=lambda u: -rate[u])
+    return t1, t2, round(sum(rate[u] for u in t1) / len(t1)), round(sum(rate[u] for u in t2) / len(t2))
+
+
+async def _tell_affected(t: dict, ids: set, skip: set, title: str, body: str):
+    for uid in ids - skip:
+        await _tnotify(uid, "tournament", title, body, t["id"], f"t{t['id']}-chg-{uid}-{int(time.time())}")
+
+
+async def _replace_player(t: dict, out_u: str, in_u: str) -> str:
+    """A candidate takes a player's place in every round that hasn't been played yet."""
+    tid = t["id"]
+    outp = await fetch("SELECT * FROM tournament_players WHERE tournament_id=$1 AND user_id=$2", tid, out_u)
+    inp = await fetch("SELECT * FROM tournament_players WHERE tournament_id=$1 AND user_id=$2", tid, in_u)
+    if not outp or outp[0]["status"] != "playing":
+        raise HTTPException(status_code=400, detail="Pick a player who is in the roster.")
+    if not inp or inp[0]["status"] != "waitlist":
+        raise HTTPException(status_code=400, detail="The replacement has to be a candidate from the waiting list.")
+    busy = await fetchval("""SELECT COUNT(*) FROM tournament_team_matches WHERE tournament_id=$1 AND status IN ('starting','playing')
+                             AND $2 = ANY(team1 || team2)""", tid, out_u, default=0)
+    if busy:
+        raise HTTPException(status_code=400, detail="That player is in a match being played right now. Wait for it to finish.")
+    rating = await _player_rating(in_u)
+    await fetch("UPDATE tournament_players SET status='removed' WHERE tournament_id=$1 AND user_id=$2", tid, out_u)
+    await fetch("""UPDATE tournament_players SET status='playing', seed=$3, rating=$4, checked_in_at=COALESCE(checked_in_at, NOW())
+                   WHERE tournament_id=$1 AND user_id=$2""", tid, in_u, outp[0]["seed"], rating)
+    affected, rounds_changed = set(), []
+    for m in await fetch("""SELECT * FROM tournament_team_matches WHERE tournament_id=$1 AND status IN ('scheduled','ready')
+                            AND $2 = ANY(team1 || team2)""", tid, out_u):
+        t1, t2, a1, a2 = await _ordered_teams(tid, [in_u if u == out_u else u for u in m["team1"]], [in_u if u == out_u else u for u in m["team2"]])
+        await fetch("""UPDATE tournament_team_matches SET team1=$2, team2=$3, team1_avg=$4, team2_avg=$5,
+                       ready_ids=array_remove(ready_ids, $6), announced=CASE WHEN status='ready' THEN FALSE ELSE announced END,
+                       updated_at=NOW() WHERE id=$1""", m["id"], t1, t2, a1, a2, out_u)
+        affected |= set(t1) | set(t2)
+        rounds_changed.append(m["round"])
+    await fetch("""UPDATE tournament_round_byes SET user_id=$3 WHERE tournament_id=$1 AND user_id=$2 AND round IN (
+                       SELECT DISTINCT round FROM tournament_team_matches WHERE tournament_id=$1 AND status IN ('scheduled','ready'))""",
+                tid, out_u, in_u)
+    names = await people([out_u, in_u])
+    stamp = int(time.time())
+    await _tnotify(in_u, "tournament", f"✅ You're in {t['name']}", "An admin placed you in the roster. Open the tournament page to see your teams and rounds.", tid, f"t{tid}-in-{stamp}")
+    await _tnotify(out_u, "tournament", f"You were replaced in {t['name']}", "An admin gave your place to another player.", tid, f"t{tid}-out-{stamp}")
+    await _tell_affected(t, affected, {in_u, out_u}, f"🔁 A player changed in {t['name']}",
+                         f"{names[in_u]['username']} replaces {names[out_u]['username']} in round {', '.join(map(str, sorted(set(rounds_changed))))}. Check your schedule.")
+    return f"{names[in_u]['username']} replaces {names[out_u]['username']} in {len(rounds_changed)} remaining match{'es' if len(rounds_changed) != 1 else ''}."
+
+
+async def _standin(t: dict, rnd: int, out_u: str, in_u: str) -> str:
+    """Someone plays in an absent player's slot for ONE round. The absent player scores nothing for it."""
+    tid = t["id"]
+    if not out_u or not in_u or out_u == in_u:
+        raise HTTPException(status_code=400, detail="Pick the absent player and who stands in.")
+    rows = await fetch("SELECT * FROM tournament_team_matches WHERE tournament_id=$1 AND round=$2 AND $3 = ANY(team1 || team2)", tid, rnd, out_u)
+    if not rows:
+        raise HTTPException(status_code=400, detail="That player has no match in this round.")
+    m = dict(rows[0])
+    if m["status"] not in ("scheduled", "ready"):
+        raise HTTPException(status_code=400, detail="A stand-in can only be set before the match starts.")
+    if await fetchval("SELECT COUNT(*) FROM tournament_team_matches WHERE tournament_id=$1 AND round=$2 AND $3 = ANY(team1 || team2)", tid, rnd, in_u, default=0):
+        raise HTTPException(status_code=400, detail="That player already plays in this round.")
+    if not await fetchval("SELECT COUNT(*) FROM discord_member_profiles WHERE user_id=$1 AND is_present AND NOT is_bot", in_u, default=0):
+        raise HTTPException(status_code=400, detail="The stand-in has to be a member of the Discord server.")
+    t1, t2, a1, a2 = await _ordered_teams(tid, [in_u if u == out_u else u for u in m["team1"]], [in_u if u == out_u else u for u in m["team2"]])
+    names = await people([out_u, in_u])
+    await fetch("""UPDATE tournament_team_matches SET team1=$2, team2=$3, team1_avg=$4, team2_avg=$5, ready_ids=array_remove(ready_ids, $6),
+                   announced=CASE WHEN status='ready' THEN FALSE ELSE announced END, note=$7, updated_at=NOW() WHERE id=$1""",
+                m["id"], t1, t2, a1, a2, out_u, f"Stand-in: {names[in_u]['username']} for {names[out_u]['username']}")
+    await fetch("""UPDATE tournament_round_byes SET substituted_into=$4 WHERE tournament_id=$1 AND round=$2 AND user_id=$3
+                   AND substituted_into IS NULL""", tid, rnd, in_u, m["id"])
+    await fetch("INSERT INTO tournament_standins (tournament_id, round, match_id, absent_user, standin_user) VALUES ($1,$2,$3,$4,$5)",
+                tid, rnd, m["id"], out_u, in_u)
+    stamp = int(time.time())
+    await _tnotify(in_u, "tournament", f"🔁 You're standing in for round {rnd}", f"You play in {names[out_u]['username']}'s place in {t['name']}.", tid, f"t{tid}-si-{stamp}")
+    await _tnotify(out_u, "tournament", f"A stand-in plays for you in round {rnd}", f"{names[in_u]['username']} takes your slot in {t['name']}. You score nothing for this round.", tid, f"t{tid}-so-{stamp}")
+    await _tell_affected(t, set(t1) | set(t2), {in_u, out_u}, f"🔁 Stand-in in round {rnd}",
+                         f"{names[in_u]['username']} replaces {names[out_u]['username']} in {t['name']}. Check your schedule.")
+    return f"{names[in_u]['username']} stands in for {names[out_u]['username']} in round {rnd}."
+
+
+async def _roster_admin(t: dict, action: str, b: dict) -> dict:
+    """Admin actions for a locked (or lockable) All Random roster."""
+    locked = bool(t.get("roster_locked_at"))
+    if action == "lock":
+        if t["status"] not in ("signup", "checkin") or locked:
+            raise HTTPException(status_code=400, detail="The roster can only be locked once, before the tournament starts.")
+        return {"message": await _lock_roster(t)}
+    if not locked:
+        raise HTTPException(status_code=400, detail="Lock the roster first.")
+    if action in ("unlock", "reshuffle"):
+        if t["status"] not in ("signup", "checkin") or int(t.get("current_round") or 0) > 0:
+            raise HTTPException(status_code=400, detail="The teams can only be changed before the first round opens.")
+        return {"message": await (_unlock_roster(t) if action == "unlock" else _lock_roster(t, reshuffle=True))}
+    if t["status"] not in ("signup", "checkin", "live"):
+        raise HTTPException(status_code=400, detail="This tournament is over.")
+    out_u, in_u = from_public_id(str(b.get("out_user") or "")), from_public_id(str(b.get("in_user") or ""))
+    if action == "replace":
+        return {"message": await _replace_player(t, out_u, in_u)}
+    if action == "standin":
+        return {"message": await _standin(t, int(b.get("round") or 0), out_u, in_u)}
+    raise HTTPException(status_code=400, detail="Unknown action.")
+
+
 async def _tick_random(t: dict):
     tid = t["id"]
     games = await fetch("""
@@ -2990,6 +3257,9 @@ async def _tick_random(t: dict):
         UPDATE tournament_team_matches SET status='ready' WHERE tournament_id=$1 AND status='starting'
           AND updated_at < NOW() - INTERVAL '2 minutes'
     """, tid)
+    if t.get("roster_locked_at"):
+        await _advance_locked(t)
+        return
     r = int(t["current_round"] or 0)
     if r >= 1:
         left = await fetchval("""
@@ -2998,7 +3268,8 @@ async def _tick_random(t: dict):
         total = await fetchval("SELECT COUNT(*) FROM tournament_team_matches WHERE tournament_id=$1 AND round=$2", tid, r, default=0)
         if total and not left:
             if r < int(t["rounds"]):
-                await _generate_round(t, r + 1)
+                if _round_due(t, r + 1):          # rounds with a scheduled time wait for it
+                    await _generate_round(t, r + 1)
             else:
                 await _finish_random(t)
 
@@ -3007,9 +3278,10 @@ def _t_public(t: dict) -> dict:
     keys = ("id", "name", "description", "mode", "format", "max_players", "starts_at", "checkin_minutes",
             "bo_default", "bo_semi", "bo_final", "rules", "prizes", "status", "started_at", "finished_at", "created_at",
             "rounds", "current_round", "round_maps", "map_pool", "team_size", "ffa_points", "min_rating", "max_rating",
-            "ffa_unique_civs", "ffa_civ_bans")
+            "ffa_unique_civs", "ffa_civ_bans", "roster_locked_at", "round_times")
     out = {k: t.get(k) for k in keys}
     out["points_win"] = float(t.get("points_win") or 1)
+    out["locked"] = bool(t.get("roster_locked_at"))
     out["points_bye"] = float(t.get("points_bye") or 0)
     out["checkin_opens_at"] = t["starts_at"] - timedelta(minutes=t["checkin_minutes"])
     return out
@@ -3194,16 +3466,36 @@ async def api_tournament(request: Request, tid: int):
                     "me_ready": uid in m["ready_ids"] if uid else False,
                     "my_team": (1 if uid in m["team1"] else 2) if uid and uid in team_ids else None}
         cur = int(t.get("current_round") or 0)
+        times = t.get("round_times") or []
+        opens = lambda r: times[r - 1] if r - 1 < len(times) else None
+        standins = [dict(r) for r in await fetch("SELECT * FROM tournament_standins WHERE tournament_id=$1 ORDER BY id", tid)]
+        names.update(await people(list({x["absent_user"] for x in standins} | {x["standin_user"] for x in standins})))
         rounds = []
-        for r in range(1, cur + 1):
+        for r in range(1, int(t.get("rounds") or 0) + 1):
             rm = [tm_out(m) for m in tms if m["round"] == r]
-            rounds.append({"round": r, "map": rm[0]["map"] if rm else None, "matches": rm,
+            if not rm:
+                continue                      # a tournament without a locked roster only has the rounds made so far
+            for o in rm:
+                o["standins"] = [{"out": pub(x["absent_user"]), "in": pub(x["standin_user"])} for x in standins if x["match_id"] == o["id"]]
+            state = ("done" if all(o["status"] in ("done", "void") for o in rm)
+                     else "scheduled" if all(o["status"] == "scheduled" for o in rm) else "open")
+            rounds.append({"round": r, "map": rm[0]["map"], "matches": rm, "state": state, "opens_at": opens(r),
                            "byes": [{**(pub(b["user_id"]) or {}), "substituted_into": b["substituted_into"]} for b in byes if b["round"] == r]})
-        mine = next((tm_out(m) for m in tms if m["round"] == cur and uid and uid in m["team1"] + m["team2"]
-                     and m["status"] not in ("done", "void")), None)
+        mine = next((tm_out(m) for m in tms if uid and uid in m["team1"] + m["team2"] and m["status"] in ("ready", "starting", "playing")), None)
         my_bye = bool(uid and any(b["round"] == cur and b["user_id"] == uid and not b["substituted_into"] for b in byes))
+        my_schedule = []
+        if uid:
+            for r in range(1, int(t.get("rounds") or 0) + 1):
+                mm = next((m for m in tms if m["round"] == r and uid in m["team1"] + m["team2"]), None)
+                if mm:
+                    mine_t, other_t = (mm["team1"], mm["team2"]) if uid in mm["team1"] else (mm["team2"], mm["team1"])
+                    won = ((uid in mm["team1"]) == (mm["winner_team"] == 1)) if mm["status"] == "done" and mm["winner_team"] in (1, 2) else None
+                    my_schedule.append({"round": r, "opens_at": opens(r), "map": mm["map"], "status": mm["status"], "match_no": mm["match_no"],
+                                        "with": [pub(u) for u in mine_t if u != uid], "against": [pub(u) for u in other_t], "won": won})
+                elif any(b["round"] == r and b["user_id"] == uid and not b["substituted_into"] for b in byes):
+                    my_schedule.append({"round": r, "opens_at": opens(r), "bye": True})
         random_data = {
-            "rounds": rounds, "my_match": mine, "my_bye": my_bye,
+            "rounds": rounds, "my_match": mine, "my_bye": my_bye, "my_schedule": my_schedule,
             "standings": [{**(pub(s["user_id"]) or {}), **{k: s[k] for k in ("rank", "points", "played", "wins", "losses",
                           "byes", "win_rate", "form", "opp_points", "status")}} for s in standings],
             "third": pe(t.get("third_id")) or pub(t.get("third_id")),
@@ -3261,6 +3553,17 @@ async def api_create_tournament(request: Request):
     rounds = num("rounds", 1, 10, 5)
     round_maps = [m if m in DEFAULT_MAPS else "random" for m in (b.get("round_maps") or [])][:rounds]
     pool = [m for m in (b.get("map_pool") or []) if m in DEFAULT_MAPS] or list(DEFAULT_MAPS)
+    round_times = []
+    if fmt == "random3v3" and b.get("round_times"):
+        try:
+            round_times = [datetime.fromisoformat(str(x).replace("Z", "+00:00")) for x in b["round_times"]][:rounds]
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="One of the round times isn't a valid date.")
+        if len(round_times) != rounds:
+            raise HTTPException(status_code=400, detail=f"Give a date and time for each of the {rounds} rounds.")
+        round_times[0] = starts                          # round 1 starts when the tournament does
+        if any(round_times[i] <= round_times[i - 1] for i in range(1, len(round_times))):
+            raise HTTPException(status_code=400, detail="Each round has to start after the one before it.")
     tid = await fetchval("""
         INSERT INTO tournaments (guild_id, name, description, max_players, starts_at, checkin_minutes,
                                  bo_default, bo_semi, bo_final, rules, prizes, created_by)
@@ -3273,6 +3576,8 @@ async def api_create_tournament(request: Request):
     """, tid, fmt, {"random3v3": "3v3", "ffa": "FFA"}.get(fmt, f"{num('team_size', 2, 4, 2)}v{num('team_size', 2, 4, 2)}" if fmt == "teamcup" else "1v1"),
         num("rounds", 1, 5, 1) if fmt == "ffa" else rounds, pts("points_win", 0.5, 5, 1.0),
         pts("points_bye", 0, 2, 0.5), round_maps, pool)
+    if round_times:
+        await fetch("UPDATE tournaments SET round_times=$2 WHERE id=$1", tid, round_times)
     if fmt in ("teamcup", "random3v3"):
         size = num("team_size", 2, 4, 3 if fmt == "random3v3" else 2)
         await fetch("UPDATE tournaments SET team_size=$2, mode=$3 WHERE id=$1", tid, size, f"{size}v{size}")
@@ -3318,7 +3623,8 @@ async def api_tournament_signup(request: Request, tid: int):
         if problem:
             raise HTTPException(status_code=400, detail=problem)
         taken = await fetchval("SELECT COUNT(*) FROM tournament_players WHERE tournament_id=$1 AND status='registered'", tid, default=0)
-        status = "registered" if taken < t["max_players"] else "waitlist"
+        # once an admin has locked the roster, new sign-ups are candidates (the waiting list)
+        status = "registered" if taken < t["max_players"] and not t.get("roster_locked_at") else "waitlist"
         await fetch("""
             INSERT INTO tournament_players (tournament_id, user_id, status) VALUES ($1,$2,$3)
             ON CONFLICT (tournament_id, user_id) DO UPDATE SET status=$3, signed_up_at=NOW(), checked_in_at=NULL
@@ -3354,11 +3660,14 @@ async def api_tournament_withdraw(request: Request, tid: int):
             await _tnotify(tm["captain_id"], "tournament", f"{me} left {tm['name']}", "Invite someone else on the tournament page.", tid, f"team{tm['id']}-{uid}-left")
             await _promote_waitlist_team(t)
             return {"ok": True}
+        if t.get("roster_locked_at") and await fetchval(
+                "SELECT COUNT(*) FROM tournament_players WHERE tournament_id=$1 AND user_id=$2 AND status='playing'", tid, user["uid"], default=0):
+            raise HTTPException(status_code=400, detail="The roster is locked. Ask an admin to replace you if you can't play.")
         was = await fetchval("""
             UPDATE tournament_players SET status='withdrawn' WHERE tournament_id=$1 AND user_id=$2
               AND status IN ('registered','waitlist') RETURNING 'x'
         """, tid, user["uid"], default=None)
-        if was:   # the first person on the waiting list moves up
+        if was and not t.get("roster_locked_at"):   # the first person on the waiting list moves up
             nxt = await fetch("""
                 SELECT user_id FROM tournament_players WHERE tournament_id=$1 AND status='waitlist' ORDER BY signed_up_at LIMIT 1
             """, tid)
@@ -3374,6 +3683,8 @@ async def api_tournament_checkin(request: Request, tid: int):
     user = require_login(request)
     require_same_site(request)
     t = await _tournament_or_404(tid)
+    if t.get("roster_locked_at"):
+        raise HTTPException(status_code=400, detail="The roster is locked, so there's no check-in. Just press I'm ready when your round opens.")
     if t["status"] != "checkin":
         raise HTTPException(status_code=400, detail="Check-in isn't open right now.")
     if is_team_fmt(t):
@@ -3416,6 +3727,8 @@ async def api_tournament_ready(request: Request, tid: int):
 
 async def _random_admin(t: dict, action: str, b: dict) -> dict:
     tid = t["id"]
+    if action in ("lock", "unlock", "reshuffle", "replace", "standin"):
+        return await _roster_admin(t, action, b)
     if t["status"] != "live" and action != "remove_player":
         raise HTTPException(status_code=400, detail="The tournament isn't running.")
     m = None
@@ -3425,6 +3738,8 @@ async def _random_admin(t: dict, action: str, b: dict) -> dict:
     if action == "team_result":
         if not m:
             raise HTTPException(status_code=404, detail="Match not found.")
+        if m["status"] == "scheduled":
+            raise HTTPException(status_code=400, detail="This round hasn't opened yet.")
         w = int(b.get("winner_team") or 0)
         if w not in (0, 1, 2):
             raise HTTPException(status_code=400, detail="Pick Team 1, Team 2 or No result.")
@@ -3454,6 +3769,8 @@ async def _random_admin(t: dict, action: str, b: dict) -> dict:
                        tid, f"r{m['round']}-sub")
         return {"message": "Substitute made. The new player has been notified."}
     if action == "regenerate_round":
+        if t.get("roster_locked_at"):
+            raise HTTPException(status_code=400, detail="The roster is locked, and every round's teams were made together. Use Reshuffle before the tournament starts, or replace a player or add a stand-in.")
         r = int(t["current_round"] or 0)
         busy = await fetchval("""SELECT COUNT(*) FROM tournament_team_matches WHERE tournament_id=$1 AND round=$2
                                  AND (status <> 'ready' OR cardinality(ready_ids) > 0)""", tid, r, default=0)
@@ -3467,7 +3784,12 @@ async def _random_admin(t: dict, action: str, b: dict) -> dict:
         return {"message": "New teams: " + await _generate_round(t, r)}
     if action == "remove_player":
         uid = from_public_id(str(b.get("user") or ""))
-        if t["status"] in ("signup", "checkin"):
+        if t.get("roster_locked_at") and await fetchval(
+                "SELECT COUNT(*) FROM tournament_players WHERE tournament_id=$1 AND user_id=$2 AND status='playing'", tid, uid, default=0):
+            if await fetchval("""SELECT COUNT(*) FROM tournament_team_matches WHERE tournament_id=$1 AND status NOT IN ('done','void')
+                                 AND $2 = ANY(team1 || team2)""", tid, uid, default=0):
+                raise HTTPException(status_code=400, detail="This player still has matches to play. Replace them with a candidate (or add a stand-in) instead.")
+        elif t["status"] in ("signup", "checkin"):
             await fetch("UPDATE tournament_players SET status='withdrawn' WHERE tournament_id=$1 AND user_id=$2", tid, uid)
             return {"message": "Player removed."}
         pending = await fetchval("""SELECT COUNT(*) FROM tournament_team_matches WHERE tournament_id=$1 AND status NOT IN ('done','void')
@@ -4009,6 +4331,8 @@ async def api_team_ready(request: Request, tid: int):
     rows = await fetch("SELECT * FROM tournament_team_matches WHERE tournament_id=$1 AND id=$2", tid, int(b.get("match_id") or 0))
     if not rows or uid not in rows[0]["team1"] + rows[0]["team2"]:
         raise HTTPException(status_code=404, detail="That isn't your match.")
+    if rows[0]["status"] == "scheduled":
+        raise HTTPException(status_code=400, detail="This round hasn't opened yet. You'll get a notification when it does.")
     if rows[0]["status"] != "ready":
         raise HTTPException(status_code=400, detail="This match isn't waiting for players right now.")
     if ready:
@@ -4082,7 +4406,8 @@ async def api_tournament_admin(request: Request, tid: int):
                 await fetch("UPDATE tournament_ffa_matches SET civs=$2 WHERE id=$1", m["id"], json.dumps(_parse_civs(m, b.get("civs"))))
             await _ffa_finalize(t, m["id"], pl, note="Corrected by an admin" if m["status"] == "done" else "Set by an admin")
             return {"message": "Placements saved. Standings are updated."}
-        if t.get("format") == "random3v3" and action in ("team_result", "substitute", "regenerate_round", "remove_player"):
+        if t.get("format") == "random3v3" and action in ("team_result", "substitute", "regenerate_round", "remove_player",
+                                                                  "lock", "unlock", "reshuffle", "replace", "standin"):
             return await _random_admin(t, action, b)
         if action == "start":
             if t["status"] not in ("signup", "checkin"):
@@ -4092,6 +4417,8 @@ async def api_tournament_admin(request: Request, tid: int):
                 await fetch("UPDATE tournament_players SET checked_in_at=COALESCE(checked_in_at, NOW()) WHERE tournament_id=$1 AND status IN ('registered','waitlist')", tid)
             return {"message": await _start_tournament(t)}
         if action == "open_checkin":
+            if t.get("roster_locked_at"):
+                raise HTTPException(status_code=400, detail="The roster is locked, so there's no check-in.")
             if t["status"] != "signup":
                 raise HTTPException(status_code=400, detail="Check-in is already open or over.")
             await fetch("UPDATE tournaments SET status='checkin' WHERE id=$1", tid)

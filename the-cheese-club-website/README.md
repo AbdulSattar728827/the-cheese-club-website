@@ -274,3 +274,13 @@ side; the draft then fills both teams (2v1 needs no picking: the third player jo
 automatically). Adding another queue means: the bot's `QUEUE_CONFIGS`, `UNEVEN_QUEUES` and the join menu in
 `cogs/aoe_queue.py`; `QUEUE_ORDER` (and the My Stats order) in `main.py`; the description in `queue.html`;
 and a filter tab on the leaderboard, civs, community and home pages.
+
+## Tournament channels in Discord
+The bot (`tournament_feed.py`) keeps three channels up to date from this website's public API:
+`#tournaments` (a board that edits itself, plus posts when sign-ups open, check-in opens, a tournament
+starts, is cancelled or has a champion), `#tournament-matches` (one post per finished bracket match, All
+Random round and FFA lobby) and `#tournament-leaderboard` (Hall of Fame, all-time rankings, live
+standings). Channel IDs are bot variables `TOURNAMENTS_CHANNEL_ID`, `TOURNAMENT_MATCHES_CHANNEL_ID` and
+`TOURNAMENT_LEADERBOARD_CHANNEL_ID` (they fall back to the channel names). `/api/tournaments/rankings`
+(all-time titles, runner-ups, thirds, played and game record, hidden players left out) is used for the
+rankings message. Deleting a tournament here removes its Discord posts too.

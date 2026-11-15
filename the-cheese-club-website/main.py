@@ -3060,6 +3060,65 @@ async def api_tournament_maps():
     return {"maps": DEFAULT_MAPS, "civs": CIV_NAMES}
 
 
+@app.get("/api/tournaments/rankings")
+async def api_tournament_rankings():
+    """All-time tournament rankings over every finished tournament (kept apart from queue stats):
+    titles, runner-up and third places, tournaments played, and the tournament game record.
+    Team results count for every member of the team. Hidden players are left out."""
+    if not await fetchval("SELECT to_regclass('tournaments') IS NOT NULL", default=False):
+        return {"rankings": []}
+    fin = await fetch("SELECT id, winner_id, runner_up_id, third_id FROM tournaments WHERE status='finished'")
+    if not fin:
+        return {"rankings": []}
+    ids = [r["id"] for r in fin]
+    team_members: dict = {}
+    for r in await fetch("SELECT team_id, user_id FROM tournament_team_members WHERE tournament_id = ANY($1::int[]) AND status='accepted'", ids):
+        team_members.setdefault(str(r["team_id"]), []).append(r["user_id"])
+
+    def users(entrant) -> list:
+        if not entrant:
+            return []
+        e = str(entrant)
+        return team_members.get(e[1:], []) if e.startswith("T") else [e]
+
+    stats: dict = {}
+    def s(u):
+        return stats.setdefault(u, {"titles": 0, "second": 0, "third": 0, "played": 0, "wins": 0, "losses": 0})
+    for r in fin:
+        for u in users(r["winner_id"]):
+            s(u)["titles"] += 1
+        for u in users(r["runner_up_id"]):
+            s(u)["second"] += 1
+        for u in users(r["third_id"]):
+            s(u)["third"] += 1
+    for r in await fetch("""SELECT user_id FROM tournament_players WHERE tournament_id = ANY($1::int[])
+                            AND status IN ('playing','eliminated','champion','removed')""", ids):
+        s(r["user_id"])["played"] += 1
+    for r in await fetch("""SELECT m.user_id FROM tournament_team_members m JOIN tournament_teams tt ON tt.id = m.team_id
+                            WHERE m.tournament_id = ANY($1::int[]) AND m.status='accepted'
+                              AND tt.status IN ('playing','eliminated','champion')""", ids):
+        s(r["user_id"])["played"] += 1
+    for g in await fetch("""SELECT g.winner_id, m.p1_id, m.p2_id FROM tournament_games g JOIN tournament_matches m ON m.id = g.tmatch_id
+                            WHERE m.tournament_id = ANY($1::int[]) AND g.status='done' AND g.winner_id IS NOT NULL""", ids):
+        loser = g["p2_id"] if g["winner_id"] == g["p1_id"] else g["p1_id"]
+        for u in users(g["winner_id"]):
+            s(u)["wins"] += 1
+        for u in users(loser):
+            s(u)["losses"] += 1
+    for m in await fetch("""SELECT team1, team2, winner_team FROM tournament_team_matches
+                            WHERE tournament_id = ANY($1::int[]) AND status='done' AND winner_team IN (1,2)""", ids):
+        win, lose = (m["team1"], m["team2"]) if m["winner_team"] == 1 else (m["team2"], m["team1"])
+        for u in win:
+            s(u)["wins"] += 1
+        for u in lose:
+            s(u)["losses"] += 1
+    names = await people(list(stats))
+    rows = [{"username": names[u]["username"], **v} for u, v in stats.items()
+            if u in names and names[u]["user_id"] and v["played"] > 0]
+    rows.sort(key=lambda r: (-r["titles"], -r["second"], -r["third"], -r["wins"], r["losses"], r["username"].lower()))
+    return {"rankings": rows[:25]}
+
+
 @app.get("/api/tournaments/{tid}")
 async def api_tournament(request: Request, tid: int):
     t = await _tournament_or_404(tid)

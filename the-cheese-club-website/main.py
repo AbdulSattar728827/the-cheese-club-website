@@ -2088,7 +2088,7 @@ async def api_my_stats(request: Request, days: int = 90):
         history = await aoe4world_history(link["profile_id"])
         if since:
             history = {k: [p for p in v if not p["t"] or datetime.fromisoformat(p["t"]) >= since] for k, v in history.items()}
-    order = {"1v1": 1, "2v2": 2, "3v3": 3, "4v4": 4}
+    order = {"1v1": 1, "2v2": 2, "3v3": 3, "4v4": 4, "4v3": 5, "3v2": 6, "5v3": 7, "2v1": 8}
     return {
         "days": days,
         "linked": bool(link and link["profile_id"]),
@@ -2103,7 +2103,7 @@ async def api_my_stats(request: Request, days: int = 90):
 # (aoe_queue_live) and carries out Join/Leave requests made here
 # (aoe_queue_requests) with the same code as its Discord queue menu.
 # ---------------------------------------------------------------------------
-QUEUE_ORDER = ["1v1", "2v2", "3v3", "4v4", "4v3", "3v2"]   # same order as the Discord queue menu
+QUEUE_ORDER = ["1v1", "2v2", "3v3", "4v4", "4v3", "3v2", "5v3", "2v1"]   # same order as the Discord queue menu
 _queue_request_times: dict = {}
 
 

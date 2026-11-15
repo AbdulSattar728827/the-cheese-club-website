@@ -266,3 +266,11 @@ no Discord bot token and never talks to Discord.
   cookies) are removed, and rows older than 14 days are deleted.
 - `/api/admin/test-error` (admins only, open it in the browser while logged in) raises a harmless error
   so you can check the whole chain works.
+
+## Queues
+Eight queues, in the same order as the Discord join menu: 1v1, 2v2, 3v3, 4v4 and four uneven ones, 4v3
+(7 players), 3v2 (5), 5v3 (8) and 2v1 (3). In an uneven queue the two captains decide who takes the bigger
+side; the draft then fills both teams (2v1 needs no picking: the third player joins the bigger side
+automatically). Adding another queue means: the bot's `QUEUE_CONFIGS`, `UNEVEN_QUEUES` and the join menu in
+`cogs/aoe_queue.py`; `QUEUE_ORDER` (and the My Stats order) in `main.py`; the description in `queue.html`;
+and a filter tab on the leaderboard, civs, community and home pages.

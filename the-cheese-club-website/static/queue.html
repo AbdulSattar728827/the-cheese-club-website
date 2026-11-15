@@ -122,7 +122,7 @@ async function call(method,url,body){
  return data;
 }
 let me=null,busy=null,flash=null,timer=null,alerts=null;
-const UNEVEN={'4v3':'Uneven teams: captains decide who plays 4 and who plays 3','3v2':'Uneven teams: captains decide who plays 3 and who plays 2'};
+const UNEVEN={'4v3':'Uneven teams: captains decide who plays 4 and who plays 3','3v2':'Uneven teams: captains decide who plays 3 and who plays 2','5v3':'Uneven teams: captains decide who plays 5 and who plays 3','2v1':'Uneven teams: captains decide who plays 2 and who plays 1'};
 const mins=iso=>{const m=Math.max(0,Math.round((Date.now()-new Date(iso))/60000));return m<1?'just now':m<60?`${m} min`:`${Math.floor(m/60)}h ${m%60}m`};
 function alertStrip(){
  if(!alerts)return '';

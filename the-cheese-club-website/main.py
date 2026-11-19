@@ -432,6 +432,7 @@ async def lifespan(app: FastAPI):
                 await conn.execute(stmt)
         await refresh_hidden()
         refresher = asyncio.create_task(_hidden_refresh_loop())
+        seeder = asyncio.create_task(_seed_new_achievements())
         notifier = asyncio.create_task(_notification_loop())
         tourney = asyncio.create_task(_tournament_loop())
         error_writer = asyncio.create_task(_error_writer_loop())
@@ -439,6 +440,7 @@ async def lifespan(app: FastAPI):
     if pool:
         refresher.cancel()
         notifier.cancel()
+        seeder.cancel()
         tourney.cancel()
         error_writer.cancel()
         await pool.close()
@@ -1386,21 +1388,55 @@ async def people(ids) -> dict:
     return out
 
 
+# The 24 achievements, grouped. Progress is worked out from the community match history (tournament games are not counted),
+# the voice log, the AoE4 link and the tournament results (see build_player_insights).
+ALL_CIVS = len(set(CIV_NAMES) - {"Random"})        # "Master of All": every civilization the site knows
+GIANT_KILL_GAP = 150                               # "Comeback King": the other side's rating is at least this far above yours
 ACHIEVEMENTS = [
     # id, icon, name, description, metric, target
+    # Matches
     ("first_win", "⚔️", "First Blood", "Win your first community match.", "wins", 1),
     ("veteran", "🛡️", "Veteran", "Play 50 community matches.", "games", 50),
     ("centurion", "🏰", "Centurion", "Play 100 community matches.", "games", 100),
-    ("on_fire", "🔥", "On Fire", "Win 5 matches in a row.", "best_streak", 5),
-    ("unstoppable", "⚡", "Unstoppable", "Win 10 matches in a row.", "best_streak", 10),
-    ("specialist", "🎯", "Civ Specialist", "Win 10 matches with one civilization.", "best_civ_wins", 10),
-    ("well_travelled", "🧭", "Well Travelled", "Play 8 different civilizations.", "civs_played", 8),
+    ("battle_hardened", "🗡️", "Battle Hardened", "Play 250 matches.", "games", 250),
+    ("legendary_warrior", "🏛️", "Legendary Warrior", "Play 500 matches.", "games", 500),
     ("duelist", "🤺", "Duelist", "Play 25 1v1 matches.", "duels", 25),
     ("team_player", "🤝", "Team Player", "Play 25 team matches (2v2 and up).", "team_games", 25),
+    # Streaks
+    ("hot_streak", "🌶️", "Hot Streak", "Win 3 matches in a row.", "best_streak", 3),
+    ("on_fire", "🔥", "On Fire", "Win 5 matches in a row.", "best_streak", 5),
+    ("unstoppable", "⚡", "Unstoppable", "Win 10 matches in a row.", "best_streak", 10),
+    ("invincible", "🧱", "Invincible", "Win 15 matches in a row.", "best_streak", 15),
+    # Civilizations
+    ("specialist", "🎯", "Civ Specialist", "Win 10 matches with one civilization.", "best_civ_wins", 10),
+    ("civ_master", "👑", "Civ Master", "Win 25 matches with one civilization.", "best_civ_wins", 25),
+    ("well_travelled", "🧭", "Well Travelled", "Play 8 different civilizations.", "civs_played", 8),
+    ("master_of_all", "🌍", "Master of All", "Play with every available civilization.", "civs_known", ALL_CIVS),
+    # Social
+    ("social_butterfly", "🦋", "Social Butterfly", "Play with 10 different teammates.", "teammate_count", 10),
+    # Competition
+    ("comeback_king", "🤴", "Comeback King", "Win against a significantly higher-rated opponent.", "giant_kills", 1),
+    ("tournament_champion", "🏆", "Tournament Champion", "Win a tournament.", "tournaments_won", 1),
+    ("tournament_legend", "🏅", "Tournament Legend", "Win 5 tournaments.", "tournaments_won", 5),
+    # Club
     ("regular", "🎙️", "Regular", "Spend 100 hours in voice.", "voice_hours", 100),
     ("voice_of_the_club", "📣", "Voice of the Club", "Spend 1,000 hours in voice.", "voice_hours", 1000),
     ("officially_ranked", "✅", "Officially Ranked", "Link your AoE4 account.", "linked", 1),
+    # Rough days
+    ("bad_day", "🌧️", "Bad Day", "Lose 5 matches in a row.", "worst_streak", 5),
+    ("downfall", "📉", "Downfall", "Lose 10 matches in a row.", "worst_streak", 10),
 ]
+ACHIEVEMENT_GROUPS = {"first_win": "Matches", "veteran": "Matches", "centurion": "Matches", "battle_hardened": "Matches", "legendary_warrior": "Matches", "duelist": "Matches", "team_player": "Matches", "hot_streak": "Streaks", "on_fire": "Streaks", "unstoppable": "Streaks", "invincible": "Streaks", "specialist": "Civilizations", "civ_master": "Civilizations", "well_travelled": "Civilizations", "master_of_all": "Civilizations", "social_butterfly": "Social", "comeback_king": "Competition", "tournament_champion": "Competition", "tournament_legend": "Competition", "regular": "Club", "voice_of_the_club": "Club", "officially_ranked": "Club", "bad_day": "Rough days", "downfall": "Rough days"}
+SECRET_ACHIEVEMENTS = {"bad_day", "downfall"}      # shown only once earned, so nobody is nudged to chase them
+NEW_ACHIEVEMENTS = {"comeback_king", "hot_streak", "downfall", "bad_day", "civ_master", "tournament_legend", "master_of_all", "tournament_champion", "social_butterfly", "battle_hardened", "invincible", "legendary_warrior"}     # added in the Nov 2026 pack: existing members get theirs quietly
+
+
+def _is_giant_kill(m: dict, uid: str) -> bool:
+    """True when the other side was rated clearly above this player when the match started (ratings saved by the bot)."""
+    snap = {u: _rating_number(v) for u, v in (m.get("elo_snapshot") or {}).items()}
+    mine = snap.get(uid)
+    theirs = [snap.get(o) for o in (m["team2"] if uid in m["team1"] else m["team1"]) if snap.get(o) is not None]
+    return mine is not None and bool(theirs) and sum(theirs) / len(theirs) - mine >= GIANT_KILL_GAP
 
 
 def compute_insights(uid: str, matches: list) -> dict:
@@ -1437,6 +1473,11 @@ def compute_insights(uid: str, matches: list) -> dict:
     for _, outcome, _m in record:
         run = run + 1 if outcome == "win" else 0
         best = max(best, run)
+    worst = run = 0
+    for _, outcome, _m in record:
+        run = run + 1 if outcome == "loss" else 0
+        worst = max(worst, run)
+    giant_kills = sum(1 for _, outcome, m in record if outcome == "win" and _is_giant_kill(m, uid))
     current = 0
     current_kind = None
     for _, outcome, _m in reversed(record):
@@ -1455,6 +1496,10 @@ def compute_insights(uid: str, matches: list) -> dict:
         "duels": duels,
         "team_games": team_games,
         "best_streak": best,
+        "worst_streak": worst,
+        "giant_kills": giant_kills,
+        "teammate_count": len(mates),
+        "civs_known": len({canonical_civ(c) for c in civs} & (set(CIV_NAMES) - {"Random"})),
         "current_streak": {"type": current_kind, "count": current} if record else None,
         "civs": civ_list,
         "favourite_civ": civ_list[0]["civ"] if civ_list else None,
@@ -1469,8 +1514,8 @@ def build_achievements(metrics: dict) -> list:
     out = []
     for key, icon, name, desc, metric, target in ACHIEVEMENTS:
         value = metrics.get(metric, 0) or 0
-        out.append({"id": key, "icon": icon, "name": name, "description": desc,
-                    "earned": value >= target, "progress": min(value, target), "target": target})
+        out.append({"id": key, "icon": icon, "name": name, "description": desc, "group": ACHIEVEMENT_GROUPS.get(key, "Other"),
+                    "secret": key in SECRET_ACHIEVEMENTS, "earned": value >= target, "progress": min(value, target), "target": target})
     return out
 
 
@@ -1494,6 +1539,18 @@ async def player_insights(player_id: str):
     return data
 
 
+async def _tournaments_won(user_id: str) -> int:
+    """Finished tournaments this member won: on their own (1v1 cups, All Random, free for all) or as a member of the winning team."""
+    try:
+        return int(await fetchval("""
+            WITH mine AS (SELECT 'T' || team_id AS eid FROM tournament_team_members WHERE user_id=$1 AND status='accepted')
+            SELECT COUNT(*) FROM tournaments
+            WHERE status='finished' AND (winner_id=$1 OR winner_id IN (SELECT eid FROM mine))
+        """, user_id, default=0) or 0)
+    except Exception:
+        return 0
+
+
 async def build_player_insights(user_id: str) -> dict:
     """Insights for one player (used by public player pages and the member dashboard)."""
     matches = await load_club_matches()
@@ -1512,7 +1569,10 @@ async def build_player_insights(user_id: str) -> dict:
     metrics = {"wins": wins, "games": games, "best_streak": ins["best_streak"],
                "best_civ_wins": ins["best_civ_wins"], "civs_played": len(ins["civs"]),
                "duels": ins["duels"], "team_games": ins["team_games"],
-               "voice_hours": int(float(vc_seconds or 0) // 3600), "linked": 1 if linked else 0}
+               "voice_hours": int(float(vc_seconds or 0) // 3600), "linked": 1 if linked else 0,
+               "worst_streak": ins["worst_streak"], "giant_kills": ins["giant_kills"],
+               "teammate_count": ins["teammate_count"], "civs_known": ins["civs_known"],
+               "tournaments_won": await _tournaments_won(user_id)}
 
     def top(table, n=5):
         ranked = sorted(table.items(), key=lambda kv: (-kv[1]["games"], -kv[1]["wins"]))
@@ -2041,7 +2101,7 @@ async def api_dashboard(request: Request):
         """, uid, default=None)
 
     last = next((m for m in ins["recent_matches"] if m["outcome"] in ("win", "loss")), None)
-    in_progress = [a for a in ins["achievements"] if not a["earned"]]
+    in_progress = [a for a in ins["achievements"] if not a["earned"] and not a["secret"]]
     in_progress.sort(key=lambda a: a["progress"] / a["target"], reverse=True)
     return {
         "record": {"wins": wins, "losses": losses, "games": wins + losses},
@@ -2052,7 +2112,7 @@ async def api_dashboard(request: Request):
         "civs": ins["civs"],
         "last_match": last,
         "achievements_earned": sum(1 for a in ins["achievements"] if a["earned"]),
-        "achievements_total": len(ins["achievements"]),
+        "achievements_total": sum(1 for a in ins["achievements"] if a["earned"] or not a["secret"]),
         "achievements_next": in_progress[:3],
         "in_voice": in_voice,
     }
@@ -2400,9 +2460,43 @@ async def api_notifications_read(request: Request):
     return {"ok": True}
 
 
+_ach_seed_done = asyncio.Event()
+ACH_PACK = "pack_2026_11"
+
+
+async def _seed_new_achievements():
+    """When achievements are added, members who already earned them (from old matches) would all get a 'new achievement'
+    notice at once. Once, before the notification job starts, record what they already have as seen."""
+    try:
+        if await fetchval("SELECT 1 FROM member_achievements_seen WHERE user_id='_system' AND achievement_id=$1", ACH_PACK, default=None):
+            return
+        users = [r["user_id"] for r in await fetch("SELECT DISTINCT user_id FROM member_achievements_seen WHERE user_id <> '_system'")]
+        done = 0
+        for uid in users:
+            try:
+                ins = await build_player_insights(uid)
+                for a in ins["achievements"]:
+                    if a["earned"] and a["id"] in NEW_ACHIEVEMENTS:
+                        await fetch("INSERT INTO member_achievements_seen (user_id, achievement_id) VALUES ($1,$2) ON CONFLICT DO NOTHING", uid, a["id"])
+                done += 1
+            except Exception:
+                log.exception("Achievement seeding failed for one member")
+            await asyncio.sleep(0.05)
+        await fetch("INSERT INTO member_achievements_seen (user_id, achievement_id) VALUES ('_system',$1) ON CONFLICT DO NOTHING", ACH_PACK)
+        log.info("Seeded the new achievements quietly for %d members", done)
+    except Exception:
+        log.exception("Achievement seeding failed")
+    finally:
+        _ach_seed_done.set()
+
+
 async def _notification_loop():
     """Every 30 seconds: match-starting, match-result and achievement notices
     for members who use the website. Safe to repeat (each notice is made once)."""
+    try:
+        await asyncio.wait_for(_ach_seed_done.wait(), timeout=900)      # let the quiet seeding finish first
+    except asyncio.TimeoutError:
+        pass
     while True:
         await asyncio.sleep(30)
         try:

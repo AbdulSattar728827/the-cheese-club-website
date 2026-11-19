@@ -64,6 +64,8 @@
 .rate .bar.below i{background:#6f6f78}
 .rate b{color:var(--gold2);font-size:11px;min-width:34px;text-align:right}
 .achievements{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:16px 20px 20px}
+.ach-group{grid-column:1/-1;margin:10px 0 0;font:800 11px Inter,sans-serif;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
+.ach-group:first-child{margin-top:0}
 .badge{padding:13px;border:1px solid #2c2a26;border-radius:11px;background:#141417;min-width:0;opacity:.62}
 .badge.earned{opacity:1;border-color:#8a682b;background:linear-gradient(145deg,#231d10,#16140f)}
 .badge .icon{font-size:22px;line-height:1;filter:grayscale(1)}
@@ -126,6 +128,7 @@ function personRow(x,together){const rec=`${x.wins}–${x.losses}`;return `<div 
 function outcomeChip(m){if(m.outcome==='win')return '<span class="outcome">Win</span>';if(m.outcome==='loss')return '<span class="outcome loss">Loss</span>';return `<span class="outcome other">${esc(m.result==='pending'?'Live':matchResultText(m.result))}</span>`}
 function render(p,ins){
  const q=p.queue_stats||[];const wins=q.reduce((a,x)=>a+Number(x.wins||0),0),losses=q.reduce((a,x)=>a+Number(x.losses||0),0),games=wins+losses;
+ ins.achievements=ins.achievements.filter(a=>a.earned||!a.secret);       /* a joke badge is shown only once it is earned */
  const earned=ins.achievements.filter(a=>a.earned).length;
  document.title=`${p.username} — The Cheese Club`;
  const aoe=p.aoe4_link;
@@ -154,7 +157,7 @@ function render(p,ins){
   </div></section>
   ${(ins.trophies||[]).length?`<section class="panel" style="grid-column:1/-1;border-color:#8a682b"><div class="panel-head"><h3>🏆 Tournament trophies</h3><small>${ins.trophies.filter(t=>t.champion).length} title${ins.trophies.filter(t=>t.champion).length===1?'':'s'}</small></div><div class="panel-body" style="display:flex;flex-wrap:wrap;gap:10px">${ins.trophies.map(t=>`<a href="/tournament/${Number(t.id)}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;border:1px solid ${t.champion?'#8a682b':'#3a3327'};background:${t.champion?'#221c10':'#17171b'}"><span style="font-size:22px">${t.champion?'🏆':t.third?'🥉':'🥈'}</span><span><b style="display:block;font-size:13px">${esc(t.name)}</b><small style="color:#8f8b82">${t.format==='random3v3'?'🎲 ':'⚔️ '}${t.champion?'Champion':t.third?'Third place':'Runner-up'} · ${shortDate(t.finished_at)}</small></span></a>`).join('')}</div></section>`:''}
   <section class="panel"><div class="panel-head"><h3>Achievements</h3><small>${earned} of ${ins.achievements.length} earned</small></div>
-   <div class="achievements">${ins.achievements.map(a=>`<div class="badge ${a.earned?'earned':''}"><div class="icon" aria-hidden="true">${a.icon}</div><b>${esc(a.name)}</b><p>${esc(a.description)}</p>${a.earned?'<span class="status">Earned</span>':`<div class="progress"><i style="width:${(100*a.progress/a.target).toFixed(0)}%"></i></div><span class="status">${fmt(a.progress)} / ${fmt(a.target)}</span>`}</div>`).join('')}</div>
+   <div class="achievements">${[...new Set(ins.achievements.map(a=>a.group))].map(g=>`<div class="ach-group">${esc(g)}</div>`+ins.achievements.filter(a=>a.group===g).map(a=>`<div class="badge ${a.earned?'earned':''}"><div class="icon" aria-hidden="true">${a.icon}</div><b>${esc(a.name)}</b><p>${esc(a.description)}</p>${a.earned?'<span class="status">Earned</span>':`<div class="progress"><i style="width:${(100*a.progress/a.target).toFixed(0)}%"></i></div><span class="status">${fmt(a.progress)} / ${fmt(a.target)}</span>`}</div>`).join('')).join('')}</div>
   </section>
  </div>
  <div class="player-columns">

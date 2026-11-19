@@ -365,3 +365,21 @@ Set when creating the tournament (old tournaments keep their old behaviour: 1v1 
   (a link, reload, back) the cover fades in over it (`beforeunload`), so the old page, the loading and the new page are one smooth
   dim and reveal instead of two separate covers. A small cheese (`#ccBusy`) shows in the corner while a request to the site takes more
   than ~0.7 s. Reduced-motion users get a static cheese.
+
+## Achievements (24)
+- The list is `ACHIEVEMENTS` in `main.py` (id, icon, name, description, metric, target), grouped by `ACHIEVEMENT_GROUPS`
+  (Matches, Streaks, Civilizations, Social, Competition, Club, Rough days). Progress comes from `compute_insights` (community
+  match history; **tournament games and cancelled matches are not counted and do not break a streak**), the voice log, the AoE4 link and
+  `_tournaments_won`.
+- The ladders: matches played 50 / 100 / 250 / 500, win streaks 3 / 5 / 10 / 15, wins with one civ 10 / 25, civs played 8 / every civ
+  (`ALL_CIVS`, so a new civ in `CIV_NAMES` raises the target), teammates 10, tournaments won 1 / 5 (a Team Cup win counts for every
+  accepted member of the winning team).
+- **Comeback King:** a win where the other side's average rating, from the ratings the bot saved when the match started
+  (`elo_snapshot`), is at least `GIANT_KILL_GAP` (150) above your own. Matches without a saved rating can't count.
+- **Bad Day / Downfall** (5 / 10 losses in a row) are in `SECRET_ACHIEVEMENTS`: shown on a profile, and counted in the totals, only
+  once earned, and they are never suggested as "in progress".
+- **No notification flood:** `_seed_new_achievements` runs once at startup (marker `_system / pack_2026_11` in
+  `member_achievements_seen`) and records what existing members already earned from the `NEW_ACHIEVEMENTS` as seen, before the
+  notification job starts. Anything earned after that notifies normally. To add more achievements later, add them to the list and to a
+  new pack marker (change `ACH_PACK` and `NEW_ACHIEVEMENTS`).
+

@@ -23,7 +23,7 @@ const ccLoader=(function(){
     return origFetch(input,init).finally(()=>{inflight=Math.max(0,inflight-1);if(!inflight){clearTimeout(slowTimer);showBusy(false)}});
   };
   function finish(){
-    if(!cover)return;const c=cover;cover=null;c.classList.add('cc-done');setTimeout(()=>c.remove(),420);
+    if(!cover)return;const c=cover;cover=null;c.classList.add('cc-done');setTimeout(()=>c.remove(),360);
   }
   function init(){
     cover=document.getElementById('ccLoader');
@@ -32,22 +32,21 @@ const ccLoader=(function(){
     (function poll(){
       if(document.readyState==='complete'&&inflight===0){if(++quiet>=2)return finish()}else quiet=0;
       if(Date.now()-startedAt>8000)return finish();
-      setTimeout(poll,120);
+      setTimeout(poll,60);
     })();
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
-  document.addEventListener('click',e=>{
-    const a=e.target.closest&&e.target.closest('a[href]');
-    if(!a||e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||a.target==='_blank'||a.hasAttribute('download'))return;
-    let u;try{u=new URL(a.href,location.href)}catch(x){return}
-    if(u.origin!==location.origin||(u.pathname===location.pathname&&u.search===location.search)||/^\/(auth|static)\//.test(u.pathname))return;
-    clearTimeout(navTimer);navTimer=setTimeout(()=>{
-      let c=document.getElementById('ccLoader');
-      if(!c){c=document.createElement('div');c.id='ccLoader';c.setAttribute('role','status');c.setAttribute('aria-label','Loading');c.innerHTML='<div class="cc-load">'+CC_CHEESE+'<span>Loading…</span></div>';document.body.appendChild(c)}
-      c.classList.remove('cc-done');c.classList.add('cc-nav');cover=null;
-    },150);
-  },true);
-  window.addEventListener('pageshow',e=>{if(e.persisted){clearTimeout(navTimer);const c=document.getElementById('ccLoader');if(c)c.remove()}});
+  /* Leaving the page (a link, the back button, reload): the cover fades in over THIS page while the next one loads, and
+     the next page starts covered too, so it is one continuous cover instead of two with a bright gap between. This only
+     fires when the page really is being left, so a link that the page handles itself never leaves a stuck cover. */
+  let leaveTimer=null;
+  window.addEventListener('beforeunload',()=>{
+    let c=document.getElementById('ccLoader');
+    if(!c){c=document.createElement('div');c.id='ccLoader';c.setAttribute('role','status');c.setAttribute('aria-label','Loading');c.className='cc-nav';c.innerHTML='<div class="cc-load">'+CC_CHEESE+'<span>Loading…</span></div>';(document.body||document.documentElement).appendChild(c);void c.offsetWidth}
+    c.classList.remove('cc-done');c.classList.add('cc-nav','cc-on');cover=null;
+    clearTimeout(leaveTimer);leaveTimer=setTimeout(()=>{c.classList.remove('cc-on')},8000);   /* e.g. a download: the page stays, so uncover it */
+  });
+  window.addEventListener('pageshow',e=>{if(e.persisted){clearTimeout(leaveTimer);const c=document.getElementById('ccLoader');if(c)c.remove()}});
   return {busy:showBusy};
 })();
 

@@ -359,6 +359,9 @@ Set when creating the tournament (old tournaments keep their old behaviour: 1v1 
   readable `cc_in` hint cookie set at login and cleared at logout) and draws the member header at once, then confirms it with
   `/api/me`. Visitors see no change; if the server says the session has expired, the header is corrected and the memory cleared.
   CSS (`html.cc-in`) hides the visitor buttons until the real answer is known.
-- **The cheese loader.** The server adds a cover (`#ccLoader`) to every page; it fades out once the page and its first data requests
-  are done and only becomes visible if that takes more than ~0.12 s. A small cheese (`#ccBusy`) shows in the corner while a request
-  to the site takes more than ~0.7 s, and clicking a link to another page shows the cover at once. Reduced-motion users get a static cheese.
+- **The cheese loader: one continuous cover per page change.** The server adds a cover (`#ccLoader`) to every page. A page starts
+  covered from its very first frame (so there is never a bright gap or a flash of an empty page), the cheese only appears if the wait
+  lasts more than ~0.3 s, and the cover fades away once the page and its first data requests are done. When you leave a page
+  (a link, reload, back) the cover fades in over it (`beforeunload`), so the old page, the loading and the new page are one smooth
+  dim and reveal instead of two separate covers. A small cheese (`#ccBusy`) shows in the corner while a request to the site takes more
+  than ~0.7 s. Reduced-motion users get a static cheese.

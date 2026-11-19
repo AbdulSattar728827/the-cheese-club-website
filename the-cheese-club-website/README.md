@@ -343,3 +343,8 @@ Set when creating the tournament (old tournaments keep their old behaviour: 1v1 
   cancels for "No result"), a cup closes the running game as cancelled and marks it void, and the match is final on the
   website at once. The bot closes the Discord match without any captain confirmation (the website already checked the
   admin). After that the match room, ready and result buttons refuse input, because the match is no longer being played.
+- **Swap players (All Random, admin):** every match card of every round has a Swap control (`action: "swap"`, `round`,
+  `a_user`, `b_user`). Two players trade places for THAT round only: across two matches, across the two teams of one match, or
+  a player in a match with a player sitting the round out (who takes the slot while the other gets the sit-out). It works on
+  scheduled and ready matches, refuses started or finished ones and teammates, recalculates the team averages and the captain,
+  clears Ready flags (so the bot announces the match again), notifies everyone affected, and updates the "Teams are set" post.

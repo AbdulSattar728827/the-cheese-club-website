@@ -3386,6 +3386,70 @@ async def _standin(t: dict, rnd: int, out_u: str, in_u: str) -> str:
     return f"{names[in_u]['username']} stands in for {names[out_u]['username']} in round {rnd}."
 
 
+async def _swap_players(t: dict, rnd: int, a_u: str, b_u: str) -> str:
+    """Two players trade places in ONE round: across two matches, across the two teams of one match, or a player
+    in a match with a player sitting that round out (who takes the slot, while the other gets the sit-out)."""
+    tid = t["id"]
+    if t["status"] not in ("signup", "checkin", "live"):
+        raise HTTPException(status_code=400, detail="This tournament is over.")
+    if not a_u or not b_u or a_u == b_u:
+        raise HTTPException(status_code=400, detail="Pick two different players.")
+    ms = {m["id"]: dict(m) for m in await fetch("SELECT * FROM tournament_team_matches WHERE tournament_id=$1 AND round=$2", tid, rnd)}
+    if not ms:
+        raise HTTPException(status_code=400, detail="That round hasn't been made yet.")
+    find = lambda u: next((m for m in ms.values() if u in m["team1"] + m["team2"]), None)
+    ma, mb = find(a_u), find(b_u)
+    byes = {r["user_id"] for r in await fetch("SELECT user_id FROM tournament_round_byes WHERE tournament_id=$1 AND round=$2 AND substituted_into IS NULL", tid, rnd)}
+    if (ma is None and a_u not in byes) or (mb is None and b_u not in byes):
+        raise HTTPException(status_code=400, detail="Both players have to be playing or sitting out in this round.")
+    if ma is None and mb is None:
+        raise HTTPException(status_code=400, detail="Both of them are sitting this round out.")
+    for m in (ma, mb):
+        if m and m["status"] not in ("scheduled", "ready"):
+            raise HTTPException(status_code=400, detail="A match that has started or finished can't be changed.")
+    repl = lambda lst, old, new: [new if u == old else u for u in lst]
+    changed = {}
+    if ma and mb:
+        if ma["id"] == mb["id"]:
+            if (a_u in ma["team1"]) == (b_u in ma["team1"]):
+                raise HTTPException(status_code=400, detail="They're already on the same team.")
+            sw = lambda lst: [b_u if u == a_u else a_u if u == b_u else u for u in lst]
+            changed[ma["id"]] = (sw(ma["team1"]), sw(ma["team2"]))
+        else:
+            changed[ma["id"]] = (repl(ma["team1"], a_u, b_u), repl(ma["team2"], a_u, b_u))
+            changed[mb["id"]] = (repl(mb["team1"], b_u, a_u), repl(mb["team2"], b_u, a_u))
+    else:
+        playing, benched = (a_u, b_u) if ma else (b_u, a_u)
+        m = ma or mb
+        changed[m["id"]] = (repl(m["team1"], playing, benched), repl(m["team2"], playing, benched))
+        await fetch("UPDATE tournament_round_byes SET user_id=$4 WHERE tournament_id=$1 AND round=$2 AND user_id=$3 AND substituted_into IS NULL",
+                    tid, rnd, benched, playing)
+    names = await people([a_u, b_u])
+    label = f"Swap: {names[a_u]['username']} and {names[b_u]['username']}"
+    final, affected = {}, set()
+    for mid, (t1, t2) in changed.items():
+        t1, t2, a1, a2 = await _ordered_teams(tid, t1, t2)
+        await fetch("""UPDATE tournament_team_matches SET team1=$2, team2=$3, team1_avg=$4, team2_avg=$5, ready_ids='{}',
+                       announced=CASE WHEN status='ready' THEN FALSE ELSE announced END,
+                       note=CASE WHEN note IS NULL OR note='' THEN $6 ELSE note || ' · ' || $6 END, updated_at=NOW() WHERE id=$1""",
+                    mid, t1, t2, a1, a2, label)
+        final[mid] = (t1, t2)
+        affected |= set(t1) | set(t2)
+    allnames = await people(list(affected))
+    stamp = int(time.time())
+    for u in (a_u, b_u):
+        mine = next(((t1, t2) for t1, t2 in final.values() if u in t1 + t2), None)
+        if mine:
+            side, other = (mine[0], mine[1]) if u in mine[0] else (mine[1], mine[0])
+            body = f"Round {rnd}: you're now with {' & '.join(allnames[x]['username'] for x in side if x != u) or 'nobody else'} vs {' & '.join(allnames[x]['username'] for x in other)}."
+        else:
+            body = f"Round {rnd}: you now sit this round out."
+        await _tnotify(u, "tournament", f"🔀 You were moved in {t['name']}", body, tid, f"t{tid}-swp-{u}-{stamp}")
+    await _tell_affected(t, affected, {a_u, b_u}, f"🔀 Teams changed in round {rnd}",
+                         f"{names[a_u]['username']} and {names[b_u]['username']} swapped places in {t['name']}. Check your schedule.")
+    return f"{names[a_u]['username']} and {names[b_u]['username']} swapped places in round {rnd}."
+
+
 async def _roster_admin(t: dict, action: str, b: dict) -> dict:
     """Admin actions for a locked (or lockable) All Random roster."""
     locked = bool(t.get("roster_locked_at"))
@@ -4152,6 +4216,9 @@ async def api_tournament_ready(request: Request, tid: int):
 
 async def _random_admin(t: dict, action: str, b: dict) -> dict:
     tid = t["id"]
+    if action == "swap":
+        return {"message": await _swap_players(t, int(b.get("round") or 0), from_public_id(str(b.get("a_user") or "")),
+                                               from_public_id(str(b.get("b_user") or "")))}
     if action in ("lock", "unlock", "reshuffle", "replace", "standin"):
         return await _roster_admin(t, action, b)
     if t["status"] != "live" and action != "remove_player":
@@ -4834,7 +4901,7 @@ async def api_tournament_admin(request: Request, tid: int):
             await _ffa_finalize(t, m["id"], pl, note="Corrected by an admin" if m["status"] == "done" else "Set by an admin")
             return {"message": "Placements saved. Standings are updated."}
         if t.get("format") == "random3v3" and action in ("team_result", "substitute", "regenerate_round", "remove_player",
-                                                                  "lock", "unlock", "reshuffle", "replace", "standin"):
+                                                                  "lock", "unlock", "reshuffle", "replace", "standin", "swap"):
             b["_by"] = admin["uid"]
             return await _random_admin(t, action, b)
         if action == "start":

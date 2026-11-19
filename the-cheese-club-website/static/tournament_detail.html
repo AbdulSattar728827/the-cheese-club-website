@@ -635,6 +635,12 @@ function standinTool(m,round){
  const outs=[...m.team1,...m.team2].filter(p=>p.user_id);
  const groups=[['Sitting out this round',round.byes.filter(b=>!b.substituted_into&&b.user_id)],['Candidates',D.players.filter(p=>p.status==='waitlist'&&p.user_id)]];
  return `<span class="standin"><select aria-label="Absent player">${outs.map(p=>`<option value="${p.user_id}">Absent: ${esc(p.username)}</option>`).join('')}</select><select aria-label="Stand-in">${groups.map(([g,l])=>l.length?`<optgroup label="${g}">${l.map(x=>`<option value="${x.user_id}">${esc(x.username)}</option>`).join('')}</optgroup>`:'').join('')}</select><input list="memberList" placeholder="or any member" aria-label="Any club member" autocomplete="off"><button type="button" data-tstand="${m.id}" data-srnd="${round.round}">Stand-in</button></span>`}
+function swapTool(m,round){
+ const mine=[...m.team1,...m.team2].filter(p=>p.user_id);
+ const groups={};
+ round.matches.forEach(x=>[...x.team1,...x.team2].filter(p=>p.user_id).forEach(p=>{(groups[x.id===m.id?'In this match':'Match '+x.match_no]=groups[x.id===m.id?'In this match':'Match '+x.match_no]||[]).push(p)}));
+ const sit=round.byes.filter(b=>!b.substituted_into&&b.user_id);if(sit.length)groups['Sitting out']=sit;
+ return `<span class="standin"><select aria-label="Player to move">${mine.map(p=>`<option value="${p.user_id}">Move: ${esc(p.username)}</option>`).join('')}</select><span style="color:#8f8b82">↔</span><select aria-label="Swap with">${Object.entries(groups).map(([g,l])=>`<optgroup label="${g}">${l.map(p=>`<option value="${p.user_id}">${esc(p.username)}</option>`).join('')}</optgroup>`).join('')}</select><button type="button" data-pswap="${m.id}" data-srnd="${round.round}">Swap</button></span>`}
 function rtMatch(m,round){
  const live=m.status==='playing'||m.status==='starting';
  const sch=m.status==='scheduled';
@@ -643,7 +649,7 @@ function rtMatch(m,round){
  let admin='';
  if(D.is_admin&&(D.tournament.status==='live'||D.tournament.locked)){
   if(!sch&&D.tournament.status==='live')admin=`<span style="margin-left:auto"></span><select aria-label="Result"><option value="1">Team 1 won</option><option value="2">Team 2 won</option><option value="0">No result</option></select><button type="button" data-tres="${m.id}">${m.status==='done'?'Correct result':'Set result'}</button>`;
-  if(sch||m.status==='ready')admin+=standinTool(m,round);
+  if(sch||m.status==='ready')admin+=standinTool(m,round)+swapTool(m,round);
  }
  const note=m.note&&!String(m.note).startsWith('Stand-in')?` · ${esc(m.note)}`:'';
  const si=(m.standins||[]).map(x=>` · Stand-in: ${esc(x.in&&x.in.username||'?')} for ${esc(x.out&&x.out.username||'?')}`).join('');
@@ -747,6 +753,9 @@ document.addEventListener('click',async e=>{
  const ad=e.target.closest('[data-admin]');if(ad){if(ad.dataset.confirm&&!confirm(ad.dataset.confirm))return;ad.disabled=true;
   if(['lock','reshuffle'].includes(ad.dataset.admin)){tab='rounds';rtRound=null}
   await act(`/api/tournaments/${TID}/admin`,{action:ad.dataset.admin,user:ad.dataset.admin==='remove_player'?$('rmSel').value:undefined});return}
+ const psw=e.target.closest('[data-pswap]');if(psw){const sels=psw.parentElement.querySelectorAll('select');
+  if(!confirm(`Swap ${sels[0].options[sels[0].selectedIndex].text.replace('Move: ','')} with ${sels[1].options[sels[1].selectedIndex].text} in round ${psw.dataset.srnd}? Their teams for this round change, and anyone in these matches has to press Ready again.`))return;
+  psw.disabled=true;await act(`/api/tournaments/${TID}/admin`,{action:'swap',round:+psw.dataset.srnd,a_user:sels[0].value,b_user:sels[1].value});return}
  const rmb=e.target.closest('[data-room]');if(rmb){const ra=rmb.dataset.room,body={kind:rmb.dataset.rk,match_id:+rmb.dataset.rm,action:ra};
   if(ra==='veto_flip')body.choice=rmb.dataset.v;else if(ra==='veto_order')body.order=rmb.dataset.v;else if(ra==='veto_ban')body.map=rmb.dataset.v;
   else if(ra==='civ_ban'){body.civs=roomSel.bans;if(!confirm('Lock in these bans? You can\'t change them afterwards.'))return}

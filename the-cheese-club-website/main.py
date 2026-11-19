@@ -1514,7 +1514,7 @@ def build_achievements(metrics: dict) -> list:
     out = []
     for key, icon, name, desc, metric, target in ACHIEVEMENTS:
         value = metrics.get(metric, 0) or 0
-        out.append({"id": key, "icon": icon, "name": name, "description": desc, "group": ACHIEVEMENT_GROUPS.get(key, "Other"),
+        out.append({"id": key, "icon": icon, "name": name, "description": desc, "group": ACHIEVEMENT_GROUPS.get(key, "Other"), "metric": metric,
                     "secret": key in SECRET_ACHIEVEMENTS, "earned": value >= target, "progress": min(value, target), "target": target})
     return out
 

@@ -382,4 +382,10 @@ Set when creating the tournament (old tournaments keep their old behaviour: 1v1 
   `member_achievements_seen`) and records what existing members already earned from the `NEW_ACHIEVEMENTS` as seen, before the
   notification job starts. Anything earned after that notifies normally. To add more achievements later, add them to the list and to a
   new pack marker (change `ACH_PACK` and `NEW_ACHIEVEMENTS`).
+- **The player page shows a short list and a pop-up.** The Achievements panel shows six badges: the highest rung earned on each ladder
+  (Invincible stands in for Hot Streak, On Fire and Unstoppable), filled up with the *next* rung of the other ladders, closest first
+  (`achPreview` in `player.html`, using the `metric` each achievement carries). The joke badges are never in the preview. **See all**
+  opens a dialog (`openAchievements`): every achievement grouped, with All / Earned / In progress filters; it closes with the X,
+  Escape or a click outside, keeps keyboard focus inside while open, locks the page scroll behind it and gives focus back to the
+  button; on a phone it is a bottom sheet.
 

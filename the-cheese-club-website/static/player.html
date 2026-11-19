@@ -66,6 +66,27 @@
 .achievements{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:16px 20px 20px}
 .ach-group{grid-column:1/-1;margin:10px 0 0;font:800 11px Inter,sans-serif;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
 .ach-group:first-child{margin-top:0}
+.ach-more{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:0 20px 18px}
+.ach-more small{color:var(--muted);font-size:12px;line-height:1.5}
+.ach-all-btn{white-space:nowrap;padding:12px 20px;border-radius:10px;border:1px solid #6a5420;background:#17130a;color:var(--gold);font:800 12px Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.ach-all-btn:hover{background:var(--gold);border-color:var(--gold);color:#211808}
+.ach-all-btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+body.ach-open{overflow:hidden}
+.ach-modal{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;padding:24px;background:#050506e8}
+.ach-sheet{width:min(940px,100%);max-height:min(88vh,920px);display:flex;flex-direction:column;background:#101013;border:1px solid #3b3220;border-radius:16px;box-shadow:0 30px 90px #000b;overflow:hidden}
+.ach-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 22px;border-bottom:1px solid var(--line)}
+.ach-head h3{margin:0;font:800 26px 'Barlow Condensed',sans-serif;letter-spacing:.6px;text-transform:uppercase}
+.ach-head small{color:var(--muted);font-size:12px}
+.ach-close{width:40px;height:40px;border-radius:10px;border:1px solid #3b3220;background:#17130a;color:var(--gold);font-size:18px;cursor:pointer}
+.ach-close:hover{background:var(--gold);color:#211808}
+.ach-tabs{display:flex;flex-wrap:wrap;gap:8px;padding:12px 22px;border-bottom:1px solid var(--line)}
+.ach-tab{padding:8px 14px;border-radius:999px;border:1px solid #3b3220;background:transparent;color:#cfcac0;font:700 12px Inter,sans-serif;cursor:pointer}
+.ach-tab:hover{border-color:var(--gold)}
+.ach-tab[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:#211808}
+.ach-body{overflow:auto;overscroll-behavior:contain}
+.ach-body .achievements{padding:18px 22px 24px}
+.ach-modal :focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+@media(max-width:700px){.ach-modal{padding:0;align-items:flex-end}.ach-sheet{max-height:92vh;border-radius:16px 16px 0 0;width:100%}.ach-head,.ach-tabs{padding-left:16px;padding-right:16px}.ach-body .achievements{padding:16px}}
 .badge{padding:13px;border:1px solid #2c2a26;border-radius:11px;background:#141417;min-width:0;opacity:.62}
 .badge.earned{opacity:1;border-color:#8a682b;background:linear-gradient(145deg,#231d10,#16140f)}
 .badge .icon{font-size:22px;line-height:1;filter:grayscale(1)}
@@ -126,6 +147,54 @@ function avatarHtml(p,cls){return p.avatar_url?`<img class="${cls}" src="${esc(p
 function streakText(s){if(!s||!s.count)return '—';return `${s.count} ${s.type==='win'?(s.count===1?'win':'wins'):(s.count===1?'loss':'losses')}`}
 function personRow(x,together){const rec=`${x.wins}–${x.losses}`;return `<div class="people-row">${avatarHtml(x,'')}<div style="min-width:0">${x.user_id?`<a href="${ccPlayerHref(x.user_id)}">${esc(x.username)}</a>`:`<span>${esc(x.username)}</span>`}<small>${fmt(x.games)} game${x.games===1?'':'s'} ${together?'together':'against'}</small></div><div class="rec">${rec}<small>${together?'Your record together':'Your record'}</small></div></div>`}
 function outcomeChip(m){if(m.outcome==='win')return '<span class="outcome">Win</span>';if(m.outcome==='loss')return '<span class="outcome loss">Loss</span>';return `<span class="outcome other">${esc(m.result==='pending'?'Live':matchResultText(m.result))}</span>`}
+function achBadge(a){return `<div class="badge ${a.earned?'earned':''}"><div class="icon" aria-hidden="true">${a.icon}</div><b>${esc(a.name)}</b><p>${esc(a.description)}</p>${a.earned?'<span class="status">Earned</span>':`<div class="progress"><i style="width:${(100*a.progress/a.target).toFixed(0)}%"></i></div><span class="status">${fmt(a.progress)} / ${fmt(a.target)}</span>`}</div>`}
+/* The short list: the highest rung earned on each ladder (so Invincible stands in for Hot Streak, On Fire and Unstoppable),
+   filled up to six with the NEXT rung of the other ladders, closest to unlocking first. The joke badges stay in the pop-up. */
+function achPreview(list){
+ const shown=list.filter(a=>!a.secret);
+ const top=new Map();
+ shown.filter(a=>a.earned).forEach(a=>{const b=top.get(a.metric);if(!b||a.target>b.target)top.set(a.metric,a)});
+ const picked=shown.filter(a=>top.get(a.metric)===a).slice(0,6);
+ if(picked.length<6){
+  const next=new Map();
+  shown.filter(a=>!a.earned).forEach(a=>{const b=next.get(a.metric);if(!b||a.target<b.target)next.set(a.metric,a)});
+  const ratio=a=>a.progress/a.target;
+  picked.push(...[...next.values()].sort((x,y)=>(top.has(x.metric)-top.has(y.metric))||(ratio(y)-ratio(x))).slice(0,6-picked.length));
+ }
+ return picked;
+}
+/* The pop-up with every achievement, grouped, with All / Earned / In progress filters. */
+function openAchievements(list,opener){
+ const earnedN=list.filter(a=>a.earned).length;
+ const modal=document.createElement('div');modal.className='ach-modal';modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-labelledby','achTitle');
+ modal.innerHTML=`<div class="ach-sheet"><div class="ach-head"><div><h3 id="achTitle">Achievements</h3><small>${earnedN} of ${list.length} earned</small></div><button type="button" class="ach-close" aria-label="Close">✕</button></div>
+  <div class="ach-tabs" role="group" aria-label="Filter achievements"><button type="button" class="ach-tab" data-f="all" aria-pressed="true">All (${list.length})</button><button type="button" class="ach-tab" data-f="earned" aria-pressed="false">Earned (${earnedN})</button><button type="button" class="ach-tab" data-f="open" aria-pressed="false">In progress (${list.length-earnedN})</button></div>
+  <div class="ach-body" tabindex="0" aria-label="Achievements list"></div></div>`;
+ const body=modal.querySelector('.ach-body');
+ function paint(f){
+  const shown=list.filter(a=>f==='earned'?a.earned:f==='open'?!a.earned:true);
+  body.innerHTML=shown.length?`<div class="achievements">${[...new Set(shown.map(a=>a.group))].map(g=>`<div class="ach-group">${esc(g)}</div>`+shown.filter(a=>a.group===g).map(achBadge).join('')).join('')}</div>`:'<div class="empty" style="padding:30px 22px">Nothing here yet.</div>';
+  body.scrollTop=0;
+  modal.querySelectorAll('.ach-tab').forEach(t=>t.setAttribute('aria-pressed',String(t.dataset.f===f)));
+ }
+ function close(){document.removeEventListener('keydown',onKey,true);modal.remove();document.body.classList.remove('ach-open');if(opener&&opener.isConnected)opener.focus()}
+ function onKey(e){
+  if(e.key==='Escape'){e.preventDefault();close();return}
+  if(e.key!=='Tab')return;
+  const f=[...modal.querySelectorAll('button,[tabindex="0"]')].filter(x=>!x.disabled&&x.offsetParent!==null);
+  if(!f.length)return;
+  const first=f[0],last=f[f.length-1];
+  if(!modal.contains(document.activeElement)){e.preventDefault();first.focus()}
+  else if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+  else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+ }
+ modal.addEventListener('click',e=>{if(e.target===modal)close()});
+ modal.querySelector('.ach-close').addEventListener('click',close);
+ modal.querySelectorAll('.ach-tab').forEach(t=>t.addEventListener('click',()=>paint(t.dataset.f)));
+ document.addEventListener('keydown',onKey,true);
+ paint('all');document.body.classList.add('ach-open');document.body.appendChild(modal);
+ modal.querySelector('.ach-close').focus();
+}
 function render(p,ins){
  const q=p.queue_stats||[];const wins=q.reduce((a,x)=>a+Number(x.wins||0),0),losses=q.reduce((a,x)=>a+Number(x.losses||0),0),games=wins+losses;
  ins.achievements=ins.achievements.filter(a=>a.earned||!a.secret);       /* a joke badge is shown only once it is earned */
@@ -157,7 +226,8 @@ function render(p,ins){
   </div></section>
   ${(ins.trophies||[]).length?`<section class="panel" style="grid-column:1/-1;border-color:#8a682b"><div class="panel-head"><h3>🏆 Tournament trophies</h3><small>${ins.trophies.filter(t=>t.champion).length} title${ins.trophies.filter(t=>t.champion).length===1?'':'s'}</small></div><div class="panel-body" style="display:flex;flex-wrap:wrap;gap:10px">${ins.trophies.map(t=>`<a href="/tournament/${Number(t.id)}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;border:1px solid ${t.champion?'#8a682b':'#3a3327'};background:${t.champion?'#221c10':'#17171b'}"><span style="font-size:22px">${t.champion?'🏆':t.third?'🥉':'🥈'}</span><span><b style="display:block;font-size:13px">${esc(t.name)}</b><small style="color:#8f8b82">${t.format==='random3v3'?'🎲 ':'⚔️ '}${t.champion?'Champion':t.third?'Third place':'Runner-up'} · ${shortDate(t.finished_at)}</small></span></a>`).join('')}</div></section>`:''}
   <section class="panel"><div class="panel-head"><h3>Achievements</h3><small>${earned} of ${ins.achievements.length} earned</small></div>
-   <div class="achievements">${[...new Set(ins.achievements.map(a=>a.group))].map(g=>`<div class="ach-group">${esc(g)}</div>`+ins.achievements.filter(a=>a.group===g).map(a=>`<div class="badge ${a.earned?'earned':''}"><div class="icon" aria-hidden="true">${a.icon}</div><b>${esc(a.name)}</b><p>${esc(a.description)}</p>${a.earned?'<span class="status">Earned</span>':`<div class="progress"><i style="width:${(100*a.progress/a.target).toFixed(0)}%"></i></div><span class="status">${fmt(a.progress)} / ${fmt(a.target)}</span>`}</div>`).join('')).join('')}</div>
+   <div class="achievements">${achPreview(ins.achievements).map(achBadge).join('')}</div>
+   <div class="ach-more"><small>Your best badges, and the ones closest to unlocking</small><button type="button" class="ach-all-btn" id="achAll">See all ${ins.achievements.length}</button></div>
   </section>
  </div>
  <div class="player-columns">
@@ -167,6 +237,7 @@ function render(p,ins){
  <section class="panel recent" style="margin-bottom:40px"><div class="panel-head"><h3>Recent matches</h3><small>Select a match for teams and civilizations</small></div>
   <div class="match-list">${ins.recent_matches.length?ins.recent_matches.map(m=>`<div class="match" role="button" tabindex="0" data-match="${Number(m.id)}">${outcomeChip(m)}<div style="min-width:0"><strong>Match #${m.id} · ${esc(m.queue_type)}</strong><small>${shortDate(m.created_at)} · ${fmt(m.player_count)} players</small></div><span class="recent-civ">${m.civ?`<span class="civ-flag">${civFlag(m.civ)}</span>${esc(m.civ)}`:''}</span></div>`).join(''):'<div class="empty">No matches recorded yet.</div>'}</div>
  </section>`;
+ const allBtn=$('achAll');if(allBtn)allBtn.addEventListener('click',()=>openAchievements(ins.achievements,allBtn));
  $('copyLink').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.origin+location.pathname);$('copyDone').textContent='Link copied'}catch{$('copyDone').textContent='Copy the address from your browser'}});
 }
 async function load(){

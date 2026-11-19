@@ -1,3 +1,56 @@
+/* ---- Logged-in hint: set before the page paints, so the header never flashes the logged-out buttons
+   ("Log in", "Join Discord") while the real answer is still loading. ---- */
+(function(){try{if(localStorage.getItem('cc_me')||/(?:^|; )cc_in=1/.test(document.cookie))document.documentElement.classList.add('cc-in')}catch(e){}})();
+
+/* ---- The cheese loader ----
+   1. The page-load cover (#ccLoader, added to every page by the server) fades away once the page and its first
+      data requests are done. It only becomes visible if loading takes longer than ~0.12 s.
+   2. A small cheese (#ccBusy) shows in the corner while a request to the site takes longer than ~0.7 s.
+   3. Clicking a link to another page of the site shows the cover straight away, so the wait never looks frozen. */
+const CC_CHEESE='<svg viewBox="0 0 80 80" class="cc-cheese" aria-hidden="true"><path d="M8 38 L72 16 V52 a6 6 0 0 1-6 6 H14 a6 6 0 0 1-6-6 Z" fill="#f0b82f"/><path d="M8 38 L72 16 V27 L8 49 Z" fill="#ffda70"/><circle cx="24" cy="50" r="4.5" fill="#c98713"/><circle cx="43" cy="46" r="3.2" fill="#c98713"/><circle cx="58" cy="43" r="4" fill="#c98713"/><circle cx="34" cy="31" r="2.6" fill="#e0a62a"/><circle cx="55" cy="26" r="2.2" fill="#e0a62a"/></svg>';
+const ccLoader=(function(){
+  let inflight=0,slowTimer=null,startedAt=Date.now(),cover=null,busy=null,navTimer=null;
+  const origFetch=window.fetch.bind(window);
+  const isApi=u=>/^(https?:\/\/[^/]+)?\/api\//.test(u);
+  function showBusy(on){
+    if(on&&!busy){busy=document.createElement('div');busy.id='ccBusy';busy.setAttribute('role','status');busy.setAttribute('aria-label','Working');busy.innerHTML=CC_CHEESE;(document.body||document.documentElement).appendChild(busy)}
+    if(busy)busy.hidden=!on;
+  }
+  window.fetch=function(input,init){
+    const url=typeof input==='string'?input:(input&&input.url)||'';
+    if(!isApi(url)||/\/notifications/.test(url))return origFetch(input,init);
+    inflight++;clearTimeout(slowTimer);slowTimer=setTimeout(()=>{if(inflight>0&&!cover)showBusy(true)},700);
+    return origFetch(input,init).finally(()=>{inflight=Math.max(0,inflight-1);if(!inflight){clearTimeout(slowTimer);showBusy(false)}});
+  };
+  function finish(){
+    if(!cover)return;const c=cover;cover=null;c.classList.add('cc-done');setTimeout(()=>c.remove(),420);
+  }
+  function init(){
+    cover=document.getElementById('ccLoader');
+    if(!cover)return;
+    let quiet=0;
+    (function poll(){
+      if(document.readyState==='complete'&&inflight===0){if(++quiet>=2)return finish()}else quiet=0;
+      if(Date.now()-startedAt>8000)return finish();
+      setTimeout(poll,120);
+    })();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+  document.addEventListener('click',e=>{
+    const a=e.target.closest&&e.target.closest('a[href]');
+    if(!a||e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||a.target==='_blank'||a.hasAttribute('download'))return;
+    let u;try{u=new URL(a.href,location.href)}catch(x){return}
+    if(u.origin!==location.origin||(u.pathname===location.pathname&&u.search===location.search)||/^\/(auth|static)\//.test(u.pathname))return;
+    clearTimeout(navTimer);navTimer=setTimeout(()=>{
+      let c=document.getElementById('ccLoader');
+      if(!c){c=document.createElement('div');c.id='ccLoader';c.setAttribute('role','status');c.setAttribute('aria-label','Loading');c.innerHTML='<div class="cc-load">'+CC_CHEESE+'<span>Loading…</span></div>';document.body.appendChild(c)}
+      c.classList.remove('cc-done');c.classList.add('cc-nav');cover=null;
+    },150);
+  },true);
+  window.addEventListener('pageshow',e=>{if(e.persisted){clearTimeout(navTimer);const c=document.getElementById('ccLoader');if(c)c.remove()}});
+  return {busy:showBusy};
+})();
+
 /* Script errors on a page are sent to the admins (#website-exception-logs) so they can be fixed.
    Only errors from this site's own scripts are sent, at most 3 per page load, and never the same one twice. */
 (function(){
@@ -178,13 +231,13 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 /* Account menu in the navigation: "Log in" for visitors; name, avatar and a menu
    (My profile, Account, Log out) for members who logged in with Discord. */
-async function ccSetupAccountNav(){
+function ccCachedMe(){try{return JSON.parse(localStorage.getItem('cc_me')||'null')}catch(e){return null}}
+function ccSaveMe(me){try{localStorage.setItem('cc_me',JSON.stringify({username:me.username,avatar_url:me.avatar_url,user_id:me.user_id,in_server:me.in_server,hidden:me.hidden,aoe4:me.aoe4}))}catch(e){};document.cookie='cc_in=1; path=/; max-age=2592000; samesite=lax'}
+function ccForgetMe(){try{localStorage.removeItem('cc_me')}catch(e){};document.cookie='cc_in=; path=/; max-age=0';document.documentElement.classList.remove('cc-in')}
+let ccAccount=null;
+function ccBuildAccount(me){
   const link=document.querySelector('.nav a[href="/login"]');
-  if(!link)return;
   const here=location.pathname+location.search;
-  let me=null;
-  try{const r=await fetch('/api/me',{credentials:'same-origin'});if(r.ok)me=await r.json()}catch(e){}
-  if(!me||!me.logged_in){link.textContent='Log in';return}
   const wrap=document.createElement('div');wrap.className='nav-user';
   wrap.innerHTML=`<button type="button" class="nav-user-btn" aria-haspopup="true" aria-expanded="false"><img src="${ccEsc(me.avatar_url||CC_DEFAULT_AVATAR)}" alt=""><span>${ccEsc(me.username||'Account')}</span><i aria-hidden="true">▾</i></button>
   <div class="nav-menu" role="menu" hidden>
@@ -202,12 +255,14 @@ async function ccSetupAccountNav(){
      instead of) "Join Discord", not in the row of links, so long names never
      push them onto a second line. Members already in the server don't need the
      Join Discord button. */
-  link.remove();
+  document.documentElement.classList.add('cc-in');            /* hides "Log in" in the row of links */
   const topbar=document.querySelector('.topbar'),discord=topbar&&topbar.querySelector('.discord');
   const actions=document.createElement('div');actions.className='top-actions';
   if(discord){discord.before(actions);if(me.in_server)discord.hidden=true;else{actions.appendChild(discord);actions.classList.add('with-discord')}}
   else if(topbar)topbar.appendChild(actions);
   actions.prepend(wrap);
+  ccAccount={wrap,actions,discord,topbar};
+  const lo=wrap.querySelector('a[href^="/auth/logout"]');if(lo)lo.addEventListener('click',ccForgetMe);
   ccSetupBell(wrap);
   ccWelcomeStrip(me);
   const btn=wrap.querySelector('button'),menu=wrap.querySelector('.nav-menu');
@@ -215,6 +270,31 @@ async function ccSetupAccountNav(){
   btn.addEventListener('click',e=>{e.stopPropagation();set(menu.hidden)});
   document.addEventListener('click',e=>{if(!wrap.contains(e.target))set(false)});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')set(false)});
+}
+function ccUpdateAccount(me){
+  if(!ccAccount)return;
+  const img=ccAccount.wrap.querySelector('.nav-user-btn img'),name=ccAccount.wrap.querySelector('.nav-user-btn span');
+  if(img&&(me.avatar_url||CC_DEFAULT_AVATAR)!==img.getAttribute('src'))img.src=me.avatar_url||CC_DEFAULT_AVATAR;
+  if(name&&name.textContent!==(me.username||'Account'))name.textContent=me.username||'Account';
+  if(ccAccount.discord){const inServer=!!me.in_server;ccAccount.discord.hidden=inServer;if(!inServer&&ccAccount.discord.parentElement!==ccAccount.actions){ccAccount.actions.appendChild(ccAccount.discord);ccAccount.actions.classList.add('with-discord')}}
+}
+function ccRevertAccount(){
+  /* the server says we're logged out after all (e.g. the session expired): back to the visitor header */
+  if(!ccAccount)return;
+  const a=ccAccount;ccAccount=null;
+  if(a.discord&&a.topbar){a.discord.hidden=false;a.topbar.appendChild(a.discord)}
+  a.actions.remove();
+}
+async function ccSetupAccountNav(){
+  const link=document.querySelector('.nav a[href="/login"]');
+  if(!link)return;
+  const cached=ccCachedMe();
+  if(cached&&cached.username!==undefined)ccBuildAccount(cached);       /* draw the member header at once */
+  let me=null,failed=false;
+  try{const r=await fetch('/api/me',{credentials:'same-origin'});if(r.ok)me=await r.json();else failed=true}catch(e){failed=true}
+  if(me&&me.logged_in){ccSaveMe(me);ccAccount?ccUpdateAccount(me):ccBuildAccount(me)}
+  else if(me){ccForgetMe();ccRevertAccount();link.textContent='Log in'}
+  /* if the request failed we keep whatever we are showing */
 }
 
 /* Home page: a small "Welcome back" strip for logged-in members. */

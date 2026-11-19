@@ -1853,6 +1853,8 @@ async def auth_callback(request: Request, code: str = "", state: str = "", error
         log.exception("Could not record website user")
     response = RedirectResponse(saved.get("n") or "/dashboard", status_code=302)
     response.set_cookie(SESSION_COOKIE, _sign(session), **_cookie_args(request, SESSION_SECONDS))
+    # a readable hint (no personal data) so the header can show the member state before the page has loaded
+    response.set_cookie("cc_in", "1", max_age=SESSION_SECONDS, path="/", samesite="lax", secure=_cookie_args(request, 1).get("secure", False))
     response.delete_cookie(STATE_COOKIE, path="/")
     return response
 
@@ -1861,6 +1863,7 @@ async def auth_callback(request: Request, code: str = "", state: str = "", error
 async def auth_logout(next: str = "/"):
     response = RedirectResponse(_safe_next(next, "/"), status_code=302)
     response.delete_cookie(SESSION_COOKIE, path="/")
+    response.delete_cookie("cc_in", path="/")
     return response
 
 
@@ -5100,6 +5103,7 @@ PAGES = {
     "/settings": "settings.html",
     "/queue": "queue.html",
     "/my-tournaments": "my_tournaments.html",
+    "/start": "start.html",
 }
 
 
@@ -5122,10 +5126,19 @@ def _template(filename: str) -> str:
     return cached[1]
 
 
+CC_LOADER = ('<div id="ccLoader" role="status" aria-label="Loading"><div class="cc-load">'
+             '<svg viewBox="0 0 80 80" class="cc-cheese" aria-hidden="true"><path d="M8 38 L72 16 V52 a6 6 0 0 1-6 6 H14 a6 6 0 0 1-6-6 Z" fill="#f0b82f"/>'
+             '<path d="M8 38 L72 16 V27 L8 49 Z" fill="#ffda70"/><circle cx="24" cy="50" r="4.5" fill="#c98713"/><circle cx="43" cy="46" r="3.2" fill="#c98713"/>'
+             '<circle cx="58" cy="43" r="4" fill="#c98713"/><circle cx="34" cy="31" r="2.6" fill="#e0a62a"/><circle cx="55" cy="26" r="2.2" fill="#e0a62a"/></svg>'
+             '<span>Loading…</span></div></div>')
+
+
 def render_page(filename: str, request: Request, **values) -> HTMLResponse:
     text = _template(filename).replace("%%SITE_URL%%", site_url(request))
     for key, value in values.items():
         text = text.replace(f"%%{key}%%", html.escape(str(value), quote=True))
+    if 'id="ccLoader"' not in text:               # the page-load cheese: covers the page until it has loaded
+        text = re.sub(r"(<body[^>]*>)", lambda mo: mo.group(1) + CC_LOADER, text, count=1)
     return HTMLResponse(text)
 
 

@@ -115,3 +115,25 @@ th.cc-sort:hover,th.cc-sort:focus-visible{color:var(--gold,#f0b82f);outline:none
 th.cc-sort::after{content:" ↕";opacity:.4;font-size:.9em}
 th.cc-sort[aria-sort="descending"]::after{content:" ↓";opacity:1;color:var(--gold,#f0b82f)}
 th.cc-sort[aria-sort="ascending"]::after{content:" ↑";opacity:1;color:var(--gold,#f0b82f)}
+
+/* "Start here" pill in the top menu */
+.nav a.nav-start{border:1px solid #6a5420;color:var(--gold);background:#17130a;padding:5px 12px;border-radius:999px;font-weight:800;letter-spacing:.3px;white-space:nowrap}
+.nav a.nav-start:hover,.nav a.nav-start[aria-current="page"]{background:var(--gold);color:#211808;border-color:var(--gold)}
+
+/* Logged-in members: never show the visitor buttons while the real state loads */
+html.cc-in .nav a[href="/login"]{display:none}
+html.cc-in .topbar>.discord{visibility:hidden}
+
+/* The cheese loader */
+#ccLoader{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(8,8,9,.9);opacity:0;pointer-events:all;animation:ccIn .01s .12s forwards,ccOut .4s 10s forwards}
+#ccLoader.cc-nav{animation:ccIn .01s forwards}
+#ccLoader.cc-done{opacity:0!important;transition:opacity .3s;pointer-events:none!important}
+#ccLoader .cc-load{display:flex;flex-direction:column;align-items:center;gap:14px;color:#cfcac0;font:700 12px Inter,sans-serif;letter-spacing:.2em;text-transform:uppercase}
+.cc-cheese{width:84px;height:84px;filter:drop-shadow(0 6px 18px #f0b82f40);animation:ccBob 1.1s ease-in-out infinite}
+#ccBusy{position:fixed;right:22px;bottom:22px;z-index:99998;width:56px;height:56px;border-radius:16px;background:#101013ee;border:1px solid #4a3d22;display:grid;place-items:center;box-shadow:0 10px 30px #0008}
+#ccBusy[hidden]{display:none}
+#ccBusy .cc-cheese{width:38px;height:38px;filter:none}
+@keyframes ccIn{to{opacity:1}}
+@keyframes ccOut{to{opacity:0;visibility:hidden;pointer-events:none}}
+@keyframes ccBob{0%,100%{transform:translateY(0) rotate(-7deg)}50%{transform:translateY(-12px) rotate(7deg)}}
+@media (prefers-reduced-motion:reduce){.cc-cheese{animation:none}}

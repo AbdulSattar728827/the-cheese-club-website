@@ -348,3 +348,17 @@ Set when creating the tournament (old tournaments keep their old behaviour: 1v1 
   a player in a match with a player sitting the round out (who takes the slot while the other gets the sit-out). It works on
   scheduled and ready matches, refuses started or finished ones and teammates, recalculates the team averages and the captain,
   clears Ready flags (so the bot announces the match again), notifies everyone affected, and updates the "Teams are set" post.
+
+## Start here page, a steady header, and the cheese loader
+- **`/start`** (`static/start.html`) is the page for newcomers: three steps, what happens when a queue fills, the eight queues,
+  the four tournament formats and a few answers, with live numbers (players in the queue, the next tournament, the latest
+  champion) from `/api/queue` and `/api/tournaments`. A gold **Start here** pill is the first item of the top menu on every page
+  (it's in each page's `<nav class="nav">`; the tournament pages are generated, so add it to their template too).
+- **The header no longer flickers for logged-in members.** Every page ships with the visitor header ("Log in", "Join Discord"),
+  and the real state used to arrive only after `/api/me` returned. Now `common.js` remembers the member (`localStorage.cc_me`, plus a
+  readable `cc_in` hint cookie set at login and cleared at logout) and draws the member header at once, then confirms it with
+  `/api/me`. Visitors see no change; if the server says the session has expired, the header is corrected and the memory cleared.
+  CSS (`html.cc-in`) hides the visitor buttons until the real answer is known.
+- **The cheese loader.** The server adds a cover (`#ccLoader`) to every page; it fades out once the page and its first data requests
+  are done and only becomes visible if that takes more than ~0.12 s. A small cheese (`#ccBusy`) shows in the corner while a request
+  to the site takes more than ~0.7 s, and clicking a link to another page shows the cover at once. Reduced-motion users get a static cheese.

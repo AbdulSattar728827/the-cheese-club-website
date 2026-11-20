@@ -385,16 +385,17 @@ function myCard(){
 function gamesLine(m){const g=m.games.filter(x=>x.status==='done'||x.status==='playing');if(!g.length)return '';
  return `<div class="civs">${g.map(x=>{const link=x.aoe_match_id?` <a href="#" data-match="${x.aoe_match_id}" style="color:var(--gold);font-weight:700">${x.status==='playing'?'▶ Watch live':'Details ↗'}</a>`:'';
   if(x.status==='playing')return `G${x.game} <b style="color:#8fe0b2">● live</b>${x.map?' · 🗺️ '+esc(x.map):''}${link}`;
-  const who=x.p1_civ||x.p2_civ?`<b>${esc(x.p1_civ||'?')}</b> vs <b>${esc(x.p2_civ||'?')}</b>`:x.winner_side?`${esc((x.winner_side===1?m.p1:m.p2)?.username||'')} won`:'';
+  const who=x.p1_civ||x.p2_civ?`<b>${x.p1_civ?civCell(x.p1_civ):'?'}</b> vs <b>${x.p2_civ?civCell(x.p2_civ):'?'}</b>`:x.winner_side?`${esc((x.winner_side===1?m.p1:m.p2)?.username||'')} won`:'';
   return `G${x.game}: ${who}${x.map?' · 🗺️ '+esc(x.map):''}${link}`}).join('<br>')}</div>`}
 const TEAM_DOT=['🔴','🔵'];
 function civCell(n){const f=n?civFlag(n):'';return `<span class="cf">${f&&f!=='?'?f:''}<span>${esc(n)}</span></span>`}
 /* Both teams, side by side: Team 1 on the left, Team 2 on the right. Teammates' civs show for your own team only (until both teams are locked in). */
 function roomTeams(R,mode){
  return `<p class="room-legend">⭐ = captain</p><div class="room-teams">${R.teams.map(T=>`<section class="rteam ${T.mine?'ours':''}" aria-label="Team ${T.team}"><h5><span aria-hidden="true">${TEAM_DOT[T.team-1]}</span>Team ${T.team}${mode==='picks'&&T.locked?'<i>🔒 locked</i>':''}${T.mine?'<em>Your team</em>':''}</h5>${T.players.map(p=>`<div class="rpl ${p.me?'me':''}"><span class="rpn">${p.captain?'<span class="cap" title="Captain" aria-label="Captain">⭐</span>':''}${p.me?'You':esc(p.name)}</span><span class="rpc">${p.civ?civCell(p.civ):mode==='picks'?(p.picked?'<span class="w">✓ picked</span>':'<span class="w">…</span>'):''}</span></div>`).join('')}</section>`).join('')}</div>`}
-function civPicker(R,cur){
- const un=new Set(R.civ.unavailable||[]);
- return `<div class="civpick"><button type="button" class="civpick-btn" id="roomPickBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="roomPickList" aria-label="Your civilization"><span id="roomPickCur">${cur?civCell(cur):'<span style="color:#a29e95">Choose a civ…</span>'}</span><span aria-hidden="true">▾</span></button><ul class="civpick-list" id="roomPickList" role="listbox" tabindex="-1" aria-label="Civilizations" hidden>${CIVS.map((c,i)=>`<li role="option" id="rp-${i}" data-civ="${esc(c)}" aria-selected="${c===cur}" ${un.has(c)?'aria-disabled="true"':''}>${civCell(c)}${un.has(c)?'<small>not available</small>':''}</li>`).join('')}</ul></div>`}
+function civPickerOf(list,unavail,cur){
+ const un=new Set(unavail||[]);
+ return `<div class="civpick"><button type="button" class="civpick-btn" id="roomPickBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="roomPickList" aria-label="Your civilization"><span id="roomPickCur">${cur?civCell(cur):'<span style="color:#a29e95">Choose a civ…</span>'}</span><span aria-hidden="true">▾</span></button><ul class="civpick-list" id="roomPickList" role="listbox" tabindex="-1" aria-label="Civilizations" hidden>${list.map((c,i)=>`<li role="option" id="rp-${i}" data-civ="${esc(c)}" aria-selected="${c===cur}" ${un.has(c)?'aria-disabled="true"':''}>${civCell(c)}${un.has(c)?'<small>not available</small>':''}</li>`).join('')}</ul></div>`}
+function civPicker(R,cur){return civPickerOf(CIVS,R.civ.unavailable,cur)}
 function roomAdmin(R,m,kind){
  const A=R.admin;if(!A||!['civ_select','pre_match'].includes(R.phase))return '';
  const mid=`data-rm="${m.id}" data-rk="${kind}"`;
@@ -610,9 +611,9 @@ function civPanel(m){
  const mine=ph==='ban'?m.my_ban:m.my_pick,n=m.players.length,doneN=ph==='ban'?m.bans_done:m.picks_done;
  const opts=F.civ_list.filter(c=>ph==='ban'||!m.banned.includes(c));
  return `<div class="tm-card inv" style="margin-top:12px"><h4>${ph==='ban'?'🚫 Ban a civ':'🏳️ Pick your civ'}</h4>
-  <p>${ph==='ban'?'Each player bans one civ. ':''}Choices stay hidden until everyone has chosen, then they're revealed (here and in the Discord thread).${F.unique_civs&&ph==='pick'?' <b>Unique civs:</b> no two players can pick the same civ.':''}${m.banned.length?`<br>Banned: <b>${m.banned.map(esc).join(', ')}</b>`:''}</p>
-  ${mine?`<div class="t-msg ok" style="margin:8px 0 0">🔒 Your ${ph==='ban'?'ban':'civ'}: <b>${esc(mine)}</b>. Waiting for the others (${doneN} of ${n} done).</div>`
-  :`<div class="tm-actions"><select id="civSel" aria-label="Civilization">${opts.map(c=>`<option>${esc(c)}</option>`).join('')}</select><button class="btn primary" type="button" data-fciv="${m.id}" data-act2="${ph}">🔒 Lock in ${ph==='ban'?'ban':'civ'}</button><span style="color:#8f8b82;font-size:12px">${doneN} of ${n} done</span></div>`}</div>`}
+  <p>${ph==='ban'?'Each player bans one civ. ':''}Choices stay hidden until everyone has chosen, then they're revealed (here and in the Discord thread).${F.unique_civs&&ph==='pick'?' <b>Unique civs:</b> no two players can pick the same civ.':''}${m.banned.length?`<br>Banned: <b>${m.banned.map(civCell).join(', ')}</b>`:''}</p>
+  ${mine?`<div class="t-msg ok" style="margin:8px 0 0">🔒 Your ${ph==='ban'?'ban':'civ'}: <b>${civCell(mine)}</b>. Waiting for the others (${doneN} of ${n} done).</div>`
+  :`<div class="tm-actions">${civPickerOf(opts,[],opts.includes(roomSel.pick)?roomSel.pick:'')}<button class="btn primary" type="button" data-fciv="${m.id}" data-act2="${ph}">🔒 Lock in ${ph==='ban'?'ban':'civ'}</button><span style="color:#8f8b82;font-size:12px">${doneN} of ${n} done</span></div>`}</div>`}
 function civReveal(m){return m.civ_phase==='done'&&m.revealed.length?`<div class="chips2" style="margin-top:8px">${m.revealed.map(r=>`<span class="ok">${civFlag(r.civ)} ${r.me?'You':esc(r.username)}: ${esc(r.civ)}</span>`).join('')}</div>`:''}
 function ffaCard(){
  const t=D.tournament;if(t.status!=='live')return '';const m=ffaCur();
@@ -700,7 +701,7 @@ function rtLiveCard(){
  return '';
 }
 function rtSide(team,avg,cls,right,m){
- return `<div class="rt-side ${cls} ${right?'rt-r':''}">${team.map(p=>`<span class="${p.me?'rt-me':''}">${p.user_id?`<a href="${ccPlayerHref(p.user_id)}">${esc(p.username)}</a>`:esc(p.username)}${p.me?' (you)':''}${p.civ?` <em>· ${esc(p.civ)}</em>`:''}${m.status==='ready'&&p.ready?' <em>✓</em>':''}</span>`).join('')}<small>avg ${fmt(avg)}${cls==='rt-win'?` · +${D.tournament.points_win} each`:''}</small></div>`}
+ return `<div class="rt-side ${cls} ${right?'rt-r':''}">${team.map(p=>`<span class="${p.me?'rt-me':''}">${p.user_id?`<a href="${ccPlayerHref(p.user_id)}">${esc(p.username)}</a>`:esc(p.username)}${p.me?' (you)':''}${p.civ?` <em>· ${civCell(p.civ)}</em>`:''}${m.status==='ready'&&p.ready?' <em>✓</em>':''}</span>`).join('')}<small>avg ${fmt(avg)}${cls==='rt-win'?` · +${D.tournament.points_win} each`:''}</small></div>`}
 function standinTool(m,round){
  const outs=[...m.team1,...m.team2].filter(p=>p.user_id);
  const groups=[['Sitting out this round',round.byes.filter(b=>!b.substituted_into&&b.user_id)],['Candidates',D.players.filter(p=>p.status==='waitlist'&&p.user_id)]];
@@ -798,7 +799,7 @@ document.addEventListener('click',async e=>{
   await act(`/api/tournaments/${TID}/ffa-confirm`,{match_id:+fc.dataset.fconf,agree:fc.dataset.agree==='1'},fc.dataset.agree==='1'?'Confirmed. Thanks!':'Disputed. An admin will decide.');return}
  const fs=e.target.closest('[data-fset]');if(fs){const o=orderOf(fs.dataset.fset);if(new Set(o).size!==o.length){msg={ok:false,text:'Each player can only be in one place.'};render();return}
   if(!confirm('Save these placements as final?'))return;fs.disabled=true;await act(`/api/tournaments/${TID}/admin`,{action:'ffa_result',match_id:+fs.dataset.fset,order:o,civs:civsOf(fs.dataset.fset)});return}
- const fcv=e.target.closest('[data-fciv]');if(fcv){const civ=$('civSel').value;if(!confirm(`Lock in ${civ}? You can't change it afterwards.`))return;fcv.disabled=true;
+ const fcv=e.target.closest('[data-fciv]');if(fcv){const civ=roomSel.pick;if(!civ){msg={ok:false,text:'Choose a civ first.'};render();return}if(!confirm(`Lock in ${civ}? You can't change it afterwards.`))return;fcv.disabled=true;
   await act(`/api/tournaments/${TID}/ffa-civ`,{match_id:+fcv.dataset.fciv,action:fcv.dataset.act2,civ});return}
  const fce=e.target.closest('[data-fcivend]');if(fce){if(!confirm(fce.dataset.confirm))return;fce.disabled=true;await act(`/api/tournaments/${TID}/admin`,{action:'ffa_civ_end',match_id:+fce.dataset.fcivend});return}
  const fpl=e.target.closest('[data-fplace]');if(fpl){const k=+fpl.dataset.place;if(k&&!confirm(`Report that you finished #${k}?`))return;fpl.disabled=true;

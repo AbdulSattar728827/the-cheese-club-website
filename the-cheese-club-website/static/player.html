@@ -217,7 +217,7 @@ function render(p,ins){
   <div class="stat"><label>Voice time</label><strong>${duration(p.vc_seconds)}</strong><small>In club voice channels</small></div>
   <div class="stat"><label>Solo ELO</label><strong>${p.solo_elo==null?'—':fmt(p.solo_elo)}</strong><small>Official AoE4World rating</small></div>
   <div class="stat"><label>Team ELO</label><strong>${p.team_elo==null?'—':fmt(p.team_elo)}</strong><small>Official AoE4World rating</small></div>
-  <div class="stat"><label>Favourite civ</label><strong style="font-size:24px">${ins.favourite_civ?esc(ins.favourite_civ):'—'}</strong><small>Most played</small></div>
+  <div class="stat"><label>Favourite civ</label><strong style="font-size:24px">${ins.favourite_civ?ccCivCell(ins.favourite_civ):'—'}</strong><small>Most played</small></div>
   <div class="stat"><label>Achievements</label><strong>${earned} / ${ins.achievements.length}</strong><small>Earned so far</small></div>
  </div>
  <div class="player-columns">

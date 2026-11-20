@@ -405,4 +405,8 @@ Set when creating the tournament (old tournaments keep their old behaviour: 1v1 
 - **Discord (bot):** a private **👥 Team picks** button on the civ screen of every team match (queue, Team Cup, All Random) shows the player's own team's
   picks (ephemeral: only they see it; they press it again to refresh), and the private pick confirmation lists the team's picks too. The public status
   message still shows only ready / picking.
+- **Flags wherever a civ is named.** `civFlag(name)` (flag image) is wrapped by `ccCivCell(name)` in `common.js` (and `civCell` on the tournament page): a flag next to the name.
+  It is used in the match room (dropdown, team columns, ban chips, banned lists), the games of a cup match card ("G1: flag Mongols vs flag Rus"), the players of an
+  All Random match card, the free-for-all pick / ban panel (which also uses the flag dropdown, `civPickerOf`), the dashboard's "Your last match" and the player page's
+  "Favourite civ". Not covered: the free-for-all result form where an admin picks each place's civ (`.ordciv`) is still a plain `<select>`, which can't show images.
 

@@ -139,3 +139,7 @@ html.cc-in .topbar>.discord{visibility:hidden}
 @keyframes ccOut{to{opacity:0;visibility:hidden;pointer-events:none}}
 @keyframes ccBob{0%,100%{transform:translateY(0) rotate(-7deg)}50%{transform:translateY(-12px) rotate(7deg)}}
 @media (prefers-reduced-motion:reduce){.cc-cheese{animation:none}}
+
+/* A civilization's flag next to its name, wherever a civ is shown */
+.cf{display:inline-flex;align-items:center;gap:7px;vertical-align:middle}
+.cf img{width:22px;height:22px;object-fit:contain;flex:none}

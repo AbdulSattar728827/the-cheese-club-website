@@ -125,6 +125,9 @@ function civFlag(c){
   return file?`<img class="civ-flag-image" src="/static/civ-flags/${encodeURIComponent(file)}" alt="${ccEsc(c)} emblem" title="${ccEsc(c)}" loading="lazy" onerror="this.style.display='none'">`:'⚑';
 }
 
+/* The civ's flag and name, for any page. */
+function ccCivCell(n){const f=n?civFlag(n):'';return `<span class="cf">${f&&f!=='?'?f:''}<span>${ccEsc(n)}</span></span>`}
+
 function ccPlayerHref(publicId){return '/player/'+encodeURIComponent(publicId)}
 
 /* One player row inside the match-detail modal. */

@@ -389,3 +389,20 @@ Set when creating the tournament (old tournaments keep their old behaviour: 1v1 
   Escape or a click outside, keeps keyboard focus inside while open, locks the page scroll behind it and gives focus back to the
   button; on a phone it is a bottom sheet.
 
+## Match room: team columns, teammates' civs, flags, captain and admin lock-in
+- **Who sees which civ** (`_room_view` in `main.py`): you see your own team's picks live, so teammates can plan together; the other team
+  shows only "✓ picked" until **both** teams are locked in, then everything is revealed. The server never sends an opponent's civ to a
+  browser before the reveal. An admin who is not playing gets the controls but no civ names.
+- **Team columns** (`roomTeams` in the page): Team 1 (🔴) on the left, Team 2 (🔵) on the right, your own team marked, a ⭐ on each captain, flags next to civs.
+  The captain is the one the bot assigned for the round (`captain1_id` / `captain2_id`); non-captains see "Waiting for ⭐ X to lock in / start".
+- **Civ flags**: the civ dropdown is a custom listbox (`civPicker`: flag + name, banned or already-used civs greyed out, keyboard support: arrows, Home/End,
+  type to jump, Enter, Escape). The page's 5-second refresh pauses while it is open. Flags also show in the ban chips and everywhere a civ is named.
+- **Admin lock-in / start from the website:** every live All Random match card shows the admin the room (`roomSpectator`) with **Lock Team 1 / Lock Team 2 civs**
+  (enabled when everyone on that team has picked) and **Start match**. `POST /api/tournaments/{id}/room` accepts `civ_lock` (with `team`) and `start` from an admin
+  even if they are not in the match (`ADMIN_ROOM_ACTIONS`); the queued action carries `as_admin` (and `team`) in its payload, which only the server ever sets.
+  The bot treats `as_admin` like a mod pressing Discord's lock buttons.
+- **Your schedule** now reads "You, A, B vs C, D, E".
+- **Discord (bot):** a private **👥 Team picks** button on the civ screen of every team match (queue, Team Cup, All Random) shows the player's own team's
+  picks (ephemeral: only they see it; they press it again to refresh), and the private pick confirmation lists the team's picks too. The public status
+  message still shows only ready / picking.
+

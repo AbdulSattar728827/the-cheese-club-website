@@ -261,6 +261,36 @@ table.rt-std{width:100%;border-collapse:collapse;font-size:12.5px}
 .civ-chip input:checked+span{background:#5b4212;color:#ffdb78;border-color:#99701e}.civ-chip.off span{opacity:.35;text-decoration:line-through;cursor:not-allowed}
 .room-picks{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;margin:8px 0 12px;font-size:12.5px}.room-picks div{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid #ffffff0d}
 .room .tm-actions{justify-content:flex-start;flex-wrap:wrap;margin-top:6px}
+.btn.success{background:#1d5c36;border:1px solid #2f8a52;color:#e6ffee}.btn.success:hover{background:#25724a}
+.btn.danger{background:#4a1f1b;border:1px solid #8a3a32;color:#ffd8d2}.btn.danger:hover{background:#5d2722}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.cf{display:inline-flex;align-items:center;gap:7px;vertical-align:middle}
+.cf img{width:22px;height:22px;object-fit:contain;flex:none}
+.room-legend{color:#8f8b82;font-size:11px;margin:8px 0 0}
+.room-teams{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:8px 0 12px}
+.rteam{border:1px solid #2c2a26;border-radius:12px;background:#111114;padding:10px 14px;min-width:0}
+.rteam.ours{border-color:#8a682b;background:linear-gradient(145deg,#1d1810,#121114)}
+.rteam h5{margin:0 0 4px;display:flex;align-items:center;gap:8px;font:800 12px Inter,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#cfcac0}
+.rteam h5 em{font-style:normal;color:var(--gold);letter-spacing:.06em;margin-left:auto}
+.rteam h5 i{font-style:normal;color:#8fe0b2;font-size:11px;letter-spacing:0;text-transform:none}
+.rpl{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-top:1px solid #ffffff0d;font-size:13px;min-width:0}
+.rpn{min-width:0;overflow-wrap:anywhere}.rpl.me .rpn{font-weight:800;color:#fff}
+.rpc{font-weight:700;color:#fff;text-align:right}.rpc .w{color:#8f8b82;font-weight:600}
+.cap{margin-right:5px}
+.room-admin{margin-top:12px;padding-top:10px;border-top:1px dashed #4a3d22;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.room-admin>b{color:var(--gold);font:800 11px Inter,sans-serif;letter-spacing:.14em;text-transform:uppercase;margin-right:4px}
+.civpick{position:relative;display:inline-block;min-width:250px;max-width:100%}
+.civpick-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border-radius:8px;border:1px solid #3a3327;background:#111114;color:#fff;font:inherit;font-size:13px;cursor:pointer;text-align:left}
+.civpick-btn:hover,.civpick-btn[aria-expanded="true"]{border-color:var(--gold)}
+.civpick-list{position:absolute;z-index:30;left:0;right:0;top:calc(100% + 4px);max-height:300px;overflow:auto;margin:0;padding:4px;list-style:none;background:#121216;border:1px solid #4a3d22;border-radius:10px;box-shadow:0 18px 50px #000b}
+.civpick-list[hidden]{display:none}
+.civpick-list:focus{outline:0}
+.civpick-list li{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;font-size:13px;color:#e9e6dd;cursor:pointer}
+.civpick-list li:hover,.civpick-list li.act{background:#2a2112}
+.civpick-list li[aria-selected="true"]{background:#3a2c0f;color:#ffdb78}
+.civpick-list li[aria-disabled="true"]{opacity:.38;cursor:not-allowed}
+.civpick-list li small{margin-left:auto;color:#8f8b82;font-size:10.5px}
+@media(max-width:600px){.room-teams{grid-template-columns:1fr}.civpick{display:block;width:100%}}
 @media(max-width:600px){.room-picks{grid-template-columns:1fr}}
 .sch{display:grid;grid-template-columns:72px 150px 1fr;gap:10px;padding:8px 0;border-top:1px solid #ffffff0d;font-size:12.5px;color:#cfcac0;align-items:baseline}
 .sch b{color:var(--white)}.sch span:nth-child(2){color:#a29e95}
@@ -357,7 +387,47 @@ function gamesLine(m){const g=m.games.filter(x=>x.status==='done'||x.status==='p
   if(x.status==='playing')return `G${x.game} <b style="color:#8fe0b2">● live</b>${x.map?' · 🗺️ '+esc(x.map):''}${link}`;
   const who=x.p1_civ||x.p2_civ?`<b>${esc(x.p1_civ||'?')}</b> vs <b>${esc(x.p2_civ||'?')}</b>`:x.winner_side?`${esc((x.winner_side===1?m.p1:m.p2)?.username||'')} won`:'';
   return `G${x.game}: ${who}${x.map?' · 🗺️ '+esc(x.map):''}${link}`}).join('<br>')}</div>`}
-let roomSel={key:'',bans:[],pick:null};
+const TEAM_DOT=['🔴','🔵'];
+function civCell(n){const f=n?civFlag(n):'';return `<span class="cf">${f&&f!=='?'?f:''}<span>${esc(n)}</span></span>`}
+/* Both teams, side by side: Team 1 on the left, Team 2 on the right. Teammates' civs show for your own team only (until both teams are locked in). */
+function roomTeams(R,mode){
+ return `<p class="room-legend">⭐ = captain</p><div class="room-teams">${R.teams.map(T=>`<section class="rteam ${T.mine?'ours':''}" aria-label="Team ${T.team}"><h5><span aria-hidden="true">${TEAM_DOT[T.team-1]}</span>Team ${T.team}${mode==='picks'&&T.locked?'<i>🔒 locked</i>':''}${T.mine?'<em>Your team</em>':''}</h5>${T.players.map(p=>`<div class="rpl ${p.me?'me':''}"><span class="rpn">${p.captain?'<span class="cap" title="Captain" aria-label="Captain">⭐</span>':''}${p.me?'You':esc(p.name)}</span><span class="rpc">${p.civ?civCell(p.civ):mode==='picks'?(p.picked?'<span class="w">✓ picked</span>':'<span class="w">…</span>'):''}</span></div>`).join('')}</section>`).join('')}</div>`}
+function civPicker(R,cur){
+ const un=new Set(R.civ.unavailable||[]);
+ return `<div class="civpick"><button type="button" class="civpick-btn" id="roomPickBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="roomPickList" aria-label="Your civilization"><span id="roomPickCur">${cur?civCell(cur):'<span style="color:#a29e95">Choose a civ…</span>'}</span><span aria-hidden="true">▾</span></button><ul class="civpick-list" id="roomPickList" role="listbox" tabindex="-1" aria-label="Civilizations" hidden>${CIVS.map((c,i)=>`<li role="option" id="rp-${i}" data-civ="${esc(c)}" aria-selected="${c===cur}" ${un.has(c)?'aria-disabled="true"':''}>${civCell(c)}${un.has(c)?'<small>not available</small>':''}</li>`).join('')}</ul></div>`}
+function roomAdmin(R,m,kind){
+ const A=R.admin;if(!A||!['civ_select','pre_match'].includes(R.phase))return '';
+ const mid=`data-rm="${m.id}" data-rk="${kind}"`;
+ const lock=A.teams.map(t=>{const off=R.phase!=='civ_select'||t.locked||!t.all_picked;return `<button class="btn secondary" type="button" data-room="civ_lock" ${mid} data-team="${t.team}" data-asadmin="1" ${off?'disabled':''} title="${t.locked?'Already locked in':!t.all_picked?t.picked+' of '+t.size+' have picked':'Lock this team in'}">🔒 Lock Team ${t.team}${t.locked?' ✓':` (${t.picked}/${t.size})`}</button>`}).join('');
+ return `<div class="room-admin"><b>Admin</b>${lock}${R.phase==='pre_match'?`<button class="btn success" type="button" data-room="start" ${mid} data-asadmin="1">▶ Start match</button>`:''}</div>`}
+/* An admin who is not playing sees every live match's room with the controls, but no secrets. */
+function roomSpectator(m,kind){
+ const R=m.room;if(!R||!R.spectator)return '';
+ const lbl={map_veto_coinflip:'Map veto: coin flip',map_veto:'Map veto',civ_ban:'Civ bans',civ_select:'Civ picks',pre_match:'Ready to start',in_match:'Game in progress'}[R.phase]||R.phase;
+ return `<div class="tm-card room" style="margin:8px 0 0"><h4>🛠️ Match room · ${esc(lbl)}</h4>${roomTeams(R,'picks')}${roomAdmin(R,m,kind)||'<small style="color:#a29e95">Nothing to do for this step.</small>'}</div>`}
+function civpickClose(focus){const l=$('roomPickList'),b=$('roomPickBtn');if(!l)return;l.hidden=true;if(b){b.setAttribute('aria-expanded','false');b.focus&&focus&&b.focus()}l.removeAttribute('aria-activedescendant');roomSel.open=false}
+function civpickAct(li){const l=$('roomPickList');if(!l||!li)return;l.querySelectorAll('.act').forEach(x=>x.classList.remove('act'));li.classList.add('act');li.scrollIntoView({block:'nearest'});l.setAttribute('aria-activedescendant',li.id)}
+function civpickOpen(){const l=$('roomPickList'),b=$('roomPickBtn');if(!l)return;l.hidden=false;b.setAttribute('aria-expanded','true');roomSel.open=true;civpickAct(l.querySelector('[aria-selected="true"]')||l.querySelector('li:not([aria-disabled="true"])'));l.focus()}
+function civpickChoose(li){if(!li||li.getAttribute('aria-disabled')==='true')return;roomSel.pick=li.dataset.civ;$('roomPickCur').innerHTML=civCell(roomSel.pick);$('roomPickList').querySelectorAll('li').forEach(x=>x.setAttribute('aria-selected',String(x===li)));civpickClose(true)}
+document.addEventListener('click',e=>{
+ const t=e.target;if(!t||!t.closest)return;
+ if(t.closest('#roomPickBtn')){e.preventDefault();const l=$('roomPickList');l&&(l.hidden?civpickOpen():civpickClose(true));return}
+ const li=t.closest('#roomPickList li');if(li){civpickChoose(li);return}
+ const l=$('roomPickList');if(l&&!l.hidden&&!t.closest('.civpick'))civpickClose(false)});
+document.addEventListener('keydown',e=>{
+ const l=$('roomPickList'),btn=$('roomPickBtn');if(!l||!btn||!(l.contains(document.activeElement)||document.activeElement===btn))return;
+ if(l.hidden){if(document.activeElement===btn&&(e.key==='ArrowDown'||e.key==='ArrowUp')){e.preventDefault();civpickOpen()}return}
+ const items=[...l.querySelectorAll('li:not([aria-disabled="true"])')],cur=l.querySelector('li.act'),idx=items.indexOf(cur);
+ if(e.key==='Escape'){e.preventDefault();e.stopPropagation();civpickClose(true)}
+ else if(e.key==='ArrowDown'){e.preventDefault();civpickAct(items[Math.min(items.length-1,idx+1)])}
+ else if(e.key==='ArrowUp'){e.preventDefault();civpickAct(items[Math.max(0,idx-1)])}
+ else if(e.key==='Home'){e.preventDefault();civpickAct(items[0])}
+ else if(e.key==='End'){e.preventDefault();civpickAct(items[items.length-1])}
+ else if(e.key==='Enter'||e.key===' '){e.preventDefault();civpickChoose(cur)}
+ else if(e.key==='Tab'){civpickClose(false)}
+ else if(e.key.length===1&&/\S/.test(e.key)){const k=e.key.toLowerCase(),order=[...items.slice(idx+1),...items.slice(0,idx+1)],hit=order.find(x=>x.dataset.civ.toLowerCase().startsWith(k));if(hit)civpickAct(hit)}
+},true);
+let roomSel={key:'',bans:[],pick:null,open:false};
 function roomResult(R,m,kind){
  const mine=R.me_team,other=mine===1?2:1,P=R.pending,rm=`data-rm="${m.id}" data-rk="${kind}"`;
  const b=(cls,label,act,v)=>`<button class="btn ${cls}" type="button" data-room="${act}" ${rm} ${v!=null?`data-v="${v}"`:''}>${label}</button>`;
@@ -378,30 +448,30 @@ function roomPanel(m,kind){
   body=`<p>${R.map.banner_me?'<b>Your turn:</b> ban a map.':`${esc(R.map.banner||'…')} is banning a map.`}</p><div class="room-grid">${R.map.pool.map(x=>btn(R.map.banner_me?'danger':'secondary',esc(x),'veto_ban',x,!R.map.banner_me)).join('')}</div>${R.map.bans.length?`<small style="color:#a29e95">Banned: ${R.map.bans.map(x=>esc(x.map)+' ('+esc(x.by)+')').join(', ')}</small>`:''}`}
  else if(R.phase==='civ_ban'){const n=R.civ.ban_count;title=`🚫 Civ bans: ${n} per ${R.one_v_one?'player':'team'}`;
   if(!CIVS.length){body='<p>Loading the civilizations…</p>'}
-  else if(R.civ.my_ban_locked)body=`<p>✅ Your bans are locked in${R.civ.my_bans.length?': <b>'+R.civ.my_bans.map(esc).join(', ')+'</b>':''}. ${R.civ.opp_ban_locked?'Both sides are in.':'Waiting for the other side.'}</p>`
+  else if(R.civ.my_ban_locked)body=`<p>✅ Your bans are locked in${R.civ.my_bans.length?': <b>'+R.civ.my_bans.map(civCell).join(', ')+'</b>':''}. ${R.civ.opp_ban_locked?'Both sides are in.':'Waiting for the other side.'}</p>`
   else if(R.captain){const sel=new Set(roomSel.bans);
-   body=`<p>Ban <b>${n}</b> civ${n===1?'':'s'} for the other ${R.one_v_one?'player':'team'}. They stay hidden until both sides lock in. <b data-bancount>${sel.size}/${n}</b> selected.</p><div class="room-grid" data-n="${n}">${CIVS.filter(c=>c!=='Random').map(c=>`<label class="civ-chip"><input type="checkbox" class="roomban" value="${esc(c)}" ${sel.has(c)?'checked':''}><span>${esc(c)}</span></label>`).join('')}</div><div class="tm-actions">${btn('primary','🔒 Lock in bans','civ_ban')}${btn('secondary','⏭ Skip bans','skip_bans')}</div><small style="color:#a29e95">Skipping needs both captains to agree.</small>`}
+   body=`<p>Ban <b>${n}</b> civ${n===1?'':'s'} for the other ${R.one_v_one?'player':'team'}. They stay hidden until both sides lock in. <b data-bancount>${sel.size}/${n}</b> selected.</p><div class="room-grid" data-n="${n}">${CIVS.filter(c=>c!=='Random').map(c=>`<label class="civ-chip"><input type="checkbox" class="roomban" value="${esc(c)}" ${sel.has(c)?'checked':''}><span>${civCell(c)}</span></label>`).join('')}</div><div class="tm-actions">${btn('primary','🔒 Lock in bans','civ_ban')}${btn('secondary','⏭ Skip bans','skip_bans')}</div><small style="color:#a29e95">Skipping needs both captains to agree.</small>`}
   else body=`<p>Your captain is choosing the bans. ${R.civ.opp_ban_locked?'The other side has locked in.':''}</p>`}
  else if(R.phase==='civ_select'){title='🎯 Choose your civilization';
-  const b=R.civ.bans;
-  const bansLine=b&&!R.civ.skipped?`<p>🚫 <b>Banned:</b> Team 1 banned ${b.team1.length?b.team1.map(esc).join(', '):'nothing'} · Team 2 banned ${b.team2.length?b.team2.map(esc).join(', '):'nothing'}</p>`:(R.civ.skipped?'<p>🚫 Civ bans were skipped.</p>':'');
+  const bn=R.civ.bans;
+  const bansLine=bn&&!R.civ.skipped?`<p>🚫 <b>Banned:</b> Team 1 banned ${bn.team1.length?bn.team1.map(civCell).join(', '):'nothing'} · Team 2 banned ${bn.team2.length?bn.team2.map(civCell).join(', '):'nothing'}</p>`:(R.civ.skipped?'<p>🚫 Civ bans were skipped.</p>':'');
   if(!CIVS.length){body=bansLine+'<p>Loading the civilizations…</p>'}
-  else{const avail=CIVS.filter(c=>!R.civ.unavailable.includes(c)),cur=roomSel.pick||'';
-   body=bansLine+(R.civ.my_locked?`<p>✅ Your team has locked in. Your civ: <b>${esc(R.civ.my_pick||'?')}</b>. ${R.civ.opp_locked?'Both teams are in.':'Waiting for the other team.'}</p>`
-    :`<p>Pick your civ. It stays hidden until both teams lock in.</p><div class="tm-actions"><select id="roomPick" aria-label="Your civilization" style="padding:8px 10px;border-radius:8px;border:1px solid #3a3327;background:#111114;color:#fff;font:inherit;min-width:200px"><option value="">Choose a civ…</option>${avail.map(c=>`<option ${c===cur?'selected':''}>${esc(c)}</option>`).join('')}</select>${btn('primary','Pick','civ_pick')}</div>`)
-    +`<div class="room-picks">${R.civ.team.map(x=>`<div><span>${x.me?'You':esc(x.name)}</span><b>${x.civ?esc(x.civ):x.picked?'✓ picked':'…'}</b></div>`).join('')}</div>`
+  else{const cur=roomSel.pick||'';
+   const waitCap=!R.captain&&R.civ.all_picked&&!R.civ.my_locked?`<p>Everyone on your team has picked. Waiting for ⭐ <b>${esc(R.captain_name)}</b> to lock in your team's civs.</p>`:'';
+   body=bansLine+(R.civ.my_locked?`<p>🔒 Your team has locked in${R.civ.my_pick?'. Your civ: <b>'+civCell(R.civ.my_pick)+'</b>':''}. ${R.civ.opp_locked?'Both teams are in.':'Waiting for the other team.'}</p>`
+    :`<p>Pick your civ. Your teammates can see it. The other team can't until both teams lock in.</p><div class="tm-actions">${civPicker(R,cur)}${btn('primary','Pick','civ_pick')}</div>`)
+    +roomTeams(R,'picks')+waitCap
     +(R.captain&&!R.civ.my_locked?`<div class="tm-actions">${btn('success','🔒 Lock in our civs','civ_lock','',!R.civ.all_picked)}</div>${R.civ.all_picked?'':'<small style="color:#a29e95">Everyone on your team has to pick first.</small>'}`:'')}}
  else if(R.phase==='pre_match'){title='✅ Teams set: ready to play';
-  const all=R.civ.all||[];
-  body=`<div class="room-picks">${all.map(x=>`<div><span>${x.team===R.me_team?'🟢':'🔴'} ${esc(x.name)}</span><b>${esc(x.civ)}</b></div>`).join('')}</div>`+(R.captain?`<p>Everyone ready? Start the match, then join the in-game lobby.</p><div class="tm-actions">${btn('success','▶ Start match','start')}</div>`:'<p>Waiting for the captain to start the match.</p>')}
- else{title='⚔️ Match in progress';body=roomResult(R,m,kind)}
- return `<div class="tm-card room" style="margin:10px 0 0"><h4>${title}</h4>${R.map&&R.map.final&&R.phase!=='in_match'?`<p>🗺️ Map: <b>${esc(R.map.final)}</b></p>`:''}${body}</div>`}
+  body=roomTeams(R,'final')+(R.captain?`<p>Everyone ready? Start the match, then join the in-game lobby.</p><div class="tm-actions">${btn('success','▶ Start match','start')}</div>`:`<p>Waiting for ⭐ <b>${esc(R.captain_name)}</b> to start the match.</p>`)}
+ else{title='▶️ Match in progress';body=(kind==='team'?roomTeams(R,'final'):'')+roomResult(R,m,kind)}
+ return `<div class="tm-card room" style="margin:10px 0 0"><h4>${title}</h4>${R.map&&R.map.final&&R.phase!=='in_match'?`<p>🗺️ Map: <b>${esc(R.map.final)}</b></p>`:''}${body}${roomAdmin(R,m,kind)}</div>`}
 function matchPanel(m,kind){
  if(!m||!(m.status==='playing'||m.status==='starting'))return '';
  if(m.room&&(kind==='team'||m.room.phase!=='in_match'))return roomPanel(m,kind);
  return kind==='bracket'?reportBox(m):''}
-const roomActive=()=>{const m=(D&&D.me&&D.me.match)||(D&&D.random&&D.random.my_match);return !!(m&&m.room)};
-setInterval(()=>{if(document.hidden||busy||!roomActive())return;const a=document.activeElement;if(a&&(a.id==='roomPick'||a.tagName==='SELECT'))return;load()},5000);
+const roomActive=()=>{const m=(D&&D.me&&D.me.match)||(D&&D.random&&D.random.my_match);return !!(m&&m.room)||!!(D&&D.is_admin&&D.random&&(D.random.rounds||[]).some(r=>(r.matches||[]).some(x=>x.room)))};
+setInterval(()=>{if(document.hidden||busy||!roomActive())return;const a=document.activeElement;if(roomSel.open||(a&&(a.id==='roomPick'||a.tagName==='SELECT')))return;load()},5000);
 function reportBox(m){
  if(!m||!(m.status==='playing'||m.status==='starting'))return '';
  const mine=D.me.my_slot,other=mine===1?2:1,P=m.pending,mid=`data-m="${m.id}"`;
@@ -600,7 +670,7 @@ function rtSched(upcomingOnly){
  const rows=S.map(s=>{const w=s.opens_at?when(s.opens_at):(s.status==='scheduled'?'when the round before ends':'');
   if(s.bye)return `<div class="sch"><b>Round ${s.round}</b><span>${esc(w)}</span><span>🪑 Sitting out · you get ${t.points_bye} point${t.points_bye===1?'':'s'}</span></div>`;
   const st=s.status==='done'?(s.won===true?' · <b style="color:#8fe0b2">won</b>':s.won===false?' · <b style="color:#f0a090">lost</b>':' · no result'):['ready','starting','playing'].includes(s.status)?' · <b style="color:#8fe0b2">open now</b>':'';
-  return `<div class="sch"><b>Round ${s.round}</b><span>${esc(w)}</span><span>with <b>${s.with.map(p=>esc(p.username)).join(', ')}</b> vs ${s.against.map(p=>esc(p.username)).join(', ')}${s.map?` · 🗺️ ${esc(s.map)}`:''}${st}</span></div>`}).join('');
+  return `<div class="sch"><b>Round ${s.round}</b><span>${esc(w)}</span><span><b>You${s.with.length?', ':''}${s.with.map(p=>esc(p.username)).join(', ')}</b> vs ${s.against.map(p=>esc(p.username)).join(', ')}${s.map?` · 🗺️ ${esc(s.map)}`:''}${st}</span></div>`}).join('');
  return `<div class="tm-card"><h4>📅 Your schedule</h4>${rows}</div>`}
 function rtLockedCard(){
  const t=D.tournament,me=D.me;
@@ -655,7 +725,7 @@ function rtMatch(m,round){
  const si=(m.standins||[]).map(x=>` · Stand-in: ${esc(x.in&&x.in.username||'?')} for ${esc(x.out&&x.out.username||'?')}`).join('');
  return `<div class="rt-mc ${m.me_in?'rt-mine':live?'rt-on':''}"><div class="rt-mh"><b>Match ${m.match_no}</b><span class="rt-st" style="color:${scol}">${stxt}</span></div>
   <div class="rt-mb">${rtSide(m.team1,m.team1_avg,c1,false,m)}<div class="rt-vs">${m.winner_team?`<b>${m.winner_team===1?'1–0':'0–1'}</b>Team ${m.winner_team}`:'vs'}</div>${rtSide(m.team2,m.team2_avg,c2,true,m)}</div>
-  <div class="rt-foot">${m.map?`🗺️ ${esc(m.map)}`:''}${m.aoe_match_id?` · <a href="#" data-match="${m.aoe_match_id}">${live?'▶ Watch live':'Details ↗'}</a>`:''}${note}${si}${admin}</div></div>`}
+  <div class="rt-foot">${m.map?`🗺️ ${esc(m.map)}`:''}${m.aoe_match_id?` · <a href="#" data-match="${m.aoe_match_id}">${live?'▶ Watch live':'Details ↗'}</a>`:''}${note}${si}${admin}</div>${roomSpectator(m,'team')}</div>`}
 function rtStandings(){
  const R=D.random,t=D.tournament,rows=R.standings;
  if(!rows.length)return '<div class="t-empty">Standings appear after the first round.</div>';
@@ -756,11 +826,11 @@ document.addEventListener('click',async e=>{
  const psw=e.target.closest('[data-pswap]');if(psw){const sels=psw.parentElement.querySelectorAll('select');
   if(!confirm(`Swap ${sels[0].options[sels[0].selectedIndex].text.replace('Move: ','')} with ${sels[1].options[sels[1].selectedIndex].text} in round ${psw.dataset.srnd}? Their teams for this round change, and anyone in these matches has to press Ready again.`))return;
   psw.disabled=true;await act(`/api/tournaments/${TID}/admin`,{action:'swap',round:+psw.dataset.srnd,a_user:sels[0].value,b_user:sels[1].value});return}
- const rmb=e.target.closest('[data-room]');if(rmb){const ra=rmb.dataset.room,body={kind:rmb.dataset.rk,match_id:+rmb.dataset.rm,action:ra};
+ const rmb=e.target.closest('[data-room]');if(rmb){const ra=rmb.dataset.room,body={kind:rmb.dataset.rk,match_id:+rmb.dataset.rm,action:ra};if(rmb.dataset.asadmin){body.as_admin=true;if(rmb.dataset.team)body.team=+rmb.dataset.team}
   if(ra==='veto_flip')body.choice=rmb.dataset.v;else if(ra==='veto_order')body.order=rmb.dataset.v;else if(ra==='veto_ban')body.map=rmb.dataset.v;
   else if(ra==='civ_ban'){body.civs=roomSel.bans;if(!confirm('Lock in these bans? You can\'t change them afterwards.'))return}
-  else if(ra==='civ_pick'){body.civ=(document.getElementById('roomPick')||{}).value;if(!body.civ){msg={ok:false,text:'Choose a civ first.'};render();return}}
-  else if(ra==='civ_lock'&&!confirm('Lock in your team\'s civs? Nobody can change them afterwards.'))return;
+  else if(ra==='civ_pick'){body.civ=roomSel.pick;if(!body.civ){msg={ok:false,text:'Choose a civ first.'};render();return}}
+  else if(ra==='civ_lock'&&!confirm(rmb.dataset.asadmin?'Lock in Team '+rmb.dataset.team+'\'s civs? Nobody on that team can change them afterwards.':'Lock in your team\'s civs? Nobody can change them afterwards.'))return;
   else if(ra==='victory'){body.winner=+rmb.dataset.v;if(!confirm(body.winner===(roomSel.me||0)?'Report your team as the winner?':'Confirm this result?'))return}
   rmb.disabled=true;await act(`/api/tournaments/${TID}/room`,body);return}
  const rpg=e.target.closest('[data-report],[data-reportcancel]');if(rpg){const body={match_id:+rpg.dataset.m};

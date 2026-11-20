@@ -3738,6 +3738,7 @@ async def api_tournament(request: Request, tid: int):
     t = await _tournament_or_404(tid)
     user = current_user(request)
     uid = user["uid"] if user else None
+    adm = bool(user and is_admin(user))
     players = [dict(r) for r in await fetch("""
         SELECT * FROM tournament_players WHERE tournament_id=$1 AND status <> 'withdrawn'
         ORDER BY seed NULLS LAST, (status='waitlist'), signed_up_at
@@ -3769,11 +3770,11 @@ async def api_tournament(request: Request, tid: int):
     rooms = {}
     if uid:
         for m in matches:
-            if m["status"] in ("starting", "playing") and uid in (mem.get(m["p1_id"], []) + mem.get(m["p2_id"], [])):
+            if m["status"] in ("starting", "playing") and (adm or uid in (mem.get(m["p1_id"], []) + mem.get(m["p2_id"], []))):
                 st = next((json_obj_safe(g.get("live_state")) for g in games if g["tmatch_id"] == m["id"] and g["status"] == "playing" and g.get("live_state")), None)
                 if st:
                     ids_in = [str(x) for x in (st.get("team1_ids") or []) + (st.get("team2_ids") or []) + [st.get("pending_by_id"), st.get("map_flip_winner")] if x]
-                    rooms[m["id"]] = _room_view(st, uid, await people(ids_in))
+                    rooms[m["id"]] = _room_view(st, uid, await people(ids_in), admin=adm)
     def match_out(m):
         gs = [g for g in games if g["tmatch_id"] == m["id"]]
         civs = []
@@ -3821,10 +3822,10 @@ async def api_tournament(request: Request, tid: int):
         rooms_t = {}
         if uid:
             for m in tms:
-                if m["status"] in ("starting", "playing") and uid in m["team1"] + m["team2"] and m.get("live_state"):
+                if m["status"] in ("starting", "playing") and (adm or uid in m["team1"] + m["team2"]) and m.get("live_state"):
                     st = json_obj_safe(m["live_state"])
                     ids_in = [str(x) for x in (st.get("team1_ids") or []) + (st.get("team2_ids") or []) + [st.get("pending_by_id"), st.get("map_flip_winner")] if x]
-                    rooms_t[m["id"]] = _room_view(st, uid, await people(ids_in))
+                    rooms_t[m["id"]] = _room_view(st, uid, await people(ids_in), admin=adm)
         def tm_out(m):
             team_ids = m["team1"] + m["team2"]
             civs = json_obj_safe(m.get("civ_data"))
@@ -4128,15 +4129,19 @@ async def api_tournament_checkin(request: Request, tid: int):
 ROOM_ACTIONS = ("veto_flip", "veto_order", "veto_ban", "civ_ban", "civ_pick", "civ_lock", "skip_bans", "start", "victory", "cancel")
 
 
-def _room_view(state: dict, uid: str, names: dict) -> Optional[dict]:
+ADMIN_ROOM_ACTIONS = ("civ_lock", "start")           # what an admin may do for a match they are not captain of
+
+
+def _room_view(state: dict, uid: str, names: dict, admin: bool = False) -> Optional[dict]:
     """The live match room (map veto, civ bans, civ picks, start) as `uid` may see it. Like in Discord, a side's bans
-    stay hidden until both have locked in, and picks until both teams have locked in."""
+    stay hidden until both have locked in. Civ picks are visible to the player's own team (so teammates can plan together)
+    and to the other team only once both teams have locked in. An admin who is not playing gets the controls but no secrets."""
     if not state or state.get("phase") not in ("map_veto_coinflip", "map_veto", "civ_ban", "civ_select", "pre_match", "in_match"):
         return None
     t1 = [str(x) for x in state.get("team1_ids") or []]
     t2 = [str(x) for x in state.get("team2_ids") or []]
     me = 1 if uid in t1 else 2 if uid in t2 else None
-    if me is None:
+    if me is None and not admin:
         return None
     nm = lambda i: (names.get(str(i)) or {}).get("username") or "A player"
     phase = state["phase"]
@@ -4145,6 +4150,24 @@ def _room_view(state: dict, uid: str, names: dict) -> Optional[dict]:
     one = state.get("queue_type") == "1v1"
     n_bans = 1 if one else int(rules.get("civ_bans") if rules.get("civ_bans") is not None else 2)
     civ = lambda c: canonical_civ(c)
+    picks = {str(k): v for k, v in (state.get("civ_picks") or {}).items()}
+    pick_locked = {1: bool(state.get("cap1_locked")), 2: bool(state.get("cap2_locked"))}
+    picks_revealed = pick_locked[1] and pick_locked[2]
+
+    def side(team, ids):
+        see = picks_revealed or me == team          # your own team's civs, or everybody's once both teams are locked in
+        return {"team": team, "mine": me == team, "locked": pick_locked[team], "captain": nm(cap[team]),
+                "players": [{"name": nm(i), "me": i == uid, "captain": i == cap[team], "picked": i in picks,
+                             "civ": civ(picks[i]) if i in picks and see else None} for i in ids]}
+    teams = [side(1, t1), side(2, t2)]
+    pa = state.get("pending_action")
+    pending = ({"action": pa, "by": nm(state.get("pending_by_id")), "by_me": str(state.get("pending_by_id")) == uid,
+                "winner_team": state.get("pending_winner") if pa == "victory" else None} if pa in ("victory", "cancel") else None)
+    adm = ({"phase": phase, "teams": [{"team": k, "locked": pick_locked[k], "size": len(ids), "picked": sum(1 for i in ids if i in picks),
+                                       "all_picked": all(i in picks for i in ids)} for k, ids in ((1, t1), (2, t2))]} if admin else None)
+    if me is None:                                   # an admin who is not in this match: controls only
+        return {"phase": phase, "me_team": None, "spectator": True, "captain": False, "one_v_one": one,
+                "map": {"final": state.get("final_map")}, "teams": teams, "pending": pending, "admin": adm}
     # map veto
     pool, bans = list(state.get("map_pool") or []), state.get("map_bans") or []
     banner = None
@@ -4154,10 +4177,11 @@ def _room_view(state: dict, uid: str, names: dict) -> Optional[dict]:
             banner = cap[1 if (state["map_ban_order"] - 1 + len(bans)) % 2 == 0 else 2]
     fw = str(state.get("map_flip_winner")) if state.get("map_flip_winner") else None
     out = {
-        "phase": phase, "me_team": me, "captain": uid == cap[me], "one_v_one": one,
+        "phase": phase, "me_team": me, "captain": uid == cap[me], "captain_name": nm(cap[me]), "one_v_one": one,
         "map": {"final": state.get("final_map"), "pool": pool, "bans": [{"map": m, "by": nm(i)} for i, m in bans],
                 "banner": nm(banner) if banner else None, "banner_me": banner == uid},
         "flip": {"flipper": nm(cap[1]), "flipper_me": uid == cap[1], "winner": nm(fw) if fw else None, "winner_me": fw == uid},
+        "teams": teams, "admin": adm,
     }
     # civ bans
     if one:
@@ -4169,9 +4193,6 @@ def _room_view(state: dict, uid: str, names: dict) -> Optional[dict]:
     skipped = bool(state.get("bans_skipped"))
     bans_revealed = skipped or (locked[1] and locked[2]) or phase in ("civ_select", "pre_match", "in_match")
     opp = 2 if me == 1 else 1
-    picks = {str(k): v for k, v in (state.get("civ_picks") or {}).items()}
-    pick_locked = {1: bool(state.get("cap1_locked")), 2: bool(state.get("cap2_locked"))}
-    picks_revealed = pick_locked[1] and pick_locked[2]
     mine = t1 if me == 1 else t2
     unavailable = ([civ(c) for c in lists[opp]] if bans_revealed and not skipped else []) + \
                   [civ(c) for c in (state.get("civ_exclusions") or {}).get(uid, []) if civ(c) not in [civ(x) for x in lists[opp]]]
@@ -4180,13 +4201,11 @@ def _room_view(state: dict, uid: str, names: dict) -> Optional[dict]:
         "bans": {"team1": [civ(c) for c in lists[1]], "team2": [civ(c) for c in lists[2]]} if bans_revealed else None, "skipped": skipped,
         "unavailable": unavailable, "my_pick": civ(picks[uid]) if uid in picks else None,
         "my_locked": pick_locked[me], "opp_locked": pick_locked[opp], "revealed": picks_revealed,
-        "team": [{"name": nm(i), "me": i == uid, "picked": i in picks, "civ": civ(picks[i]) if i in picks and (i == uid or picks_revealed) else None} for i in mine],
+        "team": [{"name": nm(i), "me": i == uid, "picked": i in picks, "civ": civ(picks[i]) if i in picks else None} for i in mine],
         "all": ([{"name": nm(i), "team": 1 if i in t1 else 2, "civ": civ(picks.get(i, "?"))} for i in t1 + t2] if picks_revealed else None),
         "all_picked": all(i in picks for i in mine),
     }
-    pa = state.get("pending_action")
-    out["pending"] = ({"action": pa, "by": nm(state.get("pending_by_id")), "by_me": str(state.get("pending_by_id")) == uid,
-                       "winner_team": state.get("pending_winner") if pa == "victory" else None} if pa in ("victory", "cancel") else None)
+    out["pending"] = pending
     return out
 
 
@@ -4227,9 +4246,11 @@ async def api_room(request: Request, tid: int):
     action, uid = str(b.get("action") or ""), user["uid"]
     if action not in ROOM_ACTIONS:
         raise HTTPException(status_code=400, detail="Unknown action.")
+    is_adm = is_admin(user)
     if b.get("kind") == "team":                          # All Random
         rows = await fetch("SELECT * FROM tournament_team_matches WHERE tournament_id=$1 AND id=$2", tid, int(b.get("match_id") or 0))
-        if not rows or uid not in rows[0]["team1"] + rows[0]["team2"]:
+        playing = bool(rows) and uid in rows[0]["team1"] + rows[0]["team2"]
+        if not rows or not (playing or (is_adm and action in ADMIN_ROOM_ACTIONS)):
             raise HTTPException(status_code=404, detail="That isn't your match.")
         if rows[0]["status"] not in ("starting", "playing") or not rows[0]["aoe_match_id"]:
             raise HTTPException(status_code=400, detail="This match isn't being played right now.")
@@ -4239,7 +4260,8 @@ async def api_room(request: Request, tid: int):
         if not rows:
             raise HTTPException(status_code=404, detail="That isn't your match.")
         m1, m2 = await entrant_members(rows[0]["p1_id"]), await entrant_members(rows[0]["p2_id"])
-        if uid not in m1 + m2:
+        playing = uid in m1 + m2
+        if not (playing or (is_adm and action in ADMIN_ROOM_ACTIONS)):
             raise HTTPException(status_code=404, detail="That isn't your match.")
         game = await fetch("SELECT * FROM tournament_games WHERE tmatch_id=$1 AND status='playing' AND aoe_match_id IS NOT NULL ORDER BY id DESC LIMIT 1", rows[0]["id"])
         if rows[0]["status"] not in ("starting", "playing") or not game:
@@ -4252,6 +4274,13 @@ async def api_room(request: Request, tid: int):
             raise HTTPException(status_code=400, detail="Say who won.")
         winner_user = sides[slot][0]
     payload = {k: b.get(k) for k in ("choice", "order", "map", "civs", "civ")}
+    if is_adm and action in ADMIN_ROOM_ACTIONS and (b.get("as_admin") or not playing):
+        payload["as_admin"] = True                        # only ever set here, for a website admin
+        if action == "civ_lock":
+            team = int(b.get("team") or 0)
+            if team not in (1, 2):
+                raise HTTPException(status_code=400, detail="Say which team's civs to lock in.")
+            payload["team"] = team
     return await _queue_match_action(uid, aoe_id, action, winner_user, payload)
 
 
